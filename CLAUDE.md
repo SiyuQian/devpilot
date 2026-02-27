@@ -9,14 +9,17 @@ This is a **Claude Code Developer Kit** — a collection of CLI tools, skills, a
 ## Repository Structure
 
 - `cmd/devkit/` — CLI entry point
-- `internal/cli/` — Cobra command definitions (login, logout, status)
+- `internal/cli/` — Cobra command definitions (login, logout, status, run)
 - `internal/config/` — Credential storage (~/.config/devkit/credentials.json)
 - `internal/services/` — Service interface + implementations (Trello)
+- `internal/trello/` — Trello REST API client (boards, lists, cards)
+- `internal/runner/` — Task runner (executor, git ops, main loop)
 - `.claude/skills/` — Built-in development skills
   - `skill-creator/` — Guide + scripts for creating new skills
   - `mcp-builder/` — Guide + scripts for building MCP servers
   - `pm/` — Product manager skill for market research
   - `trello/` — Trello board and card management skill
+  - `task-executor/` — Autonomous task plan execution (used by `devkit run`)
 - `docs/plans/` — Design and planning documents
 
 ## Build & Development Commands
@@ -29,6 +32,13 @@ make test                          # Run all tests
 make run ARGS="--help"             # Run with arguments
 make run ARGS="login trello"       # Login to Trello
 make run ARGS="status"             # Check auth status
+```
+
+### Task Runner
+
+```bash
+make run ARGS="run --board 'Sprint Board'"                  # Run task runner
+make run ARGS="run --board 'Sprint Board' --once --dry-run" # Test with one card, no execution
 ```
 
 ### Skill Helper Scripts (Python 3)
@@ -45,9 +55,11 @@ python3 .claude/skills/skill-creator/scripts/quick_validate.py   # Validate skil
 
 Go CLI tool using Cobra for subcommand routing:
 - `cmd/devkit/` — Entry point (`main.go` calls `cli.Execute()`)
-- `internal/cli/` — Cobra commands (root, login, logout, status)
+- `internal/cli/` — Cobra commands (root, login, logout, status, run)
 - `internal/config/` — Credential storage (~/.config/devkit/credentials.json)
 - `internal/services/` — Service interface + implementations (Trello)
+- `internal/trello/` — Trello REST API client (boards, lists, cards)
+- `internal/runner/` — Task runner: Executor (claude -p wrapper), GitOps (branch/PR management), Runner (poll loop)
 - Adding a new service: implement the Service interface in a new file, register in registry.go
 
 ### Skills
