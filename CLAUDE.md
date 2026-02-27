@@ -15,6 +15,8 @@ This is a **Claude Code Developer Kit** — a collection of CLI tools, skills, a
 - `.claude/skills/` — Built-in development skills
   - `skill-creator/` — Guide + scripts for creating new skills
   - `mcp-builder/` — Guide + scripts for building MCP servers
+  - `pm/` — Product manager skill for market research
+  - `trello/` — Trello board and card management skill
 - `docs/plans/` — Design and planning documents
 
 ## Build & Development Commands
@@ -22,11 +24,11 @@ This is a **Claude Code Developer Kit** — a collection of CLI tools, skills, a
 ### Devkit CLI
 
 ```bash
-go build -o devkit ./cmd/devkit   # Build binary
-go test ./...                      # Run all tests
-./devkit --help                    # Show help
-./devkit login trello              # Login to Trello
-./devkit status                    # Check auth status
+make build                         # Build binary
+make test                          # Run all tests
+make run ARGS="--help"             # Run with arguments
+make run ARGS="login trello"       # Login to Trello
+make run ARGS="status"             # Check auth status
 ```
 
 ### Skill Helper Scripts (Python 3)
@@ -55,7 +57,6 @@ Skills are defined by a `SKILL.md` file (metadata + instructions) with optional 
 ## Key Conventions
 
 - CLI is written in Go with Cobra for command routing
-- Node.js >= 18 required for skill helper scripts
 - Go tests via `go test ./...`; no additional test framework
+- Skill helper scripts use Python 3
 - No CI/CD pipeline configured
-- No root-level package.json; skill scripts use Python 3

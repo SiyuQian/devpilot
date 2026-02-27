@@ -1,5 +1,5 @@
-# Compiled binary
-devkit
+# Compiled binaries
+bin/
 
 # Worktrees
 .worktrees/
