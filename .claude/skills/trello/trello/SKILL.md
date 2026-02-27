@@ -5,78 +5,97 @@ description: Interact with Trello boards, lists, and cards directly from Claude 
 
 # Trello
 
-Manage Trello boards and cards. This skill works with the `trello-mcp-server` MCP server which provides structured tools for all Trello operations.
+Manage Trello boards and cards using direct REST API calls with credentials stored by the devkit CLI.
 
 ## Setup
 
-The `trello-mcp-server` MCP must be configured in Claude Code settings. It requires two environment variables:
+Run `devkit login trello` to authenticate. This stores your API key and token at `~/.config/devkit/credentials.json`.
 
-- `TRELLO_API_KEY` — Get from https://trello.com/power-ups/admin → New → API Key
-- `TRELLO_TOKEN` — Click "Token" link on that same page
+If not logged in, tell the user to run `devkit login trello` and stop.
 
-Claude Code MCP config (`.claude/settings.json`):
+## Reading Credentials
 
-```json
-{
-  "mcpServers": {
-    "trello": {
-      "command": "node",
-      "args": ["/path/to/trello-mcp-server/dist/index.js"],
-      "env": {
-        "TRELLO_API_KEY": "your-key",
-        "TRELLO_TOKEN": "your-token"
-      }
-    }
-  }
-}
+Extract credentials from the devkit config:
+
+```bash
+TRELLO_KEY=$(cat ~/.config/devkit/credentials.json | python3 -c "import sys,json; print(json.load(sys.stdin)['trello']['api_key'])")
+TRELLO_TOKEN=$(cat ~/.config/devkit/credentials.json | python3 -c "import sys,json; print(json.load(sys.stdin)['trello']['token'])")
 ```
 
-## Available MCP Tools
+Use these in all API calls as query parameters: `key=$TRELLO_KEY&token=$TRELLO_TOKEN`
 
-| Tool | Action | Key params |
-|------|--------|------------|
-| `trello_list_boards` | List all open boards | — |
-| `trello_get_board` | Board overview with lists and cards | `board_id` or `board_name` |
-| `trello_list_cards` | List cards in a list | `list_id` |
-| `trello_search_cards` | Search cards by keyword | `query`, optional `board_id` |
-| `trello_get_card` | Full card details | `card_id` |
-| `trello_create_card` | Create a new card | `list_id`, `name`, optional `desc`, `due`, `label_ids` |
-| `trello_move_card` | Move card to another list | `card_id`, `list_id` |
-| `trello_add_comment` | Add comment to a card | `card_id`, `text` |
-| `trello_get_board_labels` | Get labels on a board | `board_id` |
-| `trello_get_board_members` | Get board members | `board_id` |
+## API Reference
+
+Base URL: `https://api.trello.com/1`
+
+| Operation | Method | Endpoint | Key params |
+|-----------|--------|----------|------------|
+| List boards | GET | `/members/me/boards?filter=open` | — |
+| Get board | GET | `/boards/{id}?lists=open&cards=open&card_fields=name,idList,labels,due&fields=name,desc` | board ID |
+| List cards in a list | GET | `/lists/{id}/cards` | list ID |
+| Search cards | GET | `/search?query={q}&modelTypes=cards` | query, optional `idBoards` |
+| Get card | GET | `/cards/{id}?fields=name,desc,due,labels,idList,idBoard&members=true&actions=commentCard&actions_limit=10` | card ID |
+| Create card | POST | `/cards` | `idList`, `name`, optional `desc`, `due`, `idLabels` |
+| Move card | PUT | `/cards/{id}` | `idList` (new list) |
+| Add comment | POST | `/cards/{id}/actions/comments` | `text` |
+| Get board labels | GET | `/boards/{id}/labels` | board ID |
+| Get board members | GET | `/boards/{id}/members` | board ID |
 
 ## Workflows
 
 ### "Show me my boards"
 
-Call `trello_list_boards`.
+```bash
+curl -s "https://api.trello.com/1/members/me/boards?filter=open&key=$TRELLO_KEY&token=$TRELLO_TOKEN"
+```
 
 ### "What's on the Sprint board?"
 
-Call `trello_get_board` with `board_name="Sprint"`. It returns all lists, cards, and labels in one call.
+1. List boards to find the board ID
+2. Get the board with lists and cards:
+
+```bash
+curl -s "https://api.trello.com/1/boards/{boardId}?lists=open&cards=open&card_fields=name,idList,labels,due&fields=name,desc&key=$TRELLO_KEY&token=$TRELLO_TOKEN"
+```
 
 ### "Find cards about authentication"
 
-Call `trello_search_cards` with `query="authentication"`.
+```bash
+curl -s "https://api.trello.com/1/search?query=authentication&modelTypes=cards&key=$TRELLO_KEY&token=$TRELLO_TOKEN"
+```
 
 ### "Create a bug card on the Backend board in To Do"
 
-1. `trello_get_board` with `board_name="Backend"` — note the list IDs
-2. Find the "To Do" list ID from the response
-3. `trello_create_card` with `list_id`, `name`, and `desc`
+1. List boards → find Backend board ID
+2. Get board → find "To Do" list ID
+3. Create card:
+
+```bash
+curl -s -X POST "https://api.trello.com/1/cards?idList={listId}&name=Bug+title&desc=Description&key=$TRELLO_KEY&token=$TRELLO_TOKEN"
+```
 
 ### "Move the login fix card to Done"
 
-1. `trello_search_cards` with `query="login fix"` — get card ID
-2. `trello_get_board` to find the "Done" list ID
-3. `trello_move_card` with `card_id` and `list_id`
+1. Search cards for "login fix" → get card ID
+2. Get board → find "Done" list ID
+3. Move card:
+
+```bash
+curl -s -X PUT "https://api.trello.com/1/cards/{cardId}?idList={doneListId}&key=$TRELLO_KEY&token=$TRELLO_TOKEN"
+```
 
 ### "Add a comment on the deploy card: PR merged"
 
-1. `trello_search_cards` with `query="deploy"` — get card ID
-2. `trello_add_comment` with `card_id` and `text="PR merged"`
+1. Search cards for "deploy" → get card ID
+2. Add comment:
+
+```bash
+curl -s -X POST "https://api.trello.com/1/cards/{cardId}/actions/comments?text=PR+merged&key=$TRELLO_KEY&token=$TRELLO_TOKEN"
+```
 
 ## Name Resolution
 
-Users refer to boards, lists, and cards by name. The `trello_get_board` tool accepts `board_name` directly. For cards and lists, use search or board overview to resolve IDs first.
+Users refer to boards, lists, and cards by name. Always resolve names to IDs first:
+- Boards: list all boards, match by name
+- Lists: get board with `lists=open`, match by name
+- Cards: search by keyword or get board with `cards=open`, match by name

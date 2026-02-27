@@ -4,11 +4,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a **Claude Code Developer Kit** — a collection of CLI tools, skills, and integrations for building Claude Code extensions. It is not a monorepo; each component is independent with its own dependencies.
+This is a **Claude Code Developer Kit** — a collection of CLI tools, skills, and integrations for building Claude Code extensions.
 
 ## Repository Structure
 
-- `cli/` — Go CLI tool (`devkit`) for managing service integrations
+- `cmd/devkit/` — CLI entry point
+- `internal/cli/` — Cobra command definitions (login, logout, status)
+- `internal/config/` — Credential storage (~/.config/devkit/credentials.json)
+- `internal/services/` — Service interface + implementations (Trello)
 - `.claude/skills/` — Built-in development skills
   - `skill-creator/` — Guide + scripts for creating new skills
   - `mcp-builder/` — Guide + scripts for building MCP servers
@@ -16,15 +19,14 @@ This is a **Claude Code Developer Kit** — a collection of CLI tools, skills, a
 
 ## Build & Development Commands
 
-### Devkit CLI (`cli/`)
+### Devkit CLI
 
 ```bash
-cd cli
-go build -o devkit .    # Build binary
-go test ./...           # Run all tests
-./devkit --help         # Show help
-./devkit login trello   # Login to Trello
-./devkit status         # Check auth status
+go build -o devkit ./cmd/devkit   # Build binary
+go test ./...                      # Run all tests
+./devkit --help                    # Show help
+./devkit login trello              # Login to Trello
+./devkit status                    # Check auth status
 ```
 
 ### Skill Helper Scripts (Python 3)
@@ -40,7 +42,8 @@ python3 .claude/skills/skill-creator/scripts/quick_validate.py   # Validate skil
 ### Devkit CLI
 
 Go CLI tool using Cobra for subcommand routing:
-- `cmd/` — Cobra commands (login, logout, status)
+- `cmd/devkit/` — Entry point (`main.go` calls `cli.Execute()`)
+- `internal/cli/` — Cobra commands (root, login, logout, status)
 - `internal/config/` — Credential storage (~/.config/devkit/credentials.json)
 - `internal/services/` — Service interface + implementations (Trello)
 - Adding a new service: implement the Service interface in a new file, register in registry.go

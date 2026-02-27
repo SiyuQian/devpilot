@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/siyuqian/developer-kit/cli/internal/config"
+	"github.com/siyuqian/developer-kit/internal/config"
 )
 
 const trelloBaseURL = "https://api.trello.com"

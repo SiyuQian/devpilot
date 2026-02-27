@@ -1,0 +1,5 @@
+# Compiled binary
+devkit
+
+# Worktrees
+.worktrees/

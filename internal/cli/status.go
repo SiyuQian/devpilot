@@ -1,11 +1,11 @@
-package cmd
+package cli
 
 import (
 	"fmt"
 
 	"github.com/spf13/cobra"
-	"github.com/siyuqian/developer-kit/cli/internal/config"
-	"github.com/siyuqian/developer-kit/cli/internal/services"
+	"github.com/siyuqian/developer-kit/internal/config"
+	"github.com/siyuqian/developer-kit/internal/services"
 )
 
 var statusCmd = &cobra.Command{

@@ -1,4 +1,4 @@
-module github.com/siyuqian/developer-kit/cli
+module github.com/siyuqian/developer-kit
 
 go 1.25.6
 

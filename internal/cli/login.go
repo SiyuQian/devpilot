@@ -1,11 +1,11 @@
-package cmd
+package cli
 
 import (
 	"fmt"
 	"os"
 
 	"github.com/spf13/cobra"
-	"github.com/siyuqian/developer-kit/cli/internal/services"
+	"github.com/siyuqian/developer-kit/internal/services"
 )
 
 var loginCmd = &cobra.Command{
