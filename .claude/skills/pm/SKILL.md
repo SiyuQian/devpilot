@@ -232,3 +232,5 @@ After the user has made their decisions on which features to pursue, record reje
 - **2-3 features max** — actionable, not a laundry list
 - **Evidence-based** — every recommendation must cite specific findings
 - **No implementation** — this skill discovers WHAT to build, not HOW
+- **Check rejected ideas first** — Always run Phase 1.5 before research; never skip it
+- **Record every decision** — Every idea that isn't accepted must be recorded in Phase 4.5 as rejected or deferred
