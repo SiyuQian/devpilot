@@ -55,10 +55,16 @@ func TestGetBoardLists(t *testing.T) {
 }
 
 func TestGetListCards(t *testing.T) {
-	cards := []Card{{ID: "card1", Name: "Fix bug", Desc: "the plan"}}
+	cards := []Card{{
+		ID: "card1", Name: "Fix bug", Desc: "the plan",
+		Labels: []Label{{ID: "l1", Name: "P0-critical", Color: "red"}},
+	}}
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/1/lists/list1/cards" {
 			t.Errorf("unexpected path: %s", r.URL.Path)
+		}
+		if r.URL.Query().Get("fields") == "" {
+			t.Error("expected fields parameter")
 		}
 		json.NewEncoder(w).Encode(cards)
 	}))
@@ -71,6 +77,9 @@ func TestGetListCards(t *testing.T) {
 	}
 	if len(result) != 1 || result[0].Desc != "the plan" {
 		t.Errorf("unexpected cards: %+v", result)
+	}
+	if len(result[0].Labels) != 1 || result[0].Labels[0].Name != "P0-critical" {
+		t.Errorf("unexpected labels: %+v", result[0].Labels)
 	}
 }
 

@@ -164,6 +164,7 @@ func (r *Runner) Run(ctx context.Context) error {
 			continue
 		}
 
+		SortByPriority(cards)
 		card := cards[0]
 		r.processCard(ctx, card)
 

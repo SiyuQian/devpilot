@@ -141,7 +141,8 @@ func (c *Client) GetBoardLists(boardID string) ([]List, error) {
 }
 
 func (c *Client) GetListCards(listID string) ([]Card, error) {
-	data, err := c.get(fmt.Sprintf("/1/lists/%s/cards", listID), nil)
+	params := url.Values{"fields": {"name,desc,idList,shortUrl,labels"}}
+	data, err := c.get(fmt.Sprintf("/1/lists/%s/cards", listID), params)
 	if err != nil {
 		return nil, err
 	}
