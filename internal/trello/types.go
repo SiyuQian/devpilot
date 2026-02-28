@@ -11,8 +11,9 @@ type List struct {
 }
 
 type Card struct {
-	ID     string `json:"id"`
-	Name   string `json:"name"`
-	Desc   string `json:"desc"`
-	IDList string `json:"idList"`
+	ID       string `json:"id"`
+	Name     string `json:"name"`
+	Desc     string `json:"desc"`
+	IDList   string `json:"idList"`
+	ShortURL string `json:"shortUrl"`
 }
