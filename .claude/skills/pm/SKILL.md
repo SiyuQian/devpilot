@@ -185,6 +185,46 @@ Then engage in discussion:
 - Adjust recommendations if user provides additional context
 - Help narrow down to a final decision
 
+### Phase 4.5: Record Review Decisions
+
+After the user has made their decisions on which features to pursue, record rejected and deferred ideas:
+
+1. **Ask for each recommended feature** — Use AskUserQuestion to ask the user's decision for each feature that they did NOT choose to pursue:
+   - Options: "Reject permanently" / "Defer for later" / "Already accepted"
+   - For rejected/deferred: ask reason with options: "scope" / "direction" / "timing" / "duplicate" / "other"
+   - If "other", ask for a brief explanation
+
+2. **Write rejection files** — For each rejected or deferred idea, use the Write tool to create `docs/rejected/{YYYY-MM-DD}-{idea-slug}.md`:
+
+   ```markdown
+   ---
+   status: {rejected|deferred}
+   idea: "{Feature Name}"
+   date: {YYYY-MM-DD}
+   score: {total_score}
+   reason: "{reason}"
+   ---
+
+   ## Reason
+
+   {User's explanation or generated summary based on reason category}
+
+   ## Original Evidence Summary
+
+   {2-3 bullet points from the Phase 3 synthesis for this feature}
+   ```
+
+   The `{idea-slug}` should be the feature name in lowercase-kebab-case (e.g., "Real-time Collaboration" → "real-time-collaboration").
+
+3. **Commit** — Stage and commit all new rejection files:
+
+   ```
+   git add docs/rejected/
+   git commit -m "docs: record rejected/deferred ideas from PM research"
+   ```
+
+4. **Confirm** — Tell the user which ideas were recorded and where the files are saved.
+
 ## Key Rules
 
 - **Always launch 3 agents in parallel** — never sequentially
