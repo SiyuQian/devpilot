@@ -35,18 +35,37 @@ var (
 	errorStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("9"))
 )
 
-func (m TUIModel) renderView() string {
-	if m.width < 60 || m.height < 15 {
-		return fmt.Sprintf("  Terminal too small (need 60x15, have %dx%d). Resize or use --no-tui.", m.width, m.height)
+func formatTokens(n int) string {
+	if n < 1000 {
+		return fmt.Sprintf("%d", n)
 	}
+	k := float64(n) / 1000.0
+	if k < 10 {
+		return fmt.Sprintf("%.1fk", k)
+	}
+	return fmt.Sprintf("%.0fk", k)
+}
 
+func formatDuration(ms int) string {
+	if ms < 0 {
+		return "..."
+	}
+	if ms < 1000 {
+		return fmt.Sprintf("%dms", ms)
+	}
+	return fmt.Sprintf("%.1fs", float64(ms)/1000.0)
+}
+
+func (m TUIModel) renderView() string {
+	if m.width < 80 || m.height < 20 {
+		return fmt.Sprintf("  Terminal too small (need 80x20, have %dx%d). Resize or use --no-tui.", m.width, m.height)
+	}
 	var sections []string
-
 	sections = append(sections, renderHeader(m))
 	sections = append(sections, renderStatusAndActive(m))
-	sections = append(sections, renderLogPane(m))
+	sections = append(sections, renderToolsAndFiles(m))
+	sections = append(sections, renderTextPane(m))
 	sections = append(sections, renderFooter(m))
-
 	return strings.Join(sections, "\n")
 }
 
@@ -66,7 +85,15 @@ func renderHeader(m TUIModel) string {
 		phaseText = "■ stopped"
 	}
 
-	right := fmt.Sprintf("[%s] [q: quit]", phaseText)
+	statsText := ""
+	if m.stats.inputTokens > 0 || m.stats.outputTokens > 0 {
+		statsText = fmt.Sprintf(" ↑%s ↓%s", formatTokens(m.stats.inputTokens), formatTokens(m.stats.outputTokens))
+	}
+	if m.stats.turns > 0 {
+		statsText += fmt.Sprintf(" T:%d", m.stats.turns)
+	}
+
+	right := fmt.Sprintf("[%s]%s [q: quit]", phaseText, statsText)
 
 	gap := m.width - lipgloss.Width(left) - lipgloss.Width(middle) - lipgloss.Width(right)
 	if gap < 1 {
@@ -104,7 +131,9 @@ func renderActiveTask(m TUIModel) string {
 		fmt.Sprintf("  ▶ %q", m.activeCard.name),
 		fmt.Sprintf("    Branch: %s", m.activeCard.branch),
 		fmt.Sprintf("    Duration: %s", elapsed),
-		fmt.Sprintf("    Phase: %s", m.activeCard.status),
+	}
+	if m.activeCall != nil {
+		lines = append(lines, fmt.Sprintf("    ⚡ %s %s", m.activeCall.toolName, m.activeCall.summary))
 	}
 	return activeCardStyle.Render(strings.Join(lines, "\n"))
 }
@@ -125,19 +154,88 @@ func renderStatusAndActive(m TUIModel) string {
 	return lipgloss.JoinHorizontal(lipgloss.Top, statusRendered, " ", activeRendered)
 }
 
-func renderLogPane(m TUIModel) string {
-	if len(m.logLines) == 0 {
-		return lipgloss.NewStyle().
-			Border(lipgloss.RoundedBorder()).
-			BorderForeground(lipgloss.Color("240")).
-			Width(m.width - 4).
-			Render("  (no output yet)")
+func renderToolsAndFiles(m TUIModel) string {
+	toolsWidth := m.width - 30 - 3 // reserve 30 for files panel
+	if toolsWidth < 30 {
+		toolsWidth = 30
 	}
-	return lipgloss.NewStyle().
+	filesWidth := m.width - toolsWidth - 3
+
+	toolsPanel := renderToolCallsPanel(m, toolsWidth)
+	filesPanel := renderFilesPanel(m, filesWidth)
+
+	return lipgloss.JoinHorizontal(lipgloss.Top, toolsPanel, " ", filesPanel)
+}
+
+func renderToolCallsPanel(m TUIModel, width int) string {
+	focusColor := lipgloss.Color("240")
+	if m.focusedPane == "tools" {
+		focusColor = lipgloss.Color("12")
+	}
+	style := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(focusColor).
+		Width(width - 2).
+		Padding(0, 1)
+
+	if len(m.toolCalls) == 0 && m.activeCall == nil {
+		return style.Render("Tool Calls\n  (none)")
+	}
+
+	return style.Render("Tool Calls\n" + m.toolViewport.View())
+}
+
+func renderToolCallsList(m TUIModel) string {
+	var lines []string
+	for _, tc := range m.toolCalls {
+		line := fmt.Sprintf("  ✓ %-6s %-40s %s", tc.toolName, truncate(tc.summary, 40), formatDuration(tc.durationMs))
+		lines = append(lines, line)
+	}
+	if m.activeCall != nil {
+		line := fmt.Sprintf("  ⚡ %-6s %-40s %s", m.activeCall.toolName, truncate(m.activeCall.summary, 40), formatDuration(m.activeCall.durationMs))
+		lines = append(lines, line)
+	}
+	return strings.Join(lines, "\n")
+}
+
+func renderFilesPanel(m TUIModel, width int) string {
+	style := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(lipgloss.Color("240")).
+		Width(width - 2).
+		Padding(0, 1)
+
+	if len(m.filesRead) == 0 && len(m.filesEdited) == 0 {
+		return style.Render("Files\n  (none)")
+	}
+
+	var lines []string
+	lines = append(lines, "Files")
+	for _, f := range m.filesEdited {
+		lines = append(lines, "  E "+shortenPath(f))
+	}
+	for _, f := range m.filesRead {
+		lines = append(lines, "  R "+shortenPath(f))
+	}
+	return style.Render(strings.Join(lines, "\n"))
+}
+
+func renderTextPane(m TUIModel) string {
+	focusColor := lipgloss.Color("240")
+	if m.focusedPane == "text" {
+		focusColor = lipgloss.Color("12")
+	}
+	style := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(focusColor).
 		Width(m.width - 4).
-		Render(m.viewport.View())
+		Padding(0, 1)
+
+	if len(m.textLines) == 0 {
+		return style.Render("Claude Output\n  (no output yet)")
+	}
+
+	return style.Render("Claude Output\n" + m.textViewport.View())
 }
 
 func renderFooter(m TUIModel) string {

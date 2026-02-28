@@ -252,6 +252,119 @@ func TestExecute_StreamHandlerWithNonZeroExit(t *testing.T) {
 	}
 }
 
+// --- ClaudeEventHandler tests ---
+
+func TestExecute_ClaudeEventHandler_ParsesJSON(t *testing.T) {
+	var mu sync.Mutex
+	var events []ClaudeEvent
+
+	handler := func(event ClaudeEvent) {
+		mu.Lock()
+		defer mu.Unlock()
+		events = append(events, event)
+	}
+
+	jsonLine1 := `{"type":"assistant","message":{"content":[{"type":"text","text":"hello"}],"usage":{"input_tokens":10,"output_tokens":5}}}`
+	jsonLine2 := `{"type":"result","subtype":"success","num_turns":1,"duration_ms":100,"usage":{"input_tokens":10,"output_tokens":5}}`
+
+	exec := NewExecutor(
+		WithCommand("printf", jsonLine1+"\n"+jsonLine2+"\n"),
+		WithClaudeEventHandler(handler),
+	)
+	_, err := exec.Run(context.Background(), "test prompt")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	mu.Lock()
+	defer mu.Unlock()
+
+	if len(events) != 2 {
+		t.Fatalf("expected 2 events, got %d", len(events))
+	}
+	if _, ok := events[0].(ClaudeAssistantMsg); !ok {
+		t.Errorf("events[0] should be ClaudeAssistantMsg, got %T", events[0])
+	}
+	if _, ok := events[1].(ClaudeResultMsg); !ok {
+		t.Errorf("events[1] should be ClaudeResultMsg, got %T", events[1])
+	}
+}
+
+func TestExecute_ClaudeEventHandler_SkipsNilEvents(t *testing.T) {
+	var mu sync.Mutex
+	var events []ClaudeEvent
+
+	handler := func(event ClaudeEvent) {
+		mu.Lock()
+		defer mu.Unlock()
+		events = append(events, event)
+	}
+
+	jsonLine := `{"type":"stream_event","event":{"type":"content_block_delta"}}`
+	exec := NewExecutor(
+		WithCommand("printf", jsonLine+"\n"),
+		WithClaudeEventHandler(handler),
+	)
+	_, err := exec.Run(context.Background(), "test prompt")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	mu.Lock()
+	defer mu.Unlock()
+
+	if len(events) != 0 {
+		t.Errorf("expected 0 events, got %d", len(events))
+	}
+}
+
+func TestExecute_ClaudeEventHandler_NonJSONFallback(t *testing.T) {
+	var mu sync.Mutex
+	var events []ClaudeEvent
+
+	handler := func(event ClaudeEvent) {
+		mu.Lock()
+		defer mu.Unlock()
+		events = append(events, event)
+	}
+
+	exec := NewExecutor(
+		WithCommand("printf", "plain text output\n"),
+		WithClaudeEventHandler(handler),
+	)
+	_, err := exec.Run(context.Background(), "test prompt")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	mu.Lock()
+	defer mu.Unlock()
+
+	if len(events) != 1 {
+		t.Fatalf("expected 1 event, got %d", len(events))
+	}
+	raw, ok := events[0].(RawOutputMsg)
+	if !ok {
+		t.Fatalf("expected RawOutputMsg, got %T", events[0])
+	}
+	if raw.Text != "plain text output" {
+		t.Errorf("Text = %q, want %q", raw.Text, "plain text output")
+	}
+}
+
+func TestExecute_DefaultArgsIncludeStreamJSON(t *testing.T) {
+	exec := NewExecutor()
+	found := false
+	for _, arg := range exec.args {
+		if arg == "stream-json" {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("default args should include stream-json, got %v", exec.args)
+	}
+}
+
 // --- helpers ---
 
 func filterStream(lines []OutputLine, stream string) []OutputLine {

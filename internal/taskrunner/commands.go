@@ -3,6 +3,7 @@ package taskrunner
 import (
 	"context"
 	"fmt"
+	"log"
 	"os"
 	"os/signal"
 	"time"
@@ -107,7 +108,35 @@ func runWithTUI(cfg Config, trelloClient *trello.Client, boardName string) {
 }
 
 func runPlainText(cfg Config, trelloClient *trello.Client) {
-	r := New(cfg, trelloClient)
+	logger := log.New(os.Stdout, "", log.LstdFlags)
+
+	handler := func(e Event) {
+		switch ev := e.(type) {
+		case CardStartedEvent:
+			logger.Printf("[card] Started: %q on branch %s", ev.CardName, ev.Branch)
+		case ToolStartEvent:
+			summary := toolSummary(ev.ToolName, ev.Input)
+			logger.Printf("[tool] %s %s ...", ev.ToolName, summary)
+		case ToolResultEvent:
+			logger.Printf("[tool] %s done (%s)", ev.ToolName, formatDuration(ev.DurationMs))
+		case TextOutputEvent:
+			logger.Printf("[text] %s", truncate(ev.Text, 120))
+		case StatsUpdateEvent:
+			if ev.Turns > 0 {
+				logger.Printf("[stats] ↑%s ↓%s turns:%d", formatTokens(ev.InputTokens), formatTokens(ev.OutputTokens), ev.Turns)
+			}
+		case CardDoneEvent:
+			logger.Printf("[card] Done: %q (%s) PR: %s", ev.CardName, ev.Duration, ev.PRURL)
+		case CardFailedEvent:
+			logger.Printf("[card] Failed: %q — %s", ev.CardName, ev.ErrMsg)
+		case RunnerErrorEvent:
+			if ev.Err != nil {
+				logger.Printf("[error] %v", ev.Err)
+			}
+		}
+	}
+
+	r := New(cfg, trelloClient, WithEventHandler(handler))
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
