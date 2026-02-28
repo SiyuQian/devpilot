@@ -22,12 +22,13 @@ type Config struct {
 }
 
 type Runner struct {
-	config   Config
-	trello   *trello.Client
-	executor *Executor
-	reviewer *Reviewer
-	git      *GitOps
-	logger   *log.Logger
+	config       Config
+	trello       *trello.Client
+	executor     *Executor
+	reviewer     *Reviewer
+	git          *GitOps
+	logger       *log.Logger
+	eventHandler EventHandler
 
 	// Resolved IDs
 	boardID      string
@@ -37,18 +38,46 @@ type Runner struct {
 	failedListID string
 }
 
-func New(cfg Config, trelloClient *trello.Client) *Runner {
-	r := &Runner{
-		config:   cfg,
-		trello:   trelloClient,
-		executor: NewExecutor(),
-		git:      NewGitOps(cfg.WorkDir),
-		logger:   log.New(os.Stdout, "", log.LstdFlags),
+// RunnerOption configures a Runner.
+type RunnerOption func(*Runner)
+
+// WithEventHandler sets an event handler that receives runner lifecycle events.
+func WithEventHandler(handler EventHandler) RunnerOption {
+	return func(r *Runner) {
+		r.eventHandler = handler
 	}
+}
+
+func New(cfg Config, trelloClient *trello.Client, opts ...RunnerOption) *Runner {
+	r := &Runner{
+		config: cfg,
+		trello: trelloClient,
+		git:    NewGitOps(cfg.WorkDir),
+		logger: log.New(os.Stdout, "", log.LstdFlags),
+	}
+	for _, opt := range opts {
+		opt(r)
+	}
+
+	// When event handler is set, enable streaming output on executor
+	var execOpts []ExecutorOption
+	if r.eventHandler != nil {
+		execOpts = append(execOpts, WithOutputHandler(func(line OutputLine) {
+			r.emit(CardOutputEvent{Line: line})
+		}))
+	}
+	r.executor = NewExecutor(execOpts...)
+
 	if cfg.ReviewTimeout > 0 {
 		r.reviewer = NewReviewer()
 	}
 	return r
+}
+
+func (r *Runner) emit(e Event) {
+	if r.eventHandler != nil {
+		r.eventHandler(e)
+	}
 }
 
 func (r *Runner) init() error {
@@ -66,14 +95,17 @@ func (r *Runner) init() error {
 		"Done":        &r.doneListID,
 		"Failed":      &r.failedListID,
 	}
+	resolvedMap := make(map[string]string, len(listNames))
 	for name, idPtr := range listNames {
 		list, err := r.trello.FindListByName(r.boardID, name)
 		if err != nil {
 			return fmt.Errorf("find list %q: %w", name, err)
 		}
 		*idPtr = list.ID
+		resolvedMap[name] = list.ID
 		r.logger.Printf("List %q → %s", name, list.ID)
 	}
+	r.emit(RunnerStartedEvent{BoardName: board.Name, BoardID: board.ID, Lists: resolvedMap})
 	return nil
 }
 
@@ -97,15 +129,19 @@ func (r *Runner) Run(ctx context.Context) error {
 		select {
 		case <-ctx.Done():
 			r.logger.Println("Shutting down.")
+			r.emit(RunnerStoppedEvent{})
 			return nil
 		default:
 		}
 
+		r.emit(PollingEvent{})
 		cards, err := r.trello.GetListCards(r.readyListID)
 		if err != nil {
 			r.logger.Printf("Error polling: %v. Retrying in %s...", err, r.config.Interval)
+			r.emit(RunnerErrorEvent{Err: err})
 			if !r.sleep(ctx, r.config.Interval) {
 				r.logger.Println("Shutting down.")
+				r.emit(RunnerStoppedEvent{})
 				return nil
 			}
 			continue
@@ -113,8 +149,10 @@ func (r *Runner) Run(ctx context.Context) error {
 
 		if len(cards) == 0 {
 			r.logger.Printf("No tasks. Sleeping %s...", r.config.Interval)
+			r.emit(NoTasksEvent{NextPoll: r.config.Interval})
 			if !r.sleep(ctx, r.config.Interval) {
 				r.logger.Println("Shutting down.")
+				r.emit(RunnerStoppedEvent{})
 				return nil
 			}
 			continue
@@ -125,6 +163,7 @@ func (r *Runner) Run(ctx context.Context) error {
 
 		if r.config.Once {
 			r.logger.Println("--once flag set. Exiting.")
+			r.emit(RunnerStoppedEvent{})
 			return nil
 		}
 	}
@@ -162,6 +201,7 @@ func (r *Runner) processCard(ctx context.Context, card trello.Card) {
 		r.failCard(card, start, fmt.Sprintf("git create branch: %v", err))
 		return
 	}
+	r.emit(CardStartedEvent{CardID: card.ID, CardName: card.Name, Branch: branch})
 
 	// Build prompt
 	prompt := r.buildPrompt(card)
@@ -219,15 +259,19 @@ func (r *Runner) processCard(ctx context.Context, card trello.Card) {
 	// Code review (non-blocking)
 	if r.reviewer != nil {
 		r.logger.Printf("Running code review for PR: %s", prURL)
+		r.emit(ReviewStartedEvent{PRURL: prURL})
 		reviewCtx, reviewCancel := context.WithTimeout(ctx, r.config.ReviewTimeout)
 		reviewResult, reviewErr := r.reviewer.Review(reviewCtx, prURL)
 		reviewCancel()
 		if reviewErr != nil {
 			r.logger.Printf("Code review error: %v", reviewErr)
+			r.emit(ReviewDoneEvent{PRURL: prURL, ExitCode: -1})
 		} else if reviewResult.ExitCode != 0 {
 			r.logger.Printf("Code review finished with non-zero exit: %d", reviewResult.ExitCode)
+			r.emit(ReviewDoneEvent{PRURL: prURL, ExitCode: reviewResult.ExitCode})
 		} else {
 			r.logger.Printf("Code review completed for PR: %s", prURL)
+			r.emit(ReviewDoneEvent{PRURL: prURL, ExitCode: 0})
 		}
 	}
 
@@ -237,6 +281,7 @@ func (r *Runner) processCard(ctx context.Context, card trello.Card) {
 
 	// Move to Done
 	duration := time.Since(start).Round(time.Second)
+	r.emit(CardDoneEvent{CardID: card.ID, CardName: card.Name, PRURL: prURL, Duration: duration})
 	r.trello.MoveCard(card.ID, r.doneListID)
 	r.trello.AddComment(card.ID, fmt.Sprintf("✅ Task completed by devkit runner\nDuration: %s\nPR: %s", duration, prURL))
 	r.logger.Printf("Card %q completed in %s. PR: %s", card.Name, duration, prURL)
@@ -265,6 +310,7 @@ Rules:
 
 func (r *Runner) failCard(card trello.Card, start time.Time, errMsg string) {
 	duration := time.Since(start).Round(time.Second)
+	r.emit(CardFailedEvent{CardID: card.ID, CardName: card.Name, ErrMsg: errMsg, Duration: duration})
 	logPath := filepath.Join(os.Getenv("HOME"), ".config", "devkit", "logs", card.ID+".log")
 	comment := fmt.Sprintf("❌ Task failed\nDuration: %s\nError: %s\nSee full log: %s", duration, errMsg, logPath)
 	r.trello.MoveCard(card.ID, r.failedListID)

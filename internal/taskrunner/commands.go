@@ -7,7 +7,10 @@ import (
 	"os/signal"
 	"time"
 
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
+	"golang.org/x/term"
+
 	"github.com/siyuqian/developer-kit/internal/auth"
 	"github.com/siyuqian/developer-kit/internal/trello"
 )
@@ -19,6 +22,7 @@ func RegisterCommands(parent *cobra.Command) {
 	runCmd.Flags().Int("review-timeout", 10, "Code review timeout in minutes (0 to disable)")
 	runCmd.Flags().Bool("once", false, "Process one card and exit")
 	runCmd.Flags().Bool("dry-run", false, "Print actions without executing")
+	runCmd.Flags().Bool("no-tui", false, "Disable TUI, use plain text output")
 	parent.AddCommand(runCmd)
 }
 
@@ -33,6 +37,7 @@ var runCmd = &cobra.Command{
 		reviewTimeout, _ := cmd.Flags().GetInt("review-timeout")
 		once, _ := cmd.Flags().GetBool("once")
 		dryRun, _ := cmd.Flags().GetBool("dry-run")
+		noTUI, _ := cmd.Flags().GetBool("no-tui")
 
 		if boardName == "" {
 			fmt.Fprintln(os.Stderr, "Error: --board is required")
@@ -64,22 +69,58 @@ var runCmd = &cobra.Command{
 			WorkDir:       dir,
 		}
 
-		r := New(cfg, trelloClient)
+		isInteractive := term.IsTerminal(int(os.Stdout.Fd()))
 
-		// Handle Ctrl+C
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
-		sigCh := make(chan os.Signal, 1)
-		signal.Notify(sigCh, os.Interrupt)
-		go func() {
-			<-sigCh
-			fmt.Println("\nReceived interrupt, finishing current task...")
-			cancel()
-		}()
-
-		if err := r.Run(ctx); err != nil {
-			fmt.Fprintln(os.Stderr, "Runner error:", err)
-			os.Exit(1)
+		if isInteractive && !noTUI {
+			runWithTUI(cfg, trelloClient, boardName)
+		} else {
+			runPlainText(cfg, trelloClient)
 		}
 	},
+}
+
+func runWithTUI(cfg Config, trelloClient *trello.Client, boardName string) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	eventCh := make(chan Event, 100)
+	handler := func(e Event) {
+		eventCh <- e
+	}
+
+	r := New(cfg, trelloClient, WithEventHandler(handler))
+	model := NewTUIModel(boardName, eventCh, cancel)
+
+	p := tea.NewProgram(model, tea.WithAltScreen())
+
+	go func() {
+		if err := r.Run(ctx); err != nil {
+			eventCh <- RunnerErrorEvent{Err: err}
+		}
+		close(eventCh)
+	}()
+
+	if _, err := p.Run(); err != nil {
+		fmt.Fprintln(os.Stderr, "TUI error:", err)
+		os.Exit(1)
+	}
+}
+
+func runPlainText(cfg Config, trelloClient *trello.Client) {
+	r := New(cfg, trelloClient)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, os.Interrupt)
+	go func() {
+		<-sigCh
+		fmt.Println("\nReceived interrupt, finishing current task...")
+		cancel()
+	}()
+
+	if err := r.Run(ctx); err != nil {
+		fmt.Fprintln(os.Stderr, "Runner error:", err)
+		os.Exit(1)
+	}
 }
