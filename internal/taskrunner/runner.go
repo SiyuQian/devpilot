@@ -82,6 +82,15 @@ func (r *Runner) Run(ctx context.Context) error {
 		return err
 	}
 
+	// Pre-flight: ensure working directory is clean
+	clean, err := r.git.IsClean()
+	if err != nil {
+		return fmt.Errorf("check working directory: %w", err)
+	}
+	if !clean {
+		return fmt.Errorf("working directory has uncommitted changes; commit or stash them before running")
+	}
+
 	r.logger.Println("Runner started. Polling for tasks...")
 
 	for {
@@ -174,6 +183,19 @@ func (r *Runner) processCard(ctx context.Context, card trello.Card) {
 			errMsg = truncate(result.Stderr, 500)
 		}
 		r.failCard(card, start, errMsg)
+		r.git.CheckoutMain()
+		return
+	}
+
+	// Verify claude produced commits before pushing
+	hasCommits, err := r.git.HasNewCommits(branch)
+	if err != nil {
+		r.failCard(card, start, fmt.Sprintf("check commits: %v", err))
+		r.git.CheckoutMain()
+		return
+	}
+	if !hasCommits {
+		r.failCard(card, start, "claude produced no commits on task branch")
 		r.git.CheckoutMain()
 		return
 	}

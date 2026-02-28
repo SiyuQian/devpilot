@@ -1,7 +1,9 @@
 package taskrunner
 
 import (
+	"os"
 	"os/exec"
+	"path/filepath"
 	"testing"
 )
 
@@ -102,6 +104,64 @@ func TestBranchNameNonASCII(t *testing.T) {
 	name = git.BranchName("abc123", "自动 PR Code Review")
 	if name != "task/abc123-pr-code-review" {
 		t.Errorf("unexpected branch name: %s", name)
+	}
+}
+
+func TestIsClean(t *testing.T) {
+	dir := setupGitRepo(t)
+	git := NewGitOps(dir)
+
+	// Clean repo should return true
+	clean, err := git.IsClean()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !clean {
+		t.Error("expected clean repo to return true")
+	}
+
+	// Create an untracked file — should return false
+	os.WriteFile(filepath.Join(dir, "dirty.txt"), []byte("hello"), 0644)
+	clean, err = git.IsClean()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if clean {
+		t.Error("expected dirty repo to return false")
+	}
+}
+
+func TestHasNewCommits(t *testing.T) {
+	dir := setupGitRepo(t)
+	git := NewGitOps(dir)
+
+	// Create branch with no new commits
+	branch := "task/test-no-commits"
+	if err := git.CreateBranch(branch); err != nil {
+		t.Fatalf("create branch: %v", err)
+	}
+
+	has, err := git.HasNewCommits(branch)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if has {
+		t.Error("expected no new commits on fresh branch")
+	}
+
+	// Add a commit on the branch
+	cmd := exec.Command("git", "commit", "--allow-empty", "-m", "task work")
+	cmd.Dir = dir
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("commit: %s %v", out, err)
+	}
+
+	has, err = git.HasNewCommits(branch)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !has {
+		t.Error("expected new commits after committing on branch")
 	}
 }
 

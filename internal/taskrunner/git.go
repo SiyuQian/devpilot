@@ -80,6 +80,27 @@ func (g *GitOps) MergePR() error {
 	return nil
 }
 
+// IsClean returns true if the working directory has no uncommitted changes.
+func (g *GitOps) IsClean() (bool, error) {
+	out, err := g.run("status", "--porcelain")
+	if err != nil {
+		return false, err
+	}
+	return out == "", nil
+}
+
+// HasNewCommits returns true if branch has commits not on main (or master).
+func (g *GitOps) HasNewCommits(branch string) (bool, error) {
+	out, err := g.run("rev-list", "--count", "main.."+branch)
+	if err != nil {
+		out, err = g.run("rev-list", "--count", "master.."+branch)
+		if err != nil {
+			return false, err
+		}
+	}
+	return strings.TrimSpace(out) != "0", nil
+}
+
 var nonAlphaNum = regexp.MustCompile(`[^a-z0-9]+`)
 
 func Slugify(s string) string {
