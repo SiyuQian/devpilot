@@ -18,6 +18,20 @@ Before launching research, ask the user **one question at a time** to establish:
 
 Keep it to 1-2 questions max. Extract search keywords from the answers for the agents.
 
+### Phase 1.5: Load Previously Rejected Ideas
+
+Before launching research, check for previously rejected or deferred ideas:
+
+1. Use the Glob tool to scan `docs/rejected/*.md` (skip `README.md`)
+2. Read each file's YAML frontmatter to extract: `idea`, `status`, `reason`
+3. Build two lists:
+   - **Rejected list**: Ideas with `status: rejected` — these MUST be excluded from recommendations
+   - **Deferred list**: Ideas with `status: deferred` — these may only be re-suggested if there is strong new evidence of changed market conditions
+
+If no files exist in `docs/rejected/`, skip this phase and proceed to Phase 2.
+
+Store these lists for use in Phase 2 agent prompts.
+
 ### Phase 2: Parallel Deep Research
 
 Launch **3 agents in parallel** using the Task tool with `subagent_type: "general-purpose"`. Each agent uses WebSearch extensively.
