@@ -8,12 +8,10 @@ This is a **Claude Code Developer Kit** — a collection of CLI tools, skills, a
 
 ## Repository Structure
 
-- `cmd/devkit/` — CLI entry point
-- `internal/cli/` — Cobra command definitions (login, logout, status, run)
-- `internal/config/` — Credential storage (~/.config/devkit/credentials.json)
-- `internal/services/` — Service interface + implementations (Trello)
-- `internal/trello/` — Trello REST API client (boards, lists, cards)
-- `internal/runner/` — Task runner (executor, git ops, main loop)
+- `cmd/devkit/` — CLI entry point (wires domain packages)
+- `internal/auth/` — Authentication, credentials, service registry, CLI commands (login/logout/status)
+- `internal/trello/` — Trello REST API client, types, CLI commands (push)
+- `internal/taskrunner/` — Task executor, git ops, code reviewer, runner loop, CLI commands (run)
 - `.claude/skills/` — Built-in development skills
   - `skill-creator/` — Guide + scripts for creating new skills
   - `mcp-builder/` — Guide + scripts for building MCP servers
@@ -53,14 +51,12 @@ python3 .claude/skills/skill-creator/scripts/quick_validate.py   # Validate skil
 
 ### Devkit CLI
 
-Go CLI tool using Cobra for subcommand routing:
-- `cmd/devkit/` — Entry point (`main.go` calls `cli.Execute()`)
-- `internal/cli/` — Cobra commands (root, login, logout, status, run)
-- `internal/config/` — Credential storage (~/.config/devkit/credentials.json)
-- `internal/services/` — Service interface + implementations (Trello)
-- `internal/trello/` — Trello REST API client (boards, lists, cards)
-- `internal/runner/` — Task runner: Executor (claude -p wrapper), GitOps (branch/PR management), Runner (poll loop)
-- Adding a new service: implement the Service interface in a new file, register in registry.go
+Go CLI tool using Cobra, organized by domain:
+- `cmd/devkit/` — Entry point, creates root command, registers domain commands
+- `internal/auth/` — Credentials storage (~/.config/devkit/credentials.json), Service interface + registry, Trello auth (login/logout/verify), CLI commands: login, logout, status
+- `internal/trello/` — Trello REST API client (boards, lists, cards), CLI commands: push
+- `internal/taskrunner/` — Executor (claude -p wrapper), GitOps (branch/PR management), Reviewer (automated code review), Runner (poll loop), CLI commands: run
+- Adding a new service: implement the Service interface in `internal/auth/`, register in `service.go` init()
 
 ### Skills
 

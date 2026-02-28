@@ -1,4 +1,4 @@
-package cli
+package trello
 
 import (
 	"bufio"
@@ -7,9 +7,14 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
-	"github.com/siyuqian/developer-kit/internal/config"
-	"github.com/siyuqian/developer-kit/internal/trello"
+	"github.com/siyuqian/developer-kit/internal/auth"
 )
+
+func RegisterCommands(parent *cobra.Command) {
+	pushCmd.Flags().String("board", "", "Trello board name (required)")
+	pushCmd.Flags().String("list", "Ready", "Target list name")
+	parent.AddCommand(pushCmd)
+}
 
 var pushCmd = &cobra.Command{
 	Use:   "push <plan-file>",
@@ -41,13 +46,13 @@ var pushCmd = &cobra.Command{
 		}
 
 		// Load Trello credentials
-		creds, err := config.Load("trello")
+		creds, err := auth.Load("trello")
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "Not logged in to Trello. Run: devkit login trello")
 			os.Exit(1)
 		}
 
-		client := trello.NewClient(creds["api_key"], creds["token"])
+		client := NewClient(creds["api_key"], creds["token"])
 
 		// Resolve board
 		board, err := client.FindBoardByName(boardName)
@@ -86,10 +91,4 @@ func extractTitle(content string) string {
 		}
 	}
 	return ""
-}
-
-func init() {
-	pushCmd.Flags().String("board", "", "Trello board name (required)")
-	pushCmd.Flags().String("list", "Ready", "Target list name")
-	rootCmd.AddCommand(pushCmd)
 }

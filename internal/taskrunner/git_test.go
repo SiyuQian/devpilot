@@ -1,4 +1,4 @@
-package runner
+package taskrunner
 
 import (
 	"os/exec"

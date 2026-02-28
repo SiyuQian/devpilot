@@ -1,4 +1,4 @@
-package services
+package auth
 
 import (
 	"bufio"
@@ -7,8 +7,6 @@ import (
 	"os"
 	"strings"
 	"time"
-
-	"github.com/siyuqian/developer-kit/internal/config"
 )
 
 const trelloBaseURL = "https://api.trello.com"
@@ -57,11 +55,11 @@ func (t *TrelloService) Login() error {
 	}
 	fmt.Println("ok")
 
-	creds := config.ServiceCredentials{
+	creds := ServiceCredentials{
 		"api_key": apiKey,
 		"token":   token,
 	}
-	if err := config.Save(t.Name(), creds); err != nil {
+	if err := Save(t.Name(), creds); err != nil {
 		return fmt.Errorf("failed to save credentials: %w", err)
 	}
 
@@ -70,7 +68,7 @@ func (t *TrelloService) Login() error {
 }
 
 func (t *TrelloService) Logout() error {
-	if err := config.Remove(t.Name()); err != nil {
+	if err := Remove(t.Name()); err != nil {
 		return err
 	}
 	fmt.Println("Logged out of Trello.")
@@ -78,7 +76,7 @@ func (t *TrelloService) Logout() error {
 }
 
 func (t *TrelloService) IsLoggedIn() bool {
-	_, err := config.Load(t.Name())
+	_, err := Load(t.Name())
 	return err == nil
 }
 
