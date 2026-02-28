@@ -83,12 +83,10 @@ var initCmd = &cobra.Command{
 			}
 		}
 
-		// Git hooks
-		if status.IsGitRepo && !status.HasGitHooks {
-			if shouldGenerate(opts, "Set up pre-push hook? [Y/n]: ") {
-				if err := SetupGitHooks(opts); err != nil {
-					fmt.Fprintf(os.Stderr, "  Error setting up git hooks: %v\n", err)
-				}
+		// Gitignore
+		if status.IsGitRepo {
+			if err := EnsureGitignore(dir, []string{".devkit/logs/"}); err != nil {
+				fmt.Fprintf(os.Stderr, "  Error updating .gitignore: %v\n", err)
 			}
 		}
 
@@ -130,12 +128,6 @@ func formatStatus(s *Status) []string {
 		lines = append(lines, "  ✗ Trello credentials not found")
 	}
 
-	if s.HasGitHooks {
-		lines = append(lines, "  ✓ Git hooks")
-	} else {
-		lines = append(lines, "  ✗ Git hooks not configured")
-	}
-
 	if s.HasSkills {
 		lines = append(lines, "  ✓ Skills")
 	} else {
@@ -146,7 +138,7 @@ func formatStatus(s *Status) []string {
 }
 
 func allConfigured(s *Status) bool {
-	return s.HasClaudeMD && s.HasTrelloCreds && s.HasBoardConfig && s.HasGitHooks && s.HasSkills && s.IsGitRepo
+	return s.HasClaudeMD && s.HasTrelloCreds && s.HasBoardConfig && s.HasSkills && s.IsGitRepo
 }
 
 // shouldGenerate returns true if the user confirms or we're in non-interactive mode.

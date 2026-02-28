@@ -176,40 +176,47 @@ func ConfigureBoard(opts GenerateOpts, listBoards func() ([]Board, error)) error
 	return nil
 }
 
-// SetupGitHooks creates a pre-push hook with the detected test command.
-func SetupGitHooks(opts GenerateOpts) error {
-	hookPath := filepath.Join(opts.Dir, ".git", "hooks", "pre-push")
+// EnsureGitignore ensures that the given entries exist in .gitignore.
+func EnsureGitignore(dir string, entries []string) error {
+	gitignorePath := filepath.Join(dir, ".gitignore")
 
-	// Skip if hook already exists
-	if _, err := os.Stat(hookPath); err == nil {
-		fmt.Println("  Skipped: pre-push hook (already exists)")
+	existing := ""
+	if data, err := os.ReadFile(gitignorePath); err == nil {
+		existing = string(data)
+	}
+
+	var toAdd []string
+	for _, entry := range entries {
+		if !strings.Contains(existing, entry) {
+			toAdd = append(toAdd, entry)
+		}
+	}
+	if len(toAdd) == 0 {
 		return nil
 	}
 
-	pt := detectProjectType(opts.Dir)
-
-	tmpl, err := template.New("hook").Parse(prePushHookTemplate)
+	f, err := os.OpenFile(gitignorePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		return err
 	}
+	defer f.Close()
 
-	var buf bytes.Buffer
-	if err := tmpl.Execute(&buf, map[string]string{
-		"TestCmd": pt.TestCmd,
-	}); err != nil {
+	// Ensure we start on a new line
+	if existing != "" && !strings.HasSuffix(existing, "\n") {
+		if _, err := f.WriteString("\n"); err != nil {
+			return err
+		}
+	}
+
+	block := "\n# Devkit\n"
+	for _, entry := range toAdd {
+		block += entry + "\n"
+	}
+	if _, err := f.WriteString(block); err != nil {
 		return err
 	}
 
-	// Create hooks directory if needed
-	if err := os.MkdirAll(filepath.Dir(hookPath), 0755); err != nil {
-		return err
-	}
-
-	if err := os.WriteFile(hookPath, buf.Bytes(), 0755); err != nil {
-		return err
-	}
-
-	fmt.Println("  Created .git/hooks/pre-push")
+	fmt.Printf("  Updated .gitignore: added %s\n", strings.Join(toAdd, ", "))
 	return nil
 }
 

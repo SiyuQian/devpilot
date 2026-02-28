@@ -22,11 +22,6 @@ const claudeMDTemplate = `# CLAUDE.md
 [TODO: document key directories]
 `
 
-const prePushHookTemplate = `#!/bin/sh
-set -e
-{{.TestCmd}}
-`
-
 const skillMDTemplate = `---
 name: {{.SkillName}}
 description: "[TODO: describe what this skill does]"

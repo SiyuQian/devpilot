@@ -7,7 +7,6 @@ func TestFormatStatusConfigured(t *testing.T) {
 		HasClaudeMD:    true,
 		HasTrelloCreds: true,
 		HasBoardConfig: true,
-		HasGitHooks:    true,
 		HasSkills:      true,
 		IsGitRepo:      true,
 	}
@@ -21,7 +20,6 @@ func TestFormatStatusConfigured(t *testing.T) {
 		{"✓", "CLAUDE.md"},
 		{"✓", "Trello board configured"},
 		{"✓", "Trello credentials"},
-		{"✓", "Git hooks"},
 		{"✓", "Skills"},
 	}
 
@@ -44,7 +42,6 @@ func TestFormatStatusMissing(t *testing.T) {
 		HasClaudeMD:    false,
 		HasTrelloCreds: false,
 		HasBoardConfig: false,
-		HasGitHooks:    false,
 		HasSkills:      false,
 		IsGitRepo:      true,
 	}
@@ -81,7 +78,6 @@ func TestAllConfigured(t *testing.T) {
 		HasClaudeMD:    true,
 		HasTrelloCreds: true,
 		HasBoardConfig: true,
-		HasGitHooks:    true,
 		HasSkills:      true,
 		IsGitRepo:      true,
 	}
@@ -93,7 +89,6 @@ func TestAllConfigured(t *testing.T) {
 		HasClaudeMD:    true,
 		HasTrelloCreds: true,
 		HasBoardConfig: false,
-		HasGitHooks:    true,
 		HasSkills:      true,
 		IsGitRepo:      true,
 	}

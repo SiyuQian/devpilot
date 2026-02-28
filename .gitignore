@@ -3,3 +3,6 @@ bin/
 
 # Worktrees
 .worktrees/
+
+# Devkit
+.devkit/logs/

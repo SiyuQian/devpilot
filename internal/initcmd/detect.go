@@ -13,8 +13,7 @@ type Status struct {
 	HasClaudeMD    bool
 	HasTrelloCreds bool
 	HasBoardConfig bool
-	HasGitHooks    bool
-	HasSkills      bool
+HasSkills      bool
 	IsGitRepo      bool
 	WorkDir        string
 }
@@ -37,11 +36,6 @@ func Detect(dir string) *Status {
 	cfg, err := project.Load(dir)
 	if err == nil && cfg.Board != "" {
 		s.HasBoardConfig = true
-	}
-
-	// Git hooks
-	if _, err := os.Stat(filepath.Join(dir, ".git", "hooks", "pre-push")); err == nil {
-		s.HasGitHooks = true
 	}
 
 	// Skills: check for subdirectories containing SKILL.md

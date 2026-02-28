@@ -49,25 +49,6 @@ func TestDetectHasBoardConfig(t *testing.T) {
 	}
 }
 
-func TestDetectHasGitHooks(t *testing.T) {
-	dir := t.TempDir()
-
-	// Without hooks
-	s := Detect(dir)
-	if s.HasGitHooks {
-		t.Error("HasGitHooks = true, want false")
-	}
-
-	// With pre-push hook
-	hooksDir := filepath.Join(dir, ".git", "hooks")
-	os.MkdirAll(hooksDir, 0755)
-	os.WriteFile(filepath.Join(hooksDir, "pre-push"), []byte("#!/bin/sh"), 0755)
-	s = Detect(dir)
-	if !s.HasGitHooks {
-		t.Error("HasGitHooks = false, want true")
-	}
-}
-
 func TestDetectHasSkills(t *testing.T) {
 	dir := t.TempDir()
 

@@ -318,7 +318,7 @@ Rules:
 func (r *Runner) failCard(card trello.Card, start time.Time, errMsg string) {
 	duration := time.Since(start).Round(time.Second)
 	r.emit(CardFailedEvent{CardID: card.ID, CardName: card.Name, ErrMsg: errMsg, Duration: duration})
-	logPath := filepath.Join(os.Getenv("HOME"), ".config", "devkit", "logs", card.ID+".log")
+	logPath := filepath.Join(r.config.WorkDir, ".devkit", "logs", card.ID+".log")
 	comment := fmt.Sprintf("❌ Task failed\nDuration: %s\nError: %s\nSee full log: %s", duration, errMsg, logPath)
 	r.trello.MoveCard(card.ID, r.failedListID)
 	r.trello.AddComment(card.ID, comment)
@@ -329,7 +329,7 @@ func (r *Runner) saveLog(cardID string, result *ExecuteResult) {
 	if result == nil {
 		return
 	}
-	logDir := filepath.Join(os.Getenv("HOME"), ".config", "devkit", "logs")
+	logDir := filepath.Join(r.config.WorkDir, ".devkit", "logs")
 	os.MkdirAll(logDir, 0755)
 	logPath := filepath.Join(logDir, cardID+".log")
 	content := fmt.Sprintf("=== STDOUT ===\n%s\n\n=== STDERR ===\n%s\n", result.Stdout, result.Stderr)
