@@ -62,9 +62,8 @@ func New(cfg Config, trelloClient *trello.Client, opts ...RunnerOption) *Runner 
 	// When event handler is set, enable streaming output on executor
 	var execOpts []ExecutorOption
 	if r.eventHandler != nil {
-		execOpts = append(execOpts, WithOutputHandler(func(line OutputLine) {
-			r.emit(CardOutputEvent{Line: line})
-		}))
+		bridge := newEventBridge(r.eventHandler)
+		execOpts = append(execOpts, WithClaudeEventHandler(bridge.Handle))
 	}
 	r.executor = NewExecutor(execOpts...)
 

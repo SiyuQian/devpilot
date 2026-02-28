@@ -2,12 +2,26 @@ package taskrunner
 
 import (
 	"context"
-	"fmt"
+	"strings"
 	"time"
 
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 )
+
+type toolCallEntry struct {
+	toolName   string
+	summary    string // e.g. "main.go" for Read, "go test ./..." for Bash
+	durationMs int    // -1 while in progress
+	timestamp  time.Time
+}
+
+type sessionStats struct {
+	inputTokens     int
+	outputTokens    int
+	cacheReadTokens int
+	turns           int
+}
 
 // TUIModel is the Bubble Tea model for the devkit run dashboard.
 type TUIModel struct {
@@ -23,9 +37,22 @@ type TUIModel struct {
 	lastErr    string
 	history    []cardState
 
-	// Log viewport
-	logLines []string
-	viewport viewport.Model
+	// Structured state (replaces logLines)
+	toolCalls  []toolCallEntry
+	activeCall *toolCallEntry
+	textLines  []string
+	stats      sessionStats
+
+	// File tracking
+	filesRead   []string
+	filesEdited []string
+
+	// Viewports (replaces single viewport)
+	toolViewport viewport.Model
+	textViewport viewport.Model
+
+	// Panel focus
+	focusedPane string // "tools" or "text"
 
 	// Layout
 	width  int
@@ -65,10 +92,11 @@ func tickEvery() tea.Cmd {
 // NewTUIModel creates a new TUI model.
 func NewTUIModel(boardName string, eventCh <-chan Event, cancel context.CancelFunc) TUIModel {
 	return TUIModel{
-		boardName: boardName,
-		cancel:    cancel,
-		phase:     "starting",
-		eventCh:   eventCh,
+		boardName:   boardName,
+		cancel:      cancel,
+		phase:       "starting",
+		eventCh:     eventCh,
+		focusedPane: "tools",
 	}
 }
 
@@ -96,16 +124,28 @@ func (m TUIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		headerHeight := 3
 		footerHeight := 2
-		vpHeight := m.height - headerHeight - footerHeight
-		if vpHeight < 1 {
-			vpHeight = 1
+		availableHeight := m.height - headerHeight - footerHeight - 6
+		if availableHeight < 2 {
+			availableHeight = 2
 		}
+		toolVPHeight := availableHeight * 6 / 10
+		textVPHeight := availableHeight - toolVPHeight
+		if toolVPHeight < 1 {
+			toolVPHeight = 1
+		}
+		if textVPHeight < 1 {
+			textVPHeight = 1
+		}
+
 		if !m.ready {
-			m.viewport = viewport.New(m.width, vpHeight)
+			m.toolViewport = viewport.New(m.width, toolVPHeight)
+			m.textViewport = viewport.New(m.width, textVPHeight)
 			m.ready = true
 		} else {
-			m.viewport.Width = m.width
-			m.viewport.Height = vpHeight
+			m.toolViewport.Width = m.width
+			m.toolViewport.Height = toolVPHeight
+			m.textViewport.Width = m.width
+			m.textViewport.Height = textVPHeight
 		}
 		return m, nil
 
@@ -114,21 +154,47 @@ func (m TUIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case tea.KeyCtrlC:
 			m.cancel()
 			return m, tea.Quit
+		case tea.KeyTab:
+			if m.focusedPane == "tools" {
+				m.focusedPane = "text"
+			} else {
+				m.focusedPane = "tools"
+			}
+			return m, nil
 		}
 		switch msg.String() {
 		case "q":
 			m.cancel()
 			return m, tea.Quit
+		case "tab":
+			if m.focusedPane == "tools" {
+				m.focusedPane = "text"
+			} else {
+				m.focusedPane = "tools"
+			}
+			return m, nil
 		case "g":
-			m.viewport.GotoTop()
+			if m.focusedPane == "tools" {
+				m.toolViewport.GotoTop()
+			} else {
+				m.textViewport.GotoTop()
+			}
 			return m, nil
 		case "G":
-			m.viewport.GotoBottom()
+			if m.focusedPane == "tools" {
+				m.toolViewport.GotoBottom()
+			} else {
+				m.textViewport.GotoBottom()
+			}
 			return m, nil
 		}
-		// Delegate scroll keys (j/k/up/down) to viewport
+		// Delegate scroll keys (j/k/up/down) to focused viewport
 		var cmd tea.Cmd
-		m.viewport, cmd = m.viewport.Update(msg)
+		if m.focusedPane == "tools" {
+			m.toolViewport, cmd = m.toolViewport.Update(msg)
+		} else {
+			m.textViewport, cmd = m.textViewport.Update(msg)
+		}
 		return m, cmd
 
 	case tickMsg:
@@ -166,15 +232,58 @@ func (m TUIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			status:  "running",
 			started: time.Now(),
 		}
-		m.logLines = nil // clear logs for new card
+		// Clear new state
+		m.toolCalls = nil
+		m.activeCall = nil
+		m.textLines = nil
+		m.stats = sessionStats{}
+		m.filesRead = nil
+		m.filesEdited = nil
 		m.phase = "running"
 		return m, waitForEvent(m.eventCh)
 
-	case CardOutputEvent:
-		line := fmt.Sprintf("[%s] %s", msg.Line.Stream, msg.Line.Text)
-		m.logLines = append(m.logLines, line)
-		m.viewport.SetContent(joinLines(m.logLines))
-		m.viewport.GotoBottom()
+	case ToolStartEvent:
+		summary := toolSummary(msg.ToolName, msg.Input)
+		m.activeCall = &toolCallEntry{
+			toolName:   msg.ToolName,
+			summary:    summary,
+			durationMs: -1,
+			timestamp:  time.Now(),
+		}
+		// Track files
+		if fp := extractFilePath(msg.Input); fp != "" {
+			switch msg.ToolName {
+			case "Read", "Grep", "Glob":
+				m.filesRead = addUnique(m.filesRead, fp)
+			case "Edit", "Write":
+				m.filesEdited = addUnique(m.filesEdited, fp)
+			}
+		}
+		return m, waitForEvent(m.eventCh)
+
+	case ToolResultEvent:
+		if m.activeCall != nil {
+			m.activeCall.durationMs = msg.DurationMs
+			m.toolCalls = append(m.toolCalls, *m.activeCall)
+			m.activeCall = nil
+		}
+		m.toolViewport.SetContent(renderToolCallsList(m))
+		m.toolViewport.GotoBottom()
+		return m, waitForEvent(m.eventCh)
+
+	case TextOutputEvent:
+		m.textLines = append(m.textLines, msg.Text)
+		m.textViewport.SetContent(joinLines(m.textLines))
+		m.textViewport.GotoBottom()
+		return m, waitForEvent(m.eventCh)
+
+	case StatsUpdateEvent:
+		m.stats.inputTokens += msg.InputTokens
+		m.stats.outputTokens += msg.OutputTokens
+		m.stats.cacheReadTokens += msg.CacheReadTokens
+		if msg.Turns > 0 {
+			m.stats.turns = msg.Turns
+		}
 		return m, waitForEvent(m.eventCh)
 
 	case CardDoneEvent:
@@ -223,7 +332,7 @@ func (m TUIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-// View implements tea.Model (stub — rendering in tui_view.go).
+// View implements tea.Model (stub -- rendering in tui_view.go).
 func (m TUIModel) View() string {
 	if !m.ready {
 		return "  Starting devkit run..."
@@ -240,4 +349,59 @@ func joinLines(lines []string) string {
 		s += l
 	}
 	return s
+}
+
+// Helper functions for model updates
+
+func toolSummary(toolName string, input map[string]any) string {
+	switch toolName {
+	case "Read":
+		if fp, ok := input["file_path"].(string); ok {
+			return shortenPath(fp)
+		}
+	case "Edit", "Write":
+		if fp, ok := input["file_path"].(string); ok {
+			return shortenPath(fp)
+		}
+	case "Bash":
+		if cmd, ok := input["command"].(string); ok {
+			if len(cmd) > 60 {
+				return cmd[:60] + "..."
+			}
+			return cmd
+		}
+	case "Grep":
+		if pat, ok := input["pattern"].(string); ok {
+			return pat
+		}
+	case "Glob":
+		if pat, ok := input["pattern"].(string); ok {
+			return pat
+		}
+	}
+	return ""
+}
+
+func extractFilePath(input map[string]any) string {
+	if fp, ok := input["file_path"].(string); ok {
+		return fp
+	}
+	return ""
+}
+
+func addUnique(slice []string, item string) []string {
+	for _, s := range slice {
+		if s == item {
+			return slice
+		}
+	}
+	return append(slice, item)
+}
+
+func shortenPath(path string) string {
+	parts := strings.Split(path, "/")
+	if len(parts) <= 2 {
+		return path
+	}
+	return strings.Join(parts[len(parts)-2:], "/")
 }

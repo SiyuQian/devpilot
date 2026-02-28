@@ -27,10 +27,14 @@ type OutputLine struct {
 // OutputHandler is called for each line of output during execution.
 type OutputHandler func(line OutputLine)
 
+// ClaudeEventHandler is called for each parsed stream-json event.
+type ClaudeEventHandler func(event ClaudeEvent)
+
 type Executor struct {
-	command       string
-	args          []string
-	outputHandler OutputHandler
+	command            string
+	args               []string
+	outputHandler      OutputHandler
+	claudeEventHandler ClaudeEventHandler
 }
 
 type ExecutorOption func(*Executor)
@@ -48,10 +52,16 @@ func WithOutputHandler(handler OutputHandler) ExecutorOption {
 	}
 }
 
+func WithClaudeEventHandler(handler ClaudeEventHandler) ExecutorOption {
+	return func(e *Executor) {
+		e.claudeEventHandler = handler
+	}
+}
+
 func NewExecutor(opts ...ExecutorOption) *Executor {
 	e := &Executor{
 		command: "claude",
-		args:    []string{"-p", "--allowedTools=*"},
+		args:    []string{"-p", "--output-format", "stream-json", "--allowedTools=*"},
 	}
 	for _, opt := range opts {
 		opt(e)
@@ -70,7 +80,7 @@ func (e *Executor) Run(ctx context.Context, prompt string) (*ExecuteResult, erro
 
 	cmd := exec.CommandContext(ctx, e.command, args...)
 
-	if e.outputHandler == nil {
+	if e.outputHandler == nil && e.claudeEventHandler == nil {
 		return e.runBuffered(ctx, cmd)
 	}
 	return e.runStreaming(ctx, cmd)
@@ -153,7 +163,15 @@ func (e *Executor) scanStream(pipe io.Reader, stream string, buf *bytes.Buffer) 
 		line := scanner.Text()
 		buf.WriteString(line)
 		buf.WriteByte('\n')
-		e.outputHandler(OutputLine{Stream: stream, Text: line})
+		if e.outputHandler != nil {
+			e.outputHandler(OutputLine{Stream: stream, Text: line})
+		}
+		if e.claudeEventHandler != nil && stream == "stdout" {
+			event, err := ParseLine([]byte(line))
+			if err == nil && event != nil {
+				e.claudeEventHandler(event)
+			}
+		}
 	}
 }
 
