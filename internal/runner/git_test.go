@@ -78,11 +78,49 @@ func TestSlugify(t *testing.T) {
 		{"Fix auth bug", "fix-auth-bug"},
 		{"Add Login Endpoint!!", "add-login-endpoint"},
 		{"hello   world", "hello-world"},
+		{"实时日志流式监控", ""},
+		{"自动 PR Code Review", "pr-code-review"},
 	}
 	for _, tt := range tests {
 		got := Slugify(tt.input)
 		if got != tt.expected {
 			t.Errorf("Slugify(%q) = %q, want %q", tt.input, got, tt.expected)
 		}
+	}
+}
+
+func TestBranchNameNonASCII(t *testing.T) {
+	git := NewGitOps("/tmp")
+
+	// Pure Chinese name should produce branch with just card ID
+	name := git.BranchName("abc123", "实时日志流式监控")
+	if name != "task/abc123" {
+		t.Errorf("unexpected branch name: %s", name)
+	}
+
+	// Mixed Chinese + ASCII should keep the ASCII part
+	name = git.BranchName("abc123", "自动 PR Code Review")
+	if name != "task/abc123-pr-code-review" {
+		t.Errorf("unexpected branch name: %s", name)
+	}
+}
+
+func TestCreateBranchAlreadyExists(t *testing.T) {
+	dir := setupGitRepo(t)
+	git := NewGitOps(dir)
+
+	// Create branch first time
+	if err := git.CreateBranch("task/test-branch"); err != nil {
+		t.Fatalf("first create: %v", err)
+	}
+
+	// Go back to main
+	if err := git.CheckoutMain(); err != nil {
+		t.Fatalf("checkout main: %v", err)
+	}
+
+	// Create same branch again — should not error
+	if err := git.CreateBranch("task/test-branch"); err != nil {
+		t.Errorf("second create should succeed with -B, got: %v", err)
 	}
 }

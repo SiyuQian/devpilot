@@ -32,7 +32,7 @@ func WithCommand(command string, args ...string) ExecutorOption {
 func NewExecutor(opts ...ExecutorOption) *Executor {
 	e := &Executor{
 		command: "claude",
-		args:    []string{"-p", "--allowedTools", "*"},
+		args:    []string{"-p", "--allowedTools=*"},
 	}
 	for _, opt := range opts {
 		opt(e)

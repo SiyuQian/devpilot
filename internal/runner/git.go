@@ -26,7 +26,7 @@ func (g *GitOps) run(args ...string) (string, error) {
 }
 
 func (g *GitOps) CreateBranch(name string) error {
-	_, err := g.run("checkout", "-b", name)
+	_, err := g.run("checkout", "-B", name)
 	return err
 }
 
@@ -48,6 +48,9 @@ func (g *GitOps) BranchName(cardID, cardName string) string {
 	if len(slug) > 40 {
 		slug = slug[:40]
 		slug = strings.TrimRight(slug, "-")
+	}
+	if slug == "" {
+		return fmt.Sprintf("task/%s", cardID)
 	}
 	return fmt.Sprintf("task/%s-%s", cardID, slug)
 }

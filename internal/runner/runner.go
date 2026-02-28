@@ -89,13 +89,19 @@ func (r *Runner) Run(ctx context.Context) error {
 		cards, err := r.trello.GetListCards(r.readyListID)
 		if err != nil {
 			r.logger.Printf("Error polling: %v. Retrying in %s...", err, r.config.Interval)
-			time.Sleep(r.config.Interval)
+			if !r.sleep(ctx, r.config.Interval) {
+				r.logger.Println("Shutting down.")
+				return nil
+			}
 			continue
 		}
 
 		if len(cards) == 0 {
 			r.logger.Printf("No tasks. Sleeping %s...", r.config.Interval)
-			time.Sleep(r.config.Interval)
+			if !r.sleep(ctx, r.config.Interval) {
+				r.logger.Println("Shutting down.")
+				return nil
+			}
 			continue
 		}
 
@@ -227,6 +233,15 @@ func (r *Runner) saveLog(cardID string, result *ExecuteResult) {
 	logPath := filepath.Join(logDir, cardID+".log")
 	content := fmt.Sprintf("=== STDOUT ===\n%s\n\n=== STDERR ===\n%s\n", result.Stdout, result.Stderr)
 	os.WriteFile(logPath, []byte(content), 0644)
+}
+
+func (r *Runner) sleep(ctx context.Context, d time.Duration) bool {
+	select {
+	case <-ctx.Done():
+		return false
+	case <-time.After(d):
+		return true
+	}
 }
 
 func truncate(s string, max int) string {
