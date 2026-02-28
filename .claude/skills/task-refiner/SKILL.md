@@ -61,7 +61,20 @@ Apply this heuristic to the card description:
 - **Refine mode**: Description contains markdown headings (`#`, `##`, `###`) AND numbered steps (`1.`, `### 1.`, ordered list items)
 - **Expand mode**: Everything else — short descriptions, unstructured bullets, feature requests, vague ideas, or empty descriptions
 
-### Step 4: Improve the Plan
+### Step 4: Propose Directions (Expand mode only)
+
+**Skip this step entirely if in Refine mode — go straight to Step 5.**
+
+Before committing to a full plan, propose 2-3 implementation directions for the user to choose from. Each direction should:
+
+1. Have a short name (e.g., "A: Interactive wizard", "B: Subcommand-per-step")
+2. Describe the approach in 2-3 sentences
+3. List key trade-offs: complexity, flexibility, consistency with codebase patterns
+4. Note which existing patterns it follows or departs from
+
+Present the directions and **wait for the user to choose** before proceeding. The user may also combine ideas from multiple directions or suggest a different approach entirely.
+
+### Step 5: Improve the Plan
 
 Read the file `references/quality-checklist.md` (relative to this skill).
 
@@ -75,11 +88,11 @@ Read the file `references/quality-checklist.md` (relative to this skill).
 **If Expand mode:**
 
 1. Use the plan template from the quality checklist
-2. Explore the codebase to determine the right files, packages, and patterns
+2. Based on the direction the user chose in Step 4, explore the codebase to determine the right files, packages, and patterns
 3. Generate a complete plan with concrete file paths, code approach, and test strategy
 4. Ensure every step is executable by Claude without human judgment
 
-### Step 5: Confirm and Update
+### Step 6: Confirm and Update
 
 1. Show the improved plan to the user in full
 2. Wait for explicit approval before updating
