@@ -21,6 +21,7 @@ var runCmd = &cobra.Command{
 		boardName, _ := cmd.Flags().GetString("board")
 		interval, _ := cmd.Flags().GetInt("interval")
 		timeout, _ := cmd.Flags().GetInt("timeout")
+		reviewTimeout, _ := cmd.Flags().GetInt("review-timeout")
 		once, _ := cmd.Flags().GetBool("once")
 		dryRun, _ := cmd.Flags().GetBool("dry-run")
 
@@ -45,12 +46,13 @@ var runCmd = &cobra.Command{
 		}
 
 		cfg := runner.Config{
-			BoardName: boardName,
-			Interval:  time.Duration(interval) * time.Second,
-			Timeout:   time.Duration(timeout) * time.Minute,
-			Once:      once,
-			DryRun:    dryRun,
-			WorkDir:   dir,
+			BoardName:     boardName,
+			Interval:      time.Duration(interval) * time.Second,
+			Timeout:       time.Duration(timeout) * time.Minute,
+			ReviewTimeout: time.Duration(reviewTimeout) * time.Minute,
+			Once:          once,
+			DryRun:        dryRun,
+			WorkDir:       dir,
 		}
 
 		r := runner.New(cfg, trelloClient)
@@ -77,6 +79,7 @@ func init() {
 	runCmd.Flags().String("board", "", "Trello board name (required)")
 	runCmd.Flags().Int("interval", 300, "Poll interval in seconds")
 	runCmd.Flags().Int("timeout", 30, "Per-task timeout in minutes")
+	runCmd.Flags().Int("review-timeout", 10, "Code review timeout in minutes (0 to disable)")
 	runCmd.Flags().Bool("once", false, "Process one card and exit")
 	runCmd.Flags().Bool("dry-run", false, "Print actions without executing")
 	rootCmd.AddCommand(runCmd)

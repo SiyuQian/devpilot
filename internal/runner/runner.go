@@ -12,18 +12,20 @@ import (
 )
 
 type Config struct {
-	BoardName string
-	Interval  time.Duration
-	Timeout   time.Duration
-	Once      bool
-	DryRun    bool
-	WorkDir   string
+	BoardName     string
+	Interval      time.Duration
+	Timeout       time.Duration
+	ReviewTimeout time.Duration // 0 disables code review
+	Once          bool
+	DryRun        bool
+	WorkDir       string
 }
 
 type Runner struct {
 	config   Config
 	trello   *trello.Client
 	executor *Executor
+	reviewer *Reviewer
 	git      *GitOps
 	logger   *log.Logger
 
@@ -36,13 +38,17 @@ type Runner struct {
 }
 
 func New(cfg Config, trelloClient *trello.Client) *Runner {
-	return &Runner{
+	r := &Runner{
 		config:   cfg,
 		trello:   trelloClient,
 		executor: NewExecutor(),
 		git:      NewGitOps(cfg.WorkDir),
 		logger:   log.New(os.Stdout, "", log.LstdFlags),
 	}
+	if cfg.ReviewTimeout > 0 {
+		r.reviewer = NewReviewer()
+	}
+	return r
 }
 
 func (r *Runner) init() error {
@@ -186,6 +192,21 @@ func (r *Runner) processCard(ctx context.Context, card trello.Card) {
 		r.failCard(card, start, fmt.Sprintf("create PR: %v", err))
 		r.git.CheckoutMain()
 		return
+	}
+
+	// Code review (non-blocking)
+	if r.reviewer != nil {
+		r.logger.Printf("Running code review for PR: %s", prURL)
+		reviewCtx, reviewCancel := context.WithTimeout(ctx, r.config.ReviewTimeout)
+		reviewResult, reviewErr := r.reviewer.Review(reviewCtx, prURL)
+		reviewCancel()
+		if reviewErr != nil {
+			r.logger.Printf("Code review error: %v", reviewErr)
+		} else if reviewResult.ExitCode != 0 {
+			r.logger.Printf("Code review finished with non-zero exit: %d", reviewResult.ExitCode)
+		} else {
+			r.logger.Printf("Code review completed for PR: %s", prURL)
+		}
 	}
 
 	if err := r.git.MergePR(); err != nil {
