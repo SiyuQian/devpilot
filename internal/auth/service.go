@@ -1,6 +1,13 @@
-package services
+package auth
 
 import "fmt"
+
+type Service interface {
+	Name() string
+	Login() error
+	Logout() error
+	IsLoggedIn() bool
+}
 
 var registry = map[string]Service{}
 

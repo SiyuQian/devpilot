@@ -1,4 +1,4 @@
-package cli
+package taskrunner
 
 import (
 	"context"
@@ -8,10 +8,19 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
-	"github.com/siyuqian/developer-kit/internal/config"
-	"github.com/siyuqian/developer-kit/internal/runner"
+	"github.com/siyuqian/developer-kit/internal/auth"
 	"github.com/siyuqian/developer-kit/internal/trello"
 )
+
+func RegisterCommands(parent *cobra.Command) {
+	runCmd.Flags().String("board", "", "Trello board name (required)")
+	runCmd.Flags().Int("interval", 300, "Poll interval in seconds")
+	runCmd.Flags().Int("timeout", 30, "Per-task timeout in minutes")
+	runCmd.Flags().Int("review-timeout", 10, "Code review timeout in minutes (0 to disable)")
+	runCmd.Flags().Bool("once", false, "Process one card and exit")
+	runCmd.Flags().Bool("dry-run", false, "Print actions without executing")
+	parent.AddCommand(runCmd)
+}
 
 var runCmd = &cobra.Command{
 	Use:   "run",
@@ -31,7 +40,7 @@ var runCmd = &cobra.Command{
 		}
 
 		// Load Trello credentials
-		creds, err := config.Load("trello")
+		creds, err := auth.Load("trello")
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "Not logged in to Trello. Run: devkit login trello")
 			os.Exit(1)
@@ -45,7 +54,7 @@ var runCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		cfg := runner.Config{
+		cfg := Config{
 			BoardName:     boardName,
 			Interval:      time.Duration(interval) * time.Second,
 			Timeout:       time.Duration(timeout) * time.Minute,
@@ -55,7 +64,7 @@ var runCmd = &cobra.Command{
 			WorkDir:       dir,
 		}
 
-		r := runner.New(cfg, trelloClient)
+		r := New(cfg, trelloClient)
 
 		// Handle Ctrl+C
 		ctx, cancel := context.WithCancel(context.Background())
@@ -73,14 +82,4 @@ var runCmd = &cobra.Command{
 			os.Exit(1)
 		}
 	},
-}
-
-func init() {
-	runCmd.Flags().String("board", "", "Trello board name (required)")
-	runCmd.Flags().Int("interval", 300, "Poll interval in seconds")
-	runCmd.Flags().Int("timeout", 30, "Per-task timeout in minutes")
-	runCmd.Flags().Int("review-timeout", 10, "Code review timeout in minutes (0 to disable)")
-	runCmd.Flags().Bool("once", false, "Process one card and exit")
-	runCmd.Flags().Bool("dry-run", false, "Print actions without executing")
-	rootCmd.AddCommand(runCmd)
 }

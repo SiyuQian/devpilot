@@ -1,4 +1,4 @@
-package runner
+package taskrunner
 
 import (
 	"context"
@@ -66,4 +66,3 @@ func TestReviewer_ReviewFailure(t *testing.T) {
 		t.Error("expected non-zero exit code for failed review")
 	}
 }
-
