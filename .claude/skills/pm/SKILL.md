@@ -38,6 +38,18 @@ Launch **3 agents in parallel** using the Task tool with `subagent_type: "genera
 
 **IMPORTANT**: Launch all 3 agents in a single message to maximize parallelism.
 
+**IMPORTANT**: If Phase 1.5 produced any rejected or deferred ideas, append the following block to each agent's prompt (before the 800-word constraint line):
+
+```
+IMPORTANT: The following ideas have been previously evaluated and REJECTED by our team. Do NOT recommend features similar to these:
+{for each rejected idea: "- {idea_name} (reason: {reason})"}
+
+The following ideas were DEFERRED (not right now). Only mention them if you find strong evidence that market conditions have significantly changed since {date}:
+{for each deferred idea: "- {idea_name} (deferred on: {date}, reason: {reason})"}
+```
+
+If there are no rejected or deferred ideas, omit this block entirely.
+
 **CRITICAL**: Each agent prompt MUST end with this constraint:
 > Keep your response under 800 words. Return ONLY a structured summary — no preamble, no methodology explanation. Focus on actionable findings with specific data points.
 
