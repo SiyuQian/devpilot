@@ -20,9 +20,14 @@ Keep it to 1-2 questions max. Extract search keywords from the answers for the a
 
 ### Phase 2: Parallel Deep Research
 
-Launch **3 agents in parallel** using the Task tool with `subagent_type: "generalPurpose"`. Each agent uses WebSearch extensively.
+Launch **3 agents in parallel** using the Task tool with `subagent_type: "general-purpose"`. Each agent uses WebSearch extensively.
 
 **IMPORTANT**: Launch all 3 agents in a single message to maximize parallelism.
+
+**CRITICAL**: Each agent prompt MUST end with this constraint:
+> Keep your response under 800 words. Return ONLY a structured summary — no preamble, no methodology explanation. Focus on actionable findings with specific data points.
+
+**CRITICAL**: After ALL agents return, you MUST immediately proceed to Phase 3 (Synthesis) in the SAME response. Do NOT stop or wait for user input between Phase 2 and Phase 4. The flow is: agents return → synthesize → present to user, all in one response.
 
 #### Agent 1: Competitor Analyst
 
@@ -44,6 +49,8 @@ Do the following:
    - Name | Core Features | Pricing | Strengths | Weaknesses | Popularity
 
 Return ONLY the structured analysis. Be specific with facts and data.
+
+Keep your response under 800 words. Return ONLY a structured summary — no preamble, no methodology explanation. Focus on actionable findings with specific data points.
 ```
 
 #### Agent 2: User Pain Analyst
@@ -68,6 +75,8 @@ Do the following:
    - Whether any existing product has solved it
 
 Return a structured list of pain points ranked by frequency. Be specific — quote real user feedback when possible.
+
+Keep your response under 800 words. Return ONLY a structured summary — no preamble, no methodology explanation. Focus on actionable findings with specific data points.
 ```
 
 #### Agent 3: Trend Analyst
@@ -92,9 +101,13 @@ Do the following:
    - Potential opportunity for a new product
 
 Return a structured trend analysis. Focus on actionable insights, not hype.
+
+Keep your response under 800 words. Return ONLY a structured summary — no preamble, no methodology explanation. Focus on actionable findings with specific data points.
 ```
 
-### Phase 3: Synthesis
+### Phase 3: Synthesis (MUST happen in the same response as Phase 2 results)
+
+**CRITICAL**: Do NOT stop after agents return. Immediately synthesize and present findings in a single response. Never wait for user input between Phase 2 and Phase 4.
 
 After all 3 agents return, synthesize their findings:
 
