@@ -61,7 +61,7 @@ func WithClaudeEventHandler(handler ClaudeEventHandler) ExecutorOption {
 func NewExecutor(opts ...ExecutorOption) *Executor {
 	e := &Executor{
 		command: "claude",
-		args:    []string{"-p", "--output-format", "stream-json", "--allowedTools=*"},
+		args:    []string{"-p", "--verbose", "--output-format", "stream-json", "--allowedTools=*"},
 	}
 	for _, opt := range opts {
 		opt(e)

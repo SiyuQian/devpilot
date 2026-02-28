@@ -3,6 +3,7 @@ package taskrunner
 import (
 	"context"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"path/filepath"
@@ -57,6 +58,12 @@ func New(cfg Config, trelloClient *trello.Client, opts ...RunnerOption) *Runner 
 	}
 	for _, opt := range opts {
 		opt(r)
+	}
+
+	// When event handler is set, silence the logger to avoid duplicate output.
+	// All information is conveyed through events instead.
+	if r.eventHandler != nil {
+		r.logger = log.New(io.Discard, "", 0)
 	}
 
 	// When event handler is set, enable streaming output on executor

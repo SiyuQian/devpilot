@@ -94,8 +94,10 @@ func runWithTUI(cfg Config, trelloClient *trello.Client, boardName string) {
 
 	p := tea.NewProgram(model, tea.WithAltScreen())
 
+	var runErr error
 	go func() {
 		if err := r.Run(ctx); err != nil {
+			runErr = err
 			eventCh <- RunnerErrorEvent{Err: err}
 		}
 		close(eventCh)
@@ -105,6 +107,11 @@ func runWithTUI(cfg Config, trelloClient *trello.Client, boardName string) {
 		fmt.Fprintln(os.Stderr, "TUI error:", err)
 		os.Exit(1)
 	}
+
+	if runErr != nil {
+		fmt.Fprintln(os.Stderr, "Runner error:", runErr)
+		os.Exit(1)
+	}
 }
 
 func runPlainText(cfg Config, trelloClient *trello.Client) {
@@ -112,6 +119,15 @@ func runPlainText(cfg Config, trelloClient *trello.Client) {
 
 	handler := func(e Event) {
 		switch ev := e.(type) {
+		case RunnerStartedEvent:
+			logger.Printf("Board: %s (%s)", ev.BoardName, ev.BoardID)
+			for name, id := range ev.Lists {
+				logger.Printf("  List %q → %s", name, id)
+			}
+		case PollingEvent:
+			logger.Printf("Polling for tasks...")
+		case NoTasksEvent:
+			logger.Printf("No tasks. Next poll in %s", ev.NextPoll)
 		case CardStartedEvent:
 			logger.Printf("[card] Started: %q on branch %s", ev.CardName, ev.Branch)
 		case ToolStartEvent:
@@ -129,6 +145,12 @@ func runPlainText(cfg Config, trelloClient *trello.Client) {
 			logger.Printf("[card] Done: %q (%s) PR: %s", ev.CardName, ev.Duration, ev.PRURL)
 		case CardFailedEvent:
 			logger.Printf("[card] Failed: %q — %s", ev.CardName, ev.ErrMsg)
+		case ReviewStartedEvent:
+			logger.Printf("[review] Starting code review for %s", ev.PRURL)
+		case ReviewDoneEvent:
+			logger.Printf("[review] Done (exit %d)", ev.ExitCode)
+		case RunnerStoppedEvent:
+			logger.Printf("Runner stopped.")
 		case RunnerErrorEvent:
 			if ev.Err != nil {
 				logger.Printf("[error] %v", ev.Err)

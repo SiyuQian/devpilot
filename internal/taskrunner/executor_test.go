@@ -354,14 +354,21 @@ func TestExecute_ClaudeEventHandler_NonJSONFallback(t *testing.T) {
 
 func TestExecute_DefaultArgsIncludeStreamJSON(t *testing.T) {
 	exec := NewExecutor()
-	found := false
+	foundStreamJSON := false
+	foundVerbose := false
 	for _, arg := range exec.args {
 		if arg == "stream-json" {
-			found = true
+			foundStreamJSON = true
+		}
+		if arg == "--verbose" {
+			foundVerbose = true
 		}
 	}
-	if !found {
+	if !foundStreamJSON {
 		t.Errorf("default args should include stream-json, got %v", exec.args)
+	}
+	if !foundVerbose {
+		t.Errorf("default args should include --verbose (required with --print + stream-json), got %v", exec.args)
 	}
 }
 

@@ -143,7 +143,7 @@ func renderStatusAndActive(m TUIModel) string {
 	active := renderActiveTask(m)
 
 	statusWidth := 22
-	activeWidth := m.width - statusWidth - 3
+	activeWidth := m.width - statusWidth - 1
 	if activeWidth < 10 {
 		activeWidth = 10
 	}
@@ -155,11 +155,11 @@ func renderStatusAndActive(m TUIModel) string {
 }
 
 func renderToolsAndFiles(m TUIModel) string {
-	toolsWidth := m.width - 30 - 3 // reserve 30 for files panel
+	toolsWidth := m.width - 30 - 1 // reserve 30 for files panel, 1 for spacer
 	if toolsWidth < 30 {
 		toolsWidth = 30
 	}
-	filesWidth := m.width - toolsWidth - 3
+	filesWidth := m.width - toolsWidth - 1
 
 	toolsPanel := renderToolCallsPanel(m, toolsWidth)
 	filesPanel := renderFilesPanel(m, filesWidth)
@@ -228,7 +228,7 @@ func renderTextPane(m TUIModel) string {
 	style := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(focusColor).
-		Width(m.width - 4).
+		Width(m.width - 2).
 		Padding(0, 1)
 
 	if len(m.textLines) == 0 {

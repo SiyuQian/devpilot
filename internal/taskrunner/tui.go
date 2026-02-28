@@ -122,9 +122,10 @@ func (m TUIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width = msg.Width
 		m.height = msg.Height
 
-		headerHeight := 3
-		footerHeight := 2
-		availableHeight := m.height - headerHeight - footerHeight - 6
+		// Height budget: header(1) + statusAndActive(~6) + footer(~2)
+		// + 4 newlines joining 5 sections + 6 for panel borders/titles (3 each)
+		fixedOverhead := 19
+		availableHeight := m.height - fixedOverhead
 		if availableHeight < 2 {
 			availableHeight = 2
 		}
