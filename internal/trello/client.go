@@ -164,6 +164,23 @@ func (c *Client) AddComment(cardID, text string) error {
 	return err
 }
 
+func (c *Client) CreateCard(listID, name, desc string) (*Card, error) {
+	params := url.Values{
+		"idList": {listID},
+		"name":   {name},
+		"desc":   {desc},
+	}
+	data, err := c.post("/1/cards", params)
+	if err != nil {
+		return nil, err
+	}
+	var card Card
+	if err := json.Unmarshal(data, &card); err != nil {
+		return nil, fmt.Errorf("parse card: %w", err)
+	}
+	return &card, nil
+}
+
 func (c *Client) FindBoardByName(name string) (*Board, error) {
 	boards, err := c.GetBoards()
 	if err != nil {

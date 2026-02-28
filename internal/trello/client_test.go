@@ -159,3 +159,37 @@ func TestFindListByName(t *testing.T) {
 		t.Error("expected error for missing list")
 	}
 }
+
+func TestCreateCard(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			t.Errorf("expected POST, got %s", r.Method)
+		}
+		if r.URL.Path != "/1/cards" {
+			t.Errorf("unexpected path: %s", r.URL.Path)
+		}
+		if r.URL.Query().Get("idList") != "list1" {
+			t.Errorf("expected idList=list1, got %s", r.URL.Query().Get("idList"))
+		}
+		if r.URL.Query().Get("name") != "My Card" {
+			t.Errorf("expected name=My Card, got %s", r.URL.Query().Get("name"))
+		}
+		if r.URL.Query().Get("desc") != "card body" {
+			t.Errorf("expected desc=card body, got %s", r.URL.Query().Get("desc"))
+		}
+		fmt.Fprint(w, `{"id":"card99","name":"My Card","desc":"card body","idList":"list1","shortUrl":"https://trello.com/c/abc123"}`)
+	}))
+	defer server.Close()
+
+	client := NewClient("k", "t", WithBaseURL(server.URL))
+	card, err := client.CreateCard("list1", "My Card", "card body")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if card.ID != "card99" {
+		t.Errorf("expected card99, got %s", card.ID)
+	}
+	if card.ShortURL != "https://trello.com/c/abc123" {
+		t.Errorf("expected shortUrl, got %s", card.ShortURL)
+	}
+}
