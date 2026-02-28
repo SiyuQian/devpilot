@@ -141,6 +141,68 @@ In TTY mode, the runner displays a real-time terminal dashboard (Bubble Tea):
 
 Keyboard shortcuts: `q`/`Ctrl-C` quit, `Tab` switch pane, `j/k/↑/↓` scroll, `g/G` top/bottom.
 
+## Architecture
+
+### Core Concept
+
+Developer Kit turns **markdown plans into shipped code** by orchestrating three systems: a task queue (Trello), an AI coding agent (`claude -p`), and standard Git/GitHub workflows. The human writes *what* to build; the machine handles *how*.
+
+### Event-Driven Pipeline
+
+The runner is built on an event-driven architecture with three layers:
+
+```
+┌──────────────────────────────────────────────────────────┐
+│  Runner (orchestrator)                                   │
+│  Polls Trello → manages card lifecycle → emits events    │
+├──────────────────────────────────────────────────────────┤
+│  EventBridge (translator)                                │
+│  Parses claude -p stream-json → translates to events     │
+├──────────────────────────────────────────────────────────┤
+│  TUI / Logger (consumers)                                │
+│  Receives events via channel → renders dashboard / logs  │
+└──────────────────────────────────────────────────────────┘
+```
+
+- **Runner** owns the card state machine (Ready → In Progress → Done/Failed) and drives the full lifecycle: git branch, execute, push, PR, review, merge.
+- **Executor** wraps `claude -p` with `--output-format stream-json`, which produces a stream of structured JSON events (tool calls, text output, token usage, etc.) instead of plain text.
+- **EventBridge** parses this stream in real-time and translates each JSON event into typed runner events (`ToolStart`, `ToolEnd`, `TextOutput`, `TokenUsage`, etc.).
+- **TUI** and **Logger** subscribe to these events via a buffered Go channel, decoupling the execution pipeline from presentation.
+
+### How `claude -p` Is Used
+
+The key integration point is Claude Code's headless mode:
+
+```bash
+claude -p "your prompt here" --output-format stream-json
+```
+
+This runs Claude Code non-interactively with a prompt (the plan from the Trello card). The `stream-json` format emits one JSON object per line as Claude works, allowing the runner to track progress, tool usage, and token consumption in real-time without waiting for completion.
+
+### Task Prioritization
+
+Cards are sorted before execution using Trello labels:
+- **P0** (critical) → **P1** (high) → **P2** (normal, default)
+- Cards without a priority label default to P2
+- Within the same priority, cards are processed in list order
+
+### Automated Code Review
+
+After the PR is created, the runner optionally spawns a *second* `claude -p` invocation that reviews the diff against the original plan. This acts as an AI code reviewer, posting feedback as PR comments before auto-merging.
+
+### Skills System
+
+Skills extend Claude Code's capabilities through structured markdown files:
+
+```
+.claude/skills/my-skill/
+├── SKILL.md          # YAML frontmatter (metadata) + markdown body (instructions)
+├── references/       # Additional context loaded on demand
+└── scripts/          # Helper scripts the skill can invoke
+```
+
+Skills use **progressive disclosure**: frontmatter metadata is always visible to Claude (for skill discovery), the body loads only when the skill is invoked, and references load only when explicitly requested. This keeps context usage efficient.
+
 ## Built-in Skills
 
 The kit includes Claude Code skills in `.claude/skills/`:
@@ -148,7 +210,6 @@ The kit includes Claude Code skills in `.claude/skills/`:
 | Skill | Description |
 |-------|-------------|
 | `skill-creator` | Guide and scripts for creating new Claude Code skills |
-| `mcp-builder` | Guide for building MCP (Model Context Protocol) servers |
 | `developerkit:pm` | Product manager — market research, competitor analysis, feature prioritization |
 | `developerkit:trello` | Direct Trello board and card management from Claude Code |
 | `developerkit:task-executor` | Autonomous plan execution (used internally by `devkit run`) |
