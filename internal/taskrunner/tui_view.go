@@ -57,8 +57,8 @@ func formatDuration(ms int) string {
 }
 
 func (m TUIModel) renderView() string {
-	if m.width < 80 || m.height < 20 {
-		return fmt.Sprintf("  Terminal too small (need 80x20, have %dx%d). Resize or use --no-tui.", m.width, m.height)
+	if m.width < 60 || m.height < 12 {
+		return fmt.Sprintf("  Terminal too small (need 60x12, have %dx%d). Resize or use --no-tui.", m.width, m.height)
 	}
 	var sections []string
 	sections = append(sections, renderHeader(m))
