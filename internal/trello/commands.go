@@ -8,6 +8,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/siyuqian/developer-kit/internal/auth"
+	"github.com/siyuqian/developer-kit/internal/project"
 )
 
 func RegisterCommands(parent *cobra.Command) {
@@ -27,7 +28,14 @@ var pushCmd = &cobra.Command{
 		listName, _ := cmd.Flags().GetString("list")
 
 		if boardName == "" {
-			fmt.Fprintln(os.Stderr, "Error: --board is required")
+			dir, _ := os.Getwd()
+			cfg, _ := project.Load(dir)
+			if cfg.Board != "" {
+				boardName = cfg.Board
+			}
+		}
+		if boardName == "" {
+			fmt.Fprintln(os.Stderr, "Error: --board is required (or run: devkit init)")
 			os.Exit(1)
 		}
 

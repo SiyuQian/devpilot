@@ -6,6 +6,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/siyuqian/developer-kit/internal/auth"
+	"github.com/siyuqian/developer-kit/internal/initcmd"
 	"github.com/siyuqian/developer-kit/internal/taskrunner"
 	"github.com/siyuqian/developer-kit/internal/trello"
 )
@@ -18,6 +19,7 @@ func main() {
 	}
 
 	auth.RegisterCommands(rootCmd)
+	initcmd.RegisterCommands(rootCmd)
 	trello.RegisterCommands(rootCmd)
 	taskrunner.RegisterCommands(rootCmd)
 

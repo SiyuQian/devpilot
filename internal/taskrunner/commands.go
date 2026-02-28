@@ -13,6 +13,7 @@ import (
 	"golang.org/x/term"
 
 	"github.com/siyuqian/developer-kit/internal/auth"
+	"github.com/siyuqian/developer-kit/internal/project"
 	"github.com/siyuqian/developer-kit/internal/trello"
 )
 
@@ -40,8 +41,20 @@ var runCmd = &cobra.Command{
 		dryRun, _ := cmd.Flags().GetBool("dry-run")
 		noTUI, _ := cmd.Flags().GetBool("no-tui")
 
+		dir, err := os.Getwd()
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "Failed to get working directory:", err)
+			os.Exit(1)
+		}
+
 		if boardName == "" {
-			fmt.Fprintln(os.Stderr, "Error: --board is required")
+			cfg, _ := project.Load(dir)
+			if cfg.Board != "" {
+				boardName = cfg.Board
+			}
+		}
+		if boardName == "" {
+			fmt.Fprintln(os.Stderr, "Error: --board is required (or run: devkit init)")
 			os.Exit(1)
 		}
 
@@ -53,12 +66,6 @@ var runCmd = &cobra.Command{
 		}
 
 		trelloClient := trello.NewClient(creds["api_key"], creds["token"])
-
-		dir, err := os.Getwd()
-		if err != nil {
-			fmt.Fprintln(os.Stderr, "Failed to get working directory:", err)
-			os.Exit(1)
-		}
 
 		cfg := Config{
 			BoardName:     boardName,
