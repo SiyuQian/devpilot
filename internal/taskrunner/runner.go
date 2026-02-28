@@ -246,16 +246,21 @@ func (r *Runner) processCard(ctx context.Context, card trello.Card) {
 }
 
 func (r *Runner) buildPrompt(card trello.Card) string {
-	return fmt.Sprintf(`Execute the following task plan. Use /superpowers:test-driven-development and /superpowers:verification-before-completion skills during execution.
+	return fmt.Sprintf(`Execute the following task plan autonomously from start to finish. This runs unattended — never stop to ask for feedback, confirmation, or approval. Execute ALL steps/batches continuously without pausing.
+
+Use /superpowers:test-driven-development and /superpowers:verification-before-completion skills during execution.
 
 Task: %s
 
 Plan:
 %s
 
-When done:
-- Commit all changes with a descriptive message
-- Push to the appropriate branch`, card.Name, card.Desc)
+Rules:
+- Execute ALL steps in the plan without stopping. Do NOT pause between batches or steps for review.
+- Commit after each logical unit of work
+- Never ask for user input or feedback
+- If a step is blocked, skip it and continue with the next step
+- When ALL steps are complete, push to the current branch`, card.Name, card.Desc)
 }
 
 func (r *Runner) failCard(card trello.Card, start time.Time, errMsg string) {
