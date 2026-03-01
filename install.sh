@@ -53,7 +53,7 @@ esac
 # Resolve version
 if [ -z "$VERSION" ]; then
     echo "Fetching latest release..."
-    VERSION="$(curl -sSL -H "Accept: application/vnd.github+json" \
+    VERSION="$(curl -fsSL -H "Accept: application/vnd.github+json" \
         "https://api.github.com/repos/${REPO}/releases/latest" \
         | grep '"tag_name"' | head -1 | sed 's/.*"tag_name": *"\([^"]*\)".*/\1/')"
     if [ -z "$VERSION" ]; then
@@ -70,8 +70,8 @@ trap 'rm -rf "$TMPDIR"' EXIT
 BASE_URL="https://github.com/${REPO}/releases/download/${VERSION}"
 
 # Download binary and checksums
-curl -sSL -o "${TMPDIR}/${BINARY}" "${BASE_URL}/${BINARY}"
-curl -sSL -o "${TMPDIR}/checksums.txt" "${BASE_URL}/checksums.txt"
+curl -fsSL -o "${TMPDIR}/${BINARY}" "${BASE_URL}/${BINARY}"
+curl -fsSL -o "${TMPDIR}/checksums.txt" "${BASE_URL}/checksums.txt"
 
 # Verify checksum
 echo "Verifying checksum..."
