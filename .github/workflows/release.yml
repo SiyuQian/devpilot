@@ -1,15 +1,14 @@
 name: Release
 
 on:
-  push:
-    tags:
-      - 'v*'
+  release:
+    types: [created]
 
 permissions:
   contents: write
 
 jobs:
-  release:
+  build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -20,7 +19,7 @@ jobs:
 
       - name: Build binaries
         run: |
-          VERSION=${GITHUB_REF_NAME}
+          VERSION=${{ github.event.release.tag_name }}
           LDFLAGS="-X main.version=${VERSION}"
           GOOS=darwin GOARCH=arm64 go build -ldflags "${LDFLAGS}" -o devkit-darwin-arm64 ./cmd/devkit
           GOOS=darwin GOARCH=amd64 go build -ldflags "${LDFLAGS}" -o devkit-darwin-amd64 ./cmd/devkit
@@ -29,7 +28,7 @@ jobs:
       - name: Generate checksums
         run: sha256sum devkit-* > checksums.txt
 
-      - name: Create release
+      - name: Upload release assets
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create ${GITHUB_REF_NAME} devkit-* checksums.txt --generate-notes
+        run: gh release upload ${{ github.event.release.tag_name }} devkit-* checksums.txt
