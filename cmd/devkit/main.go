@@ -11,12 +11,16 @@ import (
 	"github.com/siyuqian/developer-kit/internal/trello"
 )
 
+var version = "dev"
+
 func main() {
 	rootCmd := &cobra.Command{
 		Use:   "devkit",
 		Short: "Developer toolkit for managing service integrations",
 		Long:  "devkit manages authentication and integrations for external services like Trello, GitHub, and more.",
 	}
+
+	rootCmd.Version = version
 
 	auth.RegisterCommands(rootCmd)
 	initcmd.RegisterCommands(rootCmd)

@@ -1,10 +1,12 @@
 BINARY := bin/devkit
 PKG := ./cmd/devkit
+VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
+LDFLAGS := -X main.version=$(VERSION)
 
 .PHONY: build test run clean
 
 build:
-	go build -o $(BINARY) $(PKG)
+	go build -ldflags "$(LDFLAGS)" -o $(BINARY) $(PKG)
 
 test:
 	go test ./...
