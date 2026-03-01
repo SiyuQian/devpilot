@@ -5,7 +5,7 @@
 
 ## Summary
 
-A `devkit run` CLI command that autonomously picks up tasks from a Trello board and executes them using Claude Code. It polls a "Ready" list, executes each card's execution plan via `claude -p` with a task-executor skill, creates a PR per task with squash merge, and moves cards through the board (Ready → In Progress → Done/Failed).
+A `devpilot run` CLI command that autonomously picks up tasks from a Trello board and executes them using Claude Code. It polls a "Ready" list, executes each card's execution plan via `claude -p` with a task-executor skill, creates a PR per task with squash merge, and moves cards through the board (Ready → In Progress → Done/Failed).
 
 Designed for overnight autonomous operation on a personal Mac.
 
@@ -50,7 +50,7 @@ Designed for overnight autonomous operation on a personal Mac.
 ## CLI Interface
 
 ```
-devkit run [flags]
+devpilot run [flags]
 
 Flags:
   --board <name>         Trello board name (required)
@@ -103,13 +103,13 @@ Flags:
 ## Logging
 
 - Stdout: `[2026-02-28 03:15:00] [INFO] Processing card: "Add auth endpoint"`
-- Per-card Claude output saved to `~/.config/devkit/logs/{card-id}.log`
+- Per-card Claude output saved to `~/.config/devpilot/logs/{card-id}.log`
 
 ## Trello Comment Formats
 
 Success:
 ```
-✅ Task completed by devkit runner
+✅ Task completed by devpilot runner
 Duration: 12m34s
 PR: https://github.com/user/repo/pull/42
 ```
@@ -119,7 +119,7 @@ Failure:
 ❌ Task failed
 Duration: 5m12s
 Error: tests failed in internal/auth/handler_test.go
-See full log: ~/.config/devkit/logs/{card-id}.log
+See full log: ~/.config/devpilot/logs/{card-id}.log
 ```
 
 ## PR Format
@@ -133,7 +133,7 @@ Title: {card name}
 ## Changes
 {git diff --stat summary}
 
-🤖 Executed by devkit runner
+🤖 Executed by devpilot runner
 ```
 
 ## File Structure

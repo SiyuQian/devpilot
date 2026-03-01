@@ -5,11 +5,11 @@
 
 ## Summary
 
-Remove all remaining MCP server artifacts and rewrite the Trello skill to use direct curl calls against the Trello REST API, reading credentials from `~/.config/devkit/credentials.json`.
+Remove all remaining MCP server artifacts and rewrite the Trello skill to use direct curl calls against the Trello REST API, reading credentials from `~/.config/devpilot/credentials.json`.
 
 ## Context
 
-The devkit CLI replaced the MCP server approach (per `2026-02-27-devkit-cli-design.md`). The `mcps/trello-mcp-server/` directory was already deleted, but configuration files and skill documentation still reference it.
+The devpilot CLI replaced the MCP server approach (per `2026-02-27-devpilot-cli-design.md`). The `mcps/trello-mcp-server/` directory was already deleted, but configuration files and skill documentation still reference it.
 
 ## Changes
 
@@ -29,8 +29,8 @@ Remove MCP-related permissions and config:
 
 Replace MCP tool documentation with curl-based workflows:
 
-- **Setup:** `devkit login trello` (no env vars, no MCP config)
-- **Credential access:** Read `~/.config/devkit/credentials.json` to extract `api_key` and `token`
+- **Setup:** `devpilot login trello` (no env vars, no MCP config)
+- **Credential access:** Read `~/.config/devpilot/credentials.json` to extract `api_key` and `token`
 - **API calls:** Direct curl to `https://api.trello.com/1/...` with key/token query params
 - **Same operations:** list boards, get board, list/search/get/create/move cards, add comment, get labels, get members
 - **Same workflow examples**, rewritten as curl commands
@@ -38,5 +38,5 @@ Replace MCP tool documentation with curl-based workflows:
 ### Not changed
 
 - Go CLI code — no modifications needed
-- `docs/plans/2026-02-27-devkit-cli-design.md` — already documents this removal
+- `docs/plans/2026-02-27-devpilot-cli-design.md` — already documents this removal
 - `mcp-builder` skill — separate concern

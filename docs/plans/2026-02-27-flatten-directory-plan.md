@@ -4,7 +4,7 @@
 
 **Goal:** Restructure the repository from a nested `cli/` subdirectory to the Go standard project layout with `cmd/`, `internal/` at the root.
 
-**Architecture:** Move all Go source from `cli/` to root. Entry point at `cmd/devkit/main.go` imports `internal/cli` for Cobra commands. Module path changes from `github.com/siyuqian/developer-kit/cli` to `github.com/siyuqian/developer-kit`.
+**Architecture:** Move all Go source from `cli/` to root. Entry point at `cmd/devpilot/main.go` imports `internal/cli` for Cobra commands. Module path changes from `github.com/siyuqian/devpilot/cli` to `github.com/siyuqian/devpilot`.
 
 **Tech Stack:** Go 1.25.6, Cobra
 
@@ -21,7 +21,7 @@
 Write `go.mod`:
 
 ```go
-module github.com/siyuqian/developer-kit
+module github.com/siyuqian/devpilot
 
 go 1.25.6
 
@@ -97,10 +97,10 @@ Copy `cli/internal/services/trello.go` to `internal/services/trello.go`. Change 
 
 ```go
 // OLD:
-"github.com/siyuqian/developer-kit/cli/internal/config"
+"github.com/siyuqian/devpilot/cli/internal/config"
 
 // NEW:
-"github.com/siyuqian/developer-kit/internal/config"
+"github.com/siyuqian/devpilot/internal/config"
 ```
 
 **Step 3: Copy trello_test.go**
@@ -157,10 +157,10 @@ package cli
 
 ```go
 // OLD:
-"github.com/siyuqian/developer-kit/cli/internal/services"
+"github.com/siyuqian/devpilot/cli/internal/services"
 
 // NEW:
-"github.com/siyuqian/developer-kit/internal/services"
+"github.com/siyuqian/devpilot/internal/services"
 ```
 
 **Step 3: Create logout.go**
@@ -168,15 +168,15 @@ package cli
 Copy `cli/cmd/logout.go` to `internal/cli/logout.go`. Same two changes as login.go:
 
 - `package cmd` -> `package cli`
-- `".../cli/internal/services"` -> `".../developer-kit/internal/services"`
+- `".../cli/internal/services"` -> `".../devpilot/internal/services"`
 
 **Step 4: Create status.go**
 
 Copy `cli/cmd/status.go` to `internal/cli/status.go`. Three changes:
 
 - `package cmd` -> `package cli`
-- `".../cli/internal/config"` -> `".../developer-kit/internal/config"`
-- `".../cli/internal/services"` -> `".../developer-kit/internal/services"`
+- `".../cli/internal/config"` -> `".../devpilot/internal/config"`
+- `".../cli/internal/services"` -> `".../devpilot/internal/services"`
 
 **Step 5: Verify compilation**
 
@@ -192,19 +192,19 @@ git commit -m "chore: move Cobra commands to internal/cli"
 
 ---
 
-### Task 5: Create cmd/devkit/main.go entry point
+### Task 5: Create cmd/devpilot/main.go entry point
 
 **Files:**
-- Create: `cmd/devkit/main.go`
+- Create: `cmd/devpilot/main.go`
 
 **Step 1: Create main.go**
 
-Write `cmd/devkit/main.go`:
+Write `cmd/devpilot/main.go`:
 
 ```go
 package main
 
-import "github.com/siyuqian/developer-kit/internal/cli"
+import "github.com/siyuqian/devpilot/internal/cli"
 
 func main() {
 	cli.Execute()
@@ -213,12 +213,12 @@ func main() {
 
 **Step 2: Build the binary**
 
-Run: `go build -o devkit ./cmd/devkit`
-Expected: Produces `devkit` binary at repo root
+Run: `go build -o devpilot ./cmd/devpilot`
+Expected: Produces `devpilot` binary at repo root
 
 **Step 3: Verify binary works**
 
-Run: `./devkit --help`
+Run: `./devpilot --help`
 Expected: Shows help text with "Developer toolkit for managing service integrations"
 
 **Step 4: Run all tests**
@@ -229,8 +229,8 @@ Expected: All 6 tests pass across both packages
 **Step 5: Commit**
 
 ```bash
-git add cmd/devkit/main.go
-git commit -m "chore: add cmd/devkit entry point"
+git add cmd/devpilot/main.go
+git commit -m "chore: add cmd/devpilot entry point"
 ```
 
 ---
@@ -254,13 +254,13 @@ Create `.gitignore` at repo root:
 
 ```
 # Compiled binary
-devkit
+devpilot
 ```
 
-**Step 3: Clean up devkit binary if present**
+**Step 3: Clean up devpilot binary if present**
 
 ```bash
-rm -f devkit
+rm -f devpilot
 ```
 
 **Step 4: Update CLAUDE.md**
@@ -270,9 +270,9 @@ Replace the build commands and architecture sections to reflect the new layout:
 ```markdown
 ## Repository Structure
 
-- `cmd/devkit/` — CLI entry point
+- `cmd/devpilot/` — CLI entry point
 - `internal/cli/` — Cobra command definitions (login, logout, status)
-- `internal/config/` — Credential storage (~/.config/devkit/credentials.json)
+- `internal/config/` — Credential storage (~/.config/devpilot/credentials.json)
 - `internal/services/` — Service interface + implementations (Trello)
 - `.claude/skills/` — Built-in development skills
   - `skill-creator/` — Guide + scripts for creating new skills
@@ -281,24 +281,24 @@ Replace the build commands and architecture sections to reflect the new layout:
 
 ## Build & Development Commands
 
-### Devkit CLI
+### Devpilot CLI
 
 ```bash
-go build -o devkit ./cmd/devkit   # Build binary
+go build -o devpilot ./cmd/devpilot   # Build binary
 go test ./...                      # Run all tests
-./devkit --help                    # Show help
-./devkit login trello              # Login to Trello
-./devkit status                    # Check auth status
+./devpilot --help                    # Show help
+./devpilot login trello              # Login to Trello
+./devpilot status                    # Check auth status
 ```
 
 ## Architecture
 
-### Devkit CLI
+### Devpilot CLI
 
 Go CLI tool using Cobra for subcommand routing:
-- `cmd/devkit/` — Entry point (`main.go` calls `cli.Execute()`)
+- `cmd/devpilot/` — Entry point (`main.go` calls `cli.Execute()`)
 - `internal/cli/` — Cobra commands (root, login, logout, status)
-- `internal/config/` — Credential storage (~/.config/devkit/credentials.json)
+- `internal/config/` — Credential storage (~/.config/devpilot/credentials.json)
 - `internal/services/` — Service interface + implementations (Trello)
 - Adding a new service: implement the Service interface in a new file, register in registry.go
 ```
@@ -308,22 +308,22 @@ Go CLI tool using Cobra for subcommand routing:
 Run: `go test ./... -v`
 Expected: All 6 tests pass
 
-Run: `go build -o devkit ./cmd/devkit && ./devkit --help`
+Run: `go build -o devpilot ./cmd/devpilot && ./devpilot --help`
 Expected: Builds and shows help
 
 **Step 6: Clean up binary and commit**
 
 ```bash
-rm -f devkit
+rm -f devpilot
 git add -A
 git commit -m "chore: flatten cli/ to Go standard project layout
 
 Move Go code from cli/ subdirectory to repo root following
 golang-standards/project-layout conventions:
-- cmd/devkit/ for entry point
+- cmd/devpilot/ for entry point
 - internal/cli/ for Cobra commands
 - internal/config/ for credential storage
 - internal/services/ for service implementations
 
-Module path: github.com/siyuqian/developer-kit"
+Module path: github.com/siyuqian/devpilot"
 ```

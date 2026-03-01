@@ -1,11 +1,11 @@
 ---
-name: developerkit:task-executor
-description: Executes a task plan autonomously. Used by the devkit runner to process Trello cards. Follows execution plans step-by-step using TDD and verification skills.
+name: devpilot:task-executor
+description: Executes a task plan autonomously. Used by the devpilot runner to process Trello cards. Follows execution plans step-by-step using TDD and verification skills.
 ---
 
 # Task Executor
 
-Execute implementation plans autonomously. This skill is invoked by `devkit run` via `claude -p`.
+Execute implementation plans autonomously. This skill is invoked by `devpilot run` via `claude -p`.
 
 ## Process
 

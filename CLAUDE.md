@@ -4,11 +4,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a **Claude Code Developer Kit** — a Go CLI tool and collection of skills for automating development workflows with Claude Code. The core workflow: write a plan, push it to Trello, and let an autonomous runner execute it via `claude -p`, creating branches and PRs automatically.
+**DevPilot** is a Go CLI tool and collection of skills for automating development workflows with Claude Code. The core workflow: write a plan, push it to Trello, and let an autonomous runner execute it via `claude -p`, creating branches and PRs automatically.
 
 ## Repository Structure
 
-Standard Go project layout: `cmd/devkit/` for the CLI entry point, `internal/` for all packages.
+Standard Go project layout: `cmd/devpilot/` for the CLI entry point, `internal/` for all packages.
 
 **Package organization rules:**
 - Each `internal/` package is a self-contained domain (e.g. `auth`, `trello`, `taskrunner`)
@@ -24,7 +24,7 @@ Standard Go project layout: `cmd/devkit/` for the CLI entry point, `internal/` f
 ## Build & Development Commands
 
 ```bash
-make build                         # Build binary to bin/devkit
+make build                         # Build binary to bin/devpilot
 make test                          # Run all tests (go test ./...)
 make run ARGS="--help"             # Build and run with arguments
 make clean                         # Remove bin/
@@ -33,22 +33,22 @@ make clean                         # Remove bin/
 ### CLI Commands
 
 ```bash
-devkit login trello                # Authenticate with Trello (API key + token)
-devkit logout trello               # Remove stored credentials
-devkit status                      # Show authentication status for all services
+devpilot login trello                # Authenticate with Trello (API key + token)
+devpilot logout trello               # Remove stored credentials
+devpilot status                      # Show authentication status for all services
 
-devkit init                        # Interactive project setup wizard
-devkit init -y                     # Accept all defaults
+devpilot init                        # Interactive project setup wizard
+devpilot init -y                     # Accept all defaults
 
-devkit push <plan.md> --board "Board Name"              # Create Trello card from plan file
-devkit push <plan.md> --board "Board Name" --list "Ready"  # Specify target list (default: Ready)
+devpilot push <plan.md> --board "Board Name"              # Create Trello card from plan file
+devpilot push <plan.md> --board "Board Name" --list "Ready"  # Specify target list (default: Ready)
 
-devkit run --board "Board Name"                          # Start autonomous task runner (TUI mode)
-devkit run --board "Board Name" --no-tui                 # Plain text output (no dashboard)
-devkit run --board "Board Name" --once --dry-run         # Test with one card, no execution
-devkit run --board "Board Name" --interval 60            # Poll every 60s (default: 300)
-devkit run --board "Board Name" --timeout 45             # 45min per-task timeout (default: 30)
-devkit run --board "Board Name" --review-timeout 0       # Disable auto code review
+devpilot run --board "Board Name"                          # Start autonomous task runner (TUI mode)
+devpilot run --board "Board Name" --no-tui                 # Plain text output (no dashboard)
+devpilot run --board "Board Name" --once --dry-run         # Test with one card, no execution
+devpilot run --board "Board Name" --interval 60            # Poll every 60s (default: 300)
+devpilot run --board "Board Name" --timeout 45             # 45min per-task timeout (default: 30)
+devpilot run --board "Board Name" --review-timeout 0       # Disable auto code review
 ```
 
 ### Skill Helper Scripts (Python 3)
@@ -65,14 +65,14 @@ python3 .claude/skills/skill-creator/scripts/quick_validate.py   # Validate skil
 
 Go CLI using Cobra for subcommand routing. Adding a new service: implement the `Service` interface in `internal/auth/`, register in `service.go`.
 
-### Project Init (`devkit init`)
+### Project Init (`devpilot init`)
 
 Interactive wizard that detects project state and generates missing pieces:
-- Detects: `CLAUDE.md`, `.devkit.json`, Trello credentials, git hooks, skills, git repo
+- Detects: `CLAUDE.md`, `.devpilot.json`, Trello credentials, git hooks, skills, git repo
 - Generates: `CLAUDE.md` template, board config, pre-push hook, skill scaffolding
 - Auto-detects project type (Go/Node/Python) for build/test commands
 
-### Task Runner (`devkit run`)
+### Task Runner (`devpilot run`)
 
 Cards move through Trello as a state machine: **Ready** -> **In Progress** -> **Done** / **Failed**.
 
@@ -86,11 +86,11 @@ Cards move through Trello as a state machine: **Ready** -> **In Progress** -> **
 8. Auto-merges PR (`gh pr merge --squash --auto`)
 9. Moves card to "Done" (with PR link) or "Failed" (with error log path)
 
-Logs per-card output to `~/.config/devkit/logs/{card-id}.log`.
+Logs per-card output to `~/.config/devpilot/logs/{card-id}.log`.
 
 ### TUI Dashboard
 
-When `devkit run` launches in a TTY, it displays a real-time Bubble Tea dashboard:
+When `devpilot run` launches in a TTY, it displays a real-time Bubble Tea dashboard:
 - **Header**: Board name, runner phase, token stats
 - **Status & Active**: Trello list states + current card info
 - **Tools & Files**: Tool call history with durations + file access tracking

@@ -21,14 +21,14 @@ jobs:
         run: |
           VERSION=${{ github.event.release.tag_name }}
           LDFLAGS="-X main.version=${VERSION}"
-          GOOS=darwin GOARCH=arm64 go build -ldflags "${LDFLAGS}" -o devkit-darwin-arm64 ./cmd/devkit
-          GOOS=darwin GOARCH=amd64 go build -ldflags "${LDFLAGS}" -o devkit-darwin-amd64 ./cmd/devkit
-          GOOS=linux  GOARCH=amd64 go build -ldflags "${LDFLAGS}" -o devkit-linux-amd64  ./cmd/devkit
+          GOOS=darwin GOARCH=arm64 go build -ldflags "${LDFLAGS}" -o devpilot-darwin-arm64 ./cmd/devpilot
+          GOOS=darwin GOARCH=amd64 go build -ldflags "${LDFLAGS}" -o devpilot-darwin-amd64 ./cmd/devpilot
+          GOOS=linux  GOARCH=amd64 go build -ldflags "${LDFLAGS}" -o devpilot-linux-amd64  ./cmd/devpilot
 
       - name: Generate checksums
-        run: sha256sum devkit-* > checksums.txt
+        run: sha256sum devpilot-* > checksums.txt
 
       - name: Upload release assets
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release upload ${{ github.event.release.tag_name }} devkit-* checksums.txt
+        run: gh release upload ${{ github.event.release.tag_name }} devpilot-* checksums.txt

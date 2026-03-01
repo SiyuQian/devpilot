@@ -9,7 +9,7 @@ A Claude Code skill (`task-refiner`) that reads a Trello card, analyzes the curr
 
 ## Motivation
 
-The current workflow (`devkit push` → Trello → `devkit run`) depends on high-quality execution plans in Trello cards. Plans with vague steps, missing file paths, or no test strategy cause the task-executor to fail or produce poor results. Currently there's no tool to bridge the gap between a rough idea and a runner-ready plan.
+The current workflow (`devpilot push` → Trello → `devpilot run`) depends on high-quality execution plans in Trello cards. Plans with vague steps, missing file paths, or no test strategy cause the task-executor to fail or produce poor results. Currently there's no tool to bridge the gap between a rough idea and a runner-ready plan.
 
 ## Skill Definition
 
@@ -59,7 +59,7 @@ Generates a complete implementation plan by:
 
 ### Step 1 — Fetch Card Content
 
-- Read Trello credentials from `~/.config/devkit/credentials.json`
+- Read Trello credentials from `~/.config/devpilot/credentials.json`
 - Extract card ID from URL, or search by name via Trello search API
 - Fetch card name and description via `GET /cards/{id}`
 
@@ -95,8 +95,8 @@ Reuses the existing Trello skill's curl-based API pattern:
 
 ```bash
 # Read credentials
-KEY=$(jq -r '.trello.apiKey' ~/.config/devkit/credentials.json)
-TOKEN=$(jq -r '.trello.token' ~/.config/devkit/credentials.json)
+KEY=$(jq -r '.trello.apiKey' ~/.config/devpilot/credentials.json)
+TOKEN=$(jq -r '.trello.token' ~/.config/devpilot/credentials.json)
 
 # Fetch card
 curl -s "https://api.trello.com/1/cards/{cardId}?key=$KEY&token=$TOKEN"
@@ -130,10 +130,10 @@ Output plans must be compatible with the task-executor skill. A high-quality pla
 - Batch processing of multiple cards (human review is the bottleneck)
 - Auto-refinement without human confirmation
 - Changes to Go code or CLI commands
-- Integration into the `devkit run` pipeline
+- Integration into the `devpilot run` pipeline
 
 ## Dependencies
 
-- Trello API credentials configured via `devkit login trello`
+- Trello API credentials configured via `devpilot login trello`
 - `jq` available on PATH for JSON parsing
 - `curl` available on PATH for API calls

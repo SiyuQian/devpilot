@@ -1,16 +1,16 @@
-# Claude Code Developer Kit
+# DevPilot
 
 A Go CLI tool and collection of [Claude Code](https://claude.ai/code) skills for automating development workflows. Write a plan, push it to Trello, and let an autonomous runner execute it — creating branches, PRs, and code reviews automatically.
 
 ## How It Works
 
 ```
-Plan (markdown) → devkit push → Trello card → devkit run → claude -p → Branch + PR
+Plan (markdown) → devpilot push → Trello card → devpilot run → claude -p → Branch + PR
 ```
 
 1. **Write a plan** — A markdown file with a `# Title` and implementation steps
-2. **Push to Trello** — `devkit push plan.md --board "Sprint Board"` creates a card in the "Ready" list
-3. **Runner picks it up** — `devkit run --board "Sprint Board"` polls the board, prioritizes by P0/P1/P2 labels, and executes each card's plan via `claude -p`
+2. **Push to Trello** — `devpilot push plan.md --board "Sprint Board"` creates a card in the "Ready" list
+3. **Runner picks it up** — `devpilot run --board "Sprint Board"` polls the board, prioritizes by P0/P1/P2 labels, and executes each card's plan via `claude -p`
 4. **Real-time dashboard** — A TUI dashboard shows tool calls, Claude output, token stats, and task progress in real time
 5. **Automatic output** — Branch created, code written with TDD, PR opened, auto code review, auto-merge
 
@@ -28,13 +28,13 @@ Plan (markdown) → devkit push → Trello card → devkit run → claude -p →
 **Option A: Install from release (recommended)**
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/siyuqian/developer-kit/main/install.sh | sh
+curl -sSL https://raw.githubusercontent.com/siyuqian/devpilot/main/install.sh | sh
 ```
 
 You can specify a version or install directory:
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/siyuqian/developer-kit/main/install.sh | sh -s -- --version v0.1.0 --dir ~/.local/bin
+curl -sSL https://raw.githubusercontent.com/siyuqian/devpilot/main/install.sh | sh -s -- --version v0.1.0 --dir ~/.local/bin
 ```
 
 **Option B: Build from source**
@@ -42,17 +42,17 @@ curl -sSL https://raw.githubusercontent.com/siyuqian/developer-kit/main/install.
 Requires Go 1.25+.
 
 ```bash
-git clone https://github.com/siyuqian/developer-kit.git
-cd developer-kit
+git clone https://github.com/siyuqian/devpilot.git
+cd devpilot
 make build
-# Binary is at bin/devkit — add it to your PATH or move it:
-sudo mv bin/devkit /usr/local/bin/
+# Binary is at bin/devpilot — add it to your PATH or move it:
+sudo mv bin/devpilot /usr/local/bin/
 ```
 
 Verify the installation:
 
 ```bash
-devkit --version
+devpilot --version
 ```
 
 ### Setup
@@ -61,7 +61,7 @@ devkit --version
 
 ```bash
 cd your-project
-devkit init
+devpilot init
 ```
 
 The interactive wizard detects your project setup (git, CLAUDE.md, Trello credentials, skills) and generates any missing pieces. Use `-y` to accept all defaults.
@@ -69,57 +69,57 @@ The interactive wizard detects your project setup (git, CLAUDE.md, Trello creden
 **2. Authenticate with Trello**
 
 ```bash
-devkit login trello
+devpilot login trello
 ```
 
-Follow the prompts to enter your [Trello API key and token](https://trello.com/power-ups/admin). You can verify with `devkit status`.
+Follow the prompts to enter your [Trello API key and token](https://trello.com/power-ups/admin). You can verify with `devpilot status`.
 
 **3. Push a plan**
 
 Write a markdown file with a `# Title` and implementation steps, then push it:
 
 ```bash
-devkit push docs/plans/my-feature-plan.md --board "Sprint Board"
+devpilot push docs/plans/my-feature-plan.md --board "Sprint Board"
 ```
 
 **4. Run the task runner**
 
 ```bash
 # Continuous mode — polls every 5 minutes, shows TUI dashboard
-devkit run --board "Sprint Board"
+devpilot run --board "Sprint Board"
 
 # Plain text mode (no TUI)
-devkit run --board "Sprint Board" --no-tui
+devpilot run --board "Sprint Board" --no-tui
 
 # Test mode — one card, no execution
-devkit run --board "Sprint Board" --once --dry-run
+devpilot run --board "Sprint Board" --once --dry-run
 ```
 
 ## CLI Reference
 
 | Command | Description |
 |---------|-------------|
-| `devkit init` | Interactive project setup wizard |
-| `devkit login <service>` | Authenticate with a service (currently: `trello`) |
-| `devkit logout <service>` | Remove stored credentials |
-| `devkit status` | Show authentication status |
-| `devkit push <file>` | Create a Trello card from a plan markdown file |
-| `devkit run` | Autonomously process tasks from a Trello board |
+| `devpilot init` | Interactive project setup wizard |
+| `devpilot login <service>` | Authenticate with a service (currently: `trello`) |
+| `devpilot logout <service>` | Remove stored credentials |
+| `devpilot status` | Show authentication status |
+| `devpilot push <file>` | Create a Trello card from a plan markdown file |
+| `devpilot run` | Autonomously process tasks from a Trello board |
 
-### `devkit init` Flags
+### `devpilot init` Flags
 
 | Flag | Default | Description |
 |------|---------|-------------|
 | `-y, --yes` | `false` | Accept all defaults without prompting |
 
-### `devkit push` Flags
+### `devpilot push` Flags
 
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--board` | *(required)* | Trello board name |
 | `--list` | `Ready` | Target list name |
 
-### `devkit run` Flags
+### `devpilot run` Flags
 
 | Flag | Default | Description |
 |------|---------|-------------|
@@ -151,7 +151,7 @@ For each card:
 8. Auto-merges PR (`gh pr merge --squash --auto`)
 9. Moves card to "Done" (with PR link) or "Failed" (with error details)
 
-Per-card logs are saved to `~/.config/devkit/logs/{card-id}.log`.
+Per-card logs are saved to `~/.config/devpilot/logs/{card-id}.log`.
 
 ### TUI Dashboard
 
@@ -177,7 +177,7 @@ Keyboard shortcuts: `q`/`Ctrl-C` quit, `Tab` switch pane, `j/k/↑/↓` scroll, 
 
 ### Core Concept
 
-Developer Kit turns **markdown plans into shipped code** by orchestrating three systems: a task queue (Trello), an AI coding agent (`claude -p`), and standard Git/GitHub workflows. The human writes *what* to build; the machine handles *how*.
+DevPilot turns **markdown plans into shipped code** by orchestrating three systems: a task queue (Trello), an AI coding agent (`claude -p`), and standard Git/GitHub workflows. The human writes *what* to build; the machine handles *how*.
 
 ### Event-Driven Pipeline
 
@@ -242,20 +242,20 @@ The kit includes Claude Code skills in `.claude/skills/`:
 | Skill | Description |
 |-------|-------------|
 | `skill-creator` | Guide and scripts for creating new Claude Code skills |
-| `developerkit:pm` | Product manager — market research, competitor analysis, feature prioritization |
-| `developerkit:trello` | Direct Trello board and card management from Claude Code |
-| `developerkit:task-executor` | Autonomous plan execution (used internally by `devkit run`) |
-| `developerkit:task-refiner` | Improve and expand Trello card task plans |
+| `devpilot:pm` | Product manager — market research, competitor analysis, feature prioritization |
+| `devpilot:trello` | Direct Trello board and card management from Claude Code |
+| `devpilot:task-executor` | Autonomous plan execution (used internally by `devpilot run`) |
+| `devpilot:task-refiner` | Improve and expand Trello card task plans |
 
 ## Project Structure
 
 ```
-developer-kit/
-├── cmd/devkit/            CLI entry point
+devpilot/
+├── cmd/devpilot/            CLI entry point
 ├── internal/
 │   ├── auth/              Authentication, credentials, service registry
-│   ├── initcmd/           Project initialization wizard (devkit init)
-│   ├── project/           Project config (.devkit.json)
+│   ├── initcmd/           Project initialization wizard (devpilot init)
+│   ├── project/           Project config (.devpilot.json)
 │   ├── trello/            Trello API client + push command
 │   └── taskrunner/        Task runner, executor, TUI dashboard
 │       ├── runner.go        Poll loop + card processing

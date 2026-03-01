@@ -4,7 +4,7 @@
 
 **Goal:** Add a mandatory test verification step in the task runner between Claude execution and PR creation. If tests fail, the card moves to Failed with test output attached — preventing broken code from becoming PRs.
 
-**Architecture:** Add a `TestRunner` that executes the project's test command (from `.devkit.json`) after Claude finishes but before `git push`. If tests fail, attach the output to the card and fail it. If no test command is configured, skip the gate with a warning.
+**Architecture:** Add a `TestRunner` that executes the project's test command (from `.devpilot.json`) after Claude finishes but before `git push`. If tests fail, attach the output to the card and fail it. If no test command is configured, skip the gate with a warning.
 
 **Tech Stack:** Go, `os/exec`
 
@@ -18,7 +18,7 @@
 
 **Step 1: Write failing test for TestCommand field**
 
-Add a test that loads a `.devkit.json` with a `test_command` field and asserts it's parsed correctly:
+Add a test that loads a `.devpilot.json` with a `test_command` field and asserts it's parsed correctly:
 
 ```json
 {"board": "my-board", "test_command": "go test ./..."}
@@ -132,6 +132,6 @@ After detecting project type, suggest a default test command:
 - Node project: `npm test`
 - Python project: `pytest`
 
-Ask the user to confirm or customize. Write to `.devkit.json`.
+Ask the user to confirm or customize. Write to `.devpilot.json`.
 
 **Step 2: Verify init wizard works end-to-end**

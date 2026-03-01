@@ -2,7 +2,7 @@
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
-**Goal:** Add a `devkit run` command that autonomously picks up Trello cards, executes their plans via `claude -p`, and creates PRs.
+**Goal:** Add a `devpilot run` command that autonomously picks up Trello cards, executes their plans via `claude -p`, and creates PRs.
 
 **Architecture:** Go CLI loop (poll Trello → spawn Claude → create PR → move card). Trello HTTP client extracted into its own package. Runner logic in `internal/runner/`. Task execution delegated to a Claude skill.
 
@@ -936,7 +936,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/siyuqian/developer-kit/internal/trello"
+	"github.com/siyuqian/devpilot/internal/trello"
 )
 
 type Config struct {
@@ -1102,7 +1102,7 @@ func (r *Runner) processCard(ctx context.Context, card trello.Card) {
 	}
 
 	cardURL := fmt.Sprintf("https://trello.com/c/%s", card.ID)
-	prBody := fmt.Sprintf("## Task\n%s\n\n🤖 Executed by devkit runner", cardURL)
+	prBody := fmt.Sprintf("## Task\n%s\n\n🤖 Executed by devpilot runner", cardURL)
 	prURL, err := r.git.CreatePR(card.Name, prBody)
 	if err != nil {
 		r.failCard(card, start, fmt.Sprintf("create PR: %v", err))
@@ -1117,7 +1117,7 @@ func (r *Runner) processCard(ctx context.Context, card trello.Card) {
 	// Move to Done
 	duration := time.Since(start).Round(time.Second)
 	r.trello.MoveCard(card.ID, r.doneListID)
-	r.trello.AddComment(card.ID, fmt.Sprintf("✅ Task completed by devkit runner\nDuration: %s\nPR: %s", duration, prURL))
+	r.trello.AddComment(card.ID, fmt.Sprintf("✅ Task completed by devpilot runner\nDuration: %s\nPR: %s", duration, prURL))
 	r.logger.Printf("Card %q completed in %s. PR: %s", card.Name, duration, prURL)
 
 	r.git.CheckoutMain()
@@ -1139,7 +1139,7 @@ When done:
 
 func (r *Runner) failCard(card trello.Card, start time.Time, errMsg string) {
 	duration := time.Since(start).Round(time.Second)
-	logPath := filepath.Join("~/.config/devkit/logs", card.ID+".log")
+	logPath := filepath.Join("~/.config/devpilot/logs", card.ID+".log")
 	comment := fmt.Sprintf("❌ Task failed\nDuration: %s\nError: %s\nSee full log: %s", duration, errMsg, logPath)
 	r.trello.MoveCard(card.ID, r.failedListID)
 	r.trello.AddComment(card.ID, comment)
@@ -1150,7 +1150,7 @@ func (r *Runner) saveLog(cardID string, result *ExecuteResult) {
 	if result == nil {
 		return
 	}
-	logDir := filepath.Join(os.Getenv("HOME"), ".config", "devkit", "logs")
+	logDir := filepath.Join(os.Getenv("HOME"), ".config", "devpilot", "logs")
 	os.MkdirAll(logDir, 0755)
 	logPath := filepath.Join(logDir, cardID+".log")
 	content := fmt.Sprintf("=== STDOUT ===\n%s\n\n=== STDERR ===\n%s\n", result.Stdout, result.Stderr)
@@ -1179,7 +1179,7 @@ git commit -m "feat(runner): add main Runner loop with card processing"
 
 ---
 
-### Task 9: CLI Command — `devkit run`
+### Task 9: CLI Command — `devpilot run`
 
 **Files:**
 - Create: `internal/cli/run.go`
@@ -1197,9 +1197,9 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
-	"github.com/siyuqian/developer-kit/internal/config"
-	"github.com/siyuqian/developer-kit/internal/runner"
-	"github.com/siyuqian/developer-kit/internal/trello"
+	"github.com/siyuqian/devpilot/internal/config"
+	"github.com/siyuqian/devpilot/internal/runner"
+	"github.com/siyuqian/devpilot/internal/trello"
 )
 
 var runCmd = &cobra.Command{
@@ -1221,7 +1221,7 @@ var runCmd = &cobra.Command{
 		// Load Trello credentials
 		creds, err := config.Load("trello")
 		if err != nil {
-			fmt.Fprintln(os.Stderr, "Not logged in to Trello. Run: devkit login trello")
+			fmt.Fprintln(os.Stderr, "Not logged in to Trello. Run: devpilot login trello")
 			os.Exit(1)
 		}
 
@@ -1274,19 +1274,19 @@ func init() {
 
 **Step 2: Verify it compiles**
 
-Run: `go build ./cmd/devkit/`
+Run: `go build ./cmd/devpilot/`
 Expected: no errors
 
 **Step 3: Verify help output**
 
-Run: `go run ./cmd/devkit/ run --help`
+Run: `go run ./cmd/devpilot/ run --help`
 Expected: shows usage with --board, --interval, --timeout, --once, --dry-run flags
 
 **Step 4: Commit**
 
 ```bash
 git add internal/cli/run.go
-git commit -m "feat(cli): add devkit run command"
+git commit -m "feat(cli): add devpilot run command"
 ```
 
 ---
@@ -1300,13 +1300,13 @@ git commit -m "feat(cli): add devkit run command"
 
 ```markdown
 ---
-name: developerkit:task-executor
-description: Executes a task plan autonomously. Used by the devkit runner to process Trello cards. Follows execution plans step-by-step using TDD and verification skills.
+name: devpilot:task-executor
+description: Executes a task plan autonomously. Used by the devpilot runner to process Trello cards. Follows execution plans step-by-step using TDD and verification skills.
 ---
 
 # Task Executor
 
-Execute implementation plans autonomously. This skill is invoked by `devkit run` via `claude -p`.
+Execute implementation plans autonomously. This skill is invoked by `devpilot run` via `claude -p`.
 
 ## Process
 
@@ -1351,22 +1351,22 @@ git commit -m "feat(skills): add task-executor skill for autonomous plan executi
 **Step 1: Build the binary**
 
 Run: `make build`
-Expected: binary built to `bin/devkit`
+Expected: binary built to `bin/devpilot`
 
 **Step 2: Verify run --help works**
 
-Run: `./bin/devkit run --help`
+Run: `./bin/devpilot run --help`
 Expected: shows all flags with descriptions
 
 **Step 3: Verify run without --board fails gracefully**
 
-Run: `./bin/devkit run`
+Run: `./bin/devpilot run`
 Expected: "Error: --board is required"
 
 **Step 4: Verify run without trello login fails gracefully**
 
-Run: `./bin/devkit run --board "Test Board" --dry-run`
-Expected: "Not logged in to Trello. Run: devkit login trello" (unless already logged in)
+Run: `./bin/devpilot run --board "Test Board" --dry-run`
+Expected: "Not logged in to Trello. Run: devpilot login trello" (unless already logged in)
 
 **Step 5: Run all tests**
 
@@ -1385,7 +1385,7 @@ git commit -am "fix: integration test fixes"
 
 **Files:**
 - Modify: `Makefile` — ensure `make build` and `make test` cover new packages
-- Modify: `CLAUDE.md` — document `devkit run` command
+- Modify: `CLAUDE.md` — document `devpilot run` command
 
 **Step 1: Add run command docs to CLAUDE.md**
 
@@ -1409,5 +1409,5 @@ Expected: builds and all tests pass
 
 ```bash
 git add Makefile CLAUDE.md
-git commit -m "docs: add devkit run command documentation"
+git commit -m "docs: add devpilot run command documentation"
 ```

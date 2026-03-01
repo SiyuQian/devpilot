@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/siyuqian/developer-kit/internal/project"
+	"github.com/siyuqian/devpilot/internal/project"
 )
 
 func TestDetectHasClaudeMD(t *testing.T) {
@@ -28,20 +28,20 @@ func TestDetectHasClaudeMD(t *testing.T) {
 func TestDetectHasBoardConfig(t *testing.T) {
 	dir := t.TempDir()
 
-	// Without .devkit.json
+	// Without .devpilot.json
 	s := Detect(dir)
 	if s.HasBoardConfig {
 		t.Error("HasBoardConfig = true, want false")
 	}
 
-	// With .devkit.json but no board
+	// With .devpilot.json but no board
 	project.Save(dir, &project.Config{})
 	s = Detect(dir)
 	if s.HasBoardConfig {
 		t.Error("HasBoardConfig = true for empty board, want false")
 	}
 
-	// With .devkit.json and board set
+	// With .devpilot.json and board set
 	project.Save(dir, &project.Config{Board: "My Board"})
 	s = Detect(dir)
 	if !s.HasBoardConfig {

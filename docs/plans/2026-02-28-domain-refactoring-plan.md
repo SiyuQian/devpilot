@@ -4,9 +4,9 @@
 
 **Goal:** Reorganize `internal/` from technical-layer packages (`cli/`, `config/`, `services/`, `runner/`) to domain-based packages (`auth/`, `trello/`, `taskrunner/`).
 
-**Architecture:** Each domain package owns its code, tests, and CLI commands. `cmd/devkit/main.go` wires domains together via `RegisterCommands()`. No circular dependencies: `auth` → none, `trello` → `auth`, `taskrunner` → `trello` + `auth`.
+**Architecture:** Each domain package owns its code, tests, and CLI commands. `cmd/devpilot/main.go` wires domains together via `RegisterCommands()`. No circular dependencies: `auth` → none, `trello` → `auth`, `taskrunner` → `trello` + `auth`.
 
-**Tech Stack:** Go 1.25, Cobra CLI, module `github.com/siyuqian/developer-kit`
+**Tech Stack:** Go 1.25, Cobra CLI, module `github.com/siyuqian/devpilot`
 
 ---
 
@@ -37,7 +37,7 @@ type AllCredentials map[string]ServiceCredentials
 
 var configDir = func() string {
 	home, _ := os.UserHomeDir()
-	return filepath.Join(home, ".config", "devkit")
+	return filepath.Join(home, ".config", "devpilot")
 }
 
 func credentialsPath() string {
@@ -509,7 +509,7 @@ var statusCmd = &cobra.Command{
 		loggedIn := ListServices()
 		if len(loggedIn) == 0 {
 			fmt.Println("No services configured.")
-			fmt.Printf("Run 'devkit login <service>' to get started. Available: %s\n", AvailableNames())
+			fmt.Printf("Run 'devpilot login <service>' to get started. Available: %s\n", AvailableNames())
 			return
 		}
 		for _, name := range loggedIn {
@@ -553,7 +553,7 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
-	"github.com/siyuqian/developer-kit/internal/auth"
+	"github.com/siyuqian/devpilot/internal/auth"
 )
 
 func RegisterCommands(parent *cobra.Command) {
@@ -594,7 +594,7 @@ var pushCmd = &cobra.Command{
 		// Load Trello credentials
 		creds, err := auth.Load("trello")
 		if err != nil {
-			fmt.Fprintln(os.Stderr, "Not logged in to Trello. Run: devkit login trello")
+			fmt.Fprintln(os.Stderr, "Not logged in to Trello. Run: devpilot login trello")
 			os.Exit(1)
 		}
 
@@ -722,7 +722,7 @@ git commit -m "refactor: add push command to trello package"
 For each file in `internal/runner/`, copy to `internal/taskrunner/` and change `package runner` → `package taskrunner`.
 
 For `internal/taskrunner/runner.go`, also update the import:
-- `"github.com/siyuqian/developer-kit/internal/trello"` stays the same (trello package doesn't move)
+- `"github.com/siyuqian/devpilot/internal/trello"` stays the same (trello package doesn't move)
 
 **Step 2: Create `internal/taskrunner/commands.go`**
 
@@ -739,8 +739,8 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
-	"github.com/siyuqian/developer-kit/internal/auth"
-	"github.com/siyuqian/developer-kit/internal/trello"
+	"github.com/siyuqian/devpilot/internal/auth"
+	"github.com/siyuqian/devpilot/internal/trello"
 )
 
 func RegisterCommands(parent *cobra.Command) {
@@ -773,7 +773,7 @@ var runCmd = &cobra.Command{
 		// Load Trello credentials
 		creds, err := auth.Load("trello")
 		if err != nil {
-			fmt.Fprintln(os.Stderr, "Not logged in to Trello. Run: devkit login trello")
+			fmt.Fprintln(os.Stderr, "Not logged in to Trello. Run: devpilot login trello")
 			os.Exit(1)
 		}
 
@@ -830,16 +830,16 @@ git commit -m "refactor: create taskrunner package from runner with run command"
 
 ---
 
-### Task 6: Update `cmd/devkit/main.go` and delete old packages
+### Task 6: Update `cmd/devpilot/main.go` and delete old packages
 
 **Files:**
-- Modify: `cmd/devkit/main.go`
+- Modify: `cmd/devpilot/main.go`
 - Delete: `internal/cli/` (entire directory)
 - Delete: `internal/config/` (entire directory)
 - Delete: `internal/services/` (entire directory)
 - Delete: `internal/runner/` (entire directory)
 
-**Step 1: Rewrite `cmd/devkit/main.go`**
+**Step 1: Rewrite `cmd/devpilot/main.go`**
 
 ```go
 package main
@@ -849,16 +849,16 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
-	"github.com/siyuqian/developer-kit/internal/auth"
-	"github.com/siyuqian/developer-kit/internal/taskrunner"
-	"github.com/siyuqian/developer-kit/internal/trello"
+	"github.com/siyuqian/devpilot/internal/auth"
+	"github.com/siyuqian/devpilot/internal/taskrunner"
+	"github.com/siyuqian/devpilot/internal/trello"
 )
 
 func main() {
 	rootCmd := &cobra.Command{
-		Use:   "devkit",
+		Use:   "devpilot",
 		Short: "Developer toolkit for managing service integrations",
-		Long:  "devkit manages authentication and integrations for external services like Trello, GitHub, and more.",
+		Long:  "devpilot manages authentication and integrations for external services like Trello, GitHub, and more.",
 	}
 
 	auth.RegisterCommands(rootCmd)
@@ -885,7 +885,7 @@ Expected: ALL tests PASS
 
 **Step 4: Build and verify CLI**
 
-Run: `go build -o /dev/null ./cmd/devkit/`
+Run: `go build -o /dev/null ./cmd/devpilot/`
 Expected: compiles successfully
 
 **Step 5: Commit**
@@ -907,7 +907,7 @@ git commit -m "refactor: switch to domain-based packages, remove old layout"
 Update the `## Repository Structure` section to reflect:
 
 ```
-- `cmd/devkit/` — CLI entry point (wires domain packages)
+- `cmd/devpilot/` — CLI entry point (wires domain packages)
 - `internal/auth/` — Authentication, credentials, service registry, CLI commands (login/logout/status)
 - `internal/trello/` — Trello REST API client, types, CLI commands (push)
 - `internal/taskrunner/` — Task executor, git ops, code reviewer, runner loop, CLI commands (run)
@@ -916,11 +916,11 @@ Update the `## Repository Structure` section to reflect:
 Update the `## Architecture` section:
 
 ```
-### Devkit CLI
+### Devpilot CLI
 
 Go CLI tool using Cobra, organized by domain:
-- `cmd/devkit/` — Entry point, creates root command, registers domain commands
-- `internal/auth/` — Credentials storage (~/.config/devkit/credentials.json), Service interface + registry, Trello auth (login/logout/verify), CLI commands: login, logout, status
+- `cmd/devpilot/` — Entry point, creates root command, registers domain commands
+- `internal/auth/` — Credentials storage (~/.config/devpilot/credentials.json), Service interface + registry, Trello auth (login/logout/verify), CLI commands: login, logout, status
 - `internal/trello/` — Trello REST API client (boards, lists, cards), CLI commands: push
 - `internal/taskrunner/` — Executor (claude -p wrapper), GitOps (branch/PR management), Reviewer (automated code review), Runner (poll loop), CLI commands: run
 - Adding a new service: implement the Service interface in `internal/auth/`, register in `service.go` init()

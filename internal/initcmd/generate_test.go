@@ -112,9 +112,9 @@ func TestConfigureBoardNonInteractiveSkips(t *testing.T) {
 		t.Fatalf("ConfigureBoard failed: %v", err)
 	}
 
-	// Should not have created .devkit.json
-	if _, err := os.Stat(filepath.Join(dir, ".devkit.json")); !os.IsNotExist(err) {
-		t.Error(".devkit.json should not exist in non-interactive mode")
+	// Should not have created .devpilot.json
+	if _, err := os.Stat(filepath.Join(dir, ".devpilot.json")); !os.IsNotExist(err) {
+		t.Error(".devpilot.json should not exist in non-interactive mode")
 	}
 }
 
@@ -136,12 +136,12 @@ func TestConfigureBoardInteractiveWithListBoards(t *testing.T) {
 		t.Fatalf("ConfigureBoard failed: %v", err)
 	}
 
-	data, err := os.ReadFile(filepath.Join(dir, ".devkit.json"))
+	data, err := os.ReadFile(filepath.Join(dir, ".devpilot.json"))
 	if err != nil {
 		t.Fatalf("ReadFile failed: %v", err)
 	}
 	if !strings.Contains(string(data), "Dev Board") {
-		t.Errorf(".devkit.json does not contain board name, got: %s", string(data))
+		t.Errorf(".devpilot.json does not contain board name, got: %s", string(data))
 	}
 }
 
@@ -159,12 +159,12 @@ func TestConfigureBoardInteractiveFreeText(t *testing.T) {
 		t.Fatalf("ConfigureBoard failed: %v", err)
 	}
 
-	data, err := os.ReadFile(filepath.Join(dir, ".devkit.json"))
+	data, err := os.ReadFile(filepath.Join(dir, ".devpilot.json"))
 	if err != nil {
 		t.Fatalf("ReadFile failed: %v", err)
 	}
 	if !strings.Contains(string(data), "My Custom Board") {
-		t.Errorf(".devkit.json does not contain board name, got: %s", string(data))
+		t.Errorf(".devpilot.json does not contain board name, got: %s", string(data))
 	}
 }
 

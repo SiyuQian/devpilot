@@ -1,4 +1,4 @@
-module github.com/siyuqian/developer-kit
+module github.com/siyuqian/devpilot
 
 go 1.25.6
 

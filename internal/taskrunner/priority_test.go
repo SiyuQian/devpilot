@@ -3,7 +3,7 @@ package taskrunner
 import (
 	"testing"
 
-	"github.com/siyuqian/developer-kit/internal/trello"
+	"github.com/siyuqian/devpilot/internal/trello"
 )
 
 func TestSortByPriority_AllPriorities(t *testing.T) {

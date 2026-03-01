@@ -38,7 +38,7 @@ internal/
 
 | Current File | New Location | Notes |
 |---|---|---|
-| `cli/root.go` | `cmd/devkit/main.go` | Root command inlined into main |
+| `cli/root.go` | `cmd/devpilot/main.go` | Root command inlined into main |
 | `cli/login.go` | `auth/commands.go` | |
 | `cli/logout.go` | `auth/commands.go` | |
 | `cli/status.go` | `auth/commands.go` | |
@@ -64,9 +64,9 @@ internal/
 Each domain exports `RegisterCommands(parent *cobra.Command)`. The entry point becomes:
 
 ```go
-// cmd/devkit/main.go
+// cmd/devpilot/main.go
 func main() {
-    rootCmd := &cobra.Command{Use: "devkit", Short: "Developer kit CLI"}
+    rootCmd := &cobra.Command{Use: "devpilot", Short: "Developer kit CLI"}
     auth.RegisterCommands(rootCmd)
     trello.RegisterCommands(rootCmd)
     taskrunner.RegisterCommands(rootCmd)
@@ -77,7 +77,7 @@ func main() {
 ## Dependency Flow
 
 ```
-cmd/devkit/main.go
+cmd/devpilot/main.go
 ├── auth       (no internal deps)
 ├── trello     (depends on: auth)
 └── taskrunner (depends on: trello, auth)
@@ -90,7 +90,7 @@ No circular dependencies.
 - All external CLI behavior (commands, flags, output)
 - All tests pass with same coverage
 - `trello/client.go` and `trello/types.go` content unchanged
-- Credential storage path (`~/.config/devkit/credentials.json`)
+- Credential storage path (`~/.config/devpilot/credentials.json`)
 
 ## Deleted Packages
 

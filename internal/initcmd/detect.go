@@ -4,8 +4,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/siyuqian/developer-kit/internal/auth"
-	"github.com/siyuqian/developer-kit/internal/project"
+	"github.com/siyuqian/devpilot/internal/auth"
+	"github.com/siyuqian/devpilot/internal/project"
 )
 
 // Status holds the detection results for a project directory.
@@ -32,7 +32,7 @@ func Detect(dir string) *Status {
 		s.HasTrelloCreds = true
 	}
 
-	// Board config in .devkit.json
+	// Board config in .devpilot.json
 	cfg, err := project.Load(dir)
 	if err == nil && cfg.Board != "" {
 		s.HasBoardConfig = true

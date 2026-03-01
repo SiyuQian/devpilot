@@ -70,7 +70,7 @@ func (m TUIModel) renderView() string {
 }
 
 func renderHeader(m TUIModel) string {
-	left := titleStyle.Render("devkit run")
+	left := titleStyle.Render("devpilot run")
 	middle := fmt.Sprintf(" Board: %s", m.boardName)
 
 	phaseText := m.phase

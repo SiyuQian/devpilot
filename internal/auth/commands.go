@@ -57,7 +57,7 @@ var statusCmd = &cobra.Command{
 		loggedIn := ListServices()
 		if len(loggedIn) == 0 {
 			fmt.Println("No services configured.")
-			fmt.Printf("Run 'devkit login <service>' to get started. Available: %s\n", AvailableNames())
+			fmt.Printf("Run 'devpilot login <service>' to get started. Available: %s\n", AvailableNames())
 			return
 		}
 		for _, name := range loggedIn {

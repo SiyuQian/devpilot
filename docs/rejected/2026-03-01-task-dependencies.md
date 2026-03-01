@@ -8,7 +8,7 @@ reason: "direction"
 
 ## Reason
 
-Doesn't align with product vision. The Developer Kit focuses on simple, independent task execution. Adding DAG-based task dependencies would add significant complexity without matching how solo developers typically work — they can simply order cards manually on the Trello board.
+Doesn't align with product vision. The DevPilot focuses on simple, independent task execution. Adding DAG-based task dependencies would add significant complexity without matching how solo developers typically work — they can simply order cards manually on the Trello board.
 
 ## Original Evidence Summary
 

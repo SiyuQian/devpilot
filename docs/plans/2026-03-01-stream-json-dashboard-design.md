@@ -1,7 +1,7 @@
 # Stream-JSON Dashboard Design
 
 **Date:** 2026-03-01
-**Goal:** Show real-time Claude Code progress in the `devkit run` TUI dashboard by parsing `--output-format stream-json` output.
+**Goal:** Show real-time Claude Code progress in the `devpilot run` TUI dashboard by parsing `--output-format stream-json` output.
 
 ## Background
 
@@ -141,7 +141,7 @@ type sessionStats struct {
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
-│ devkit run   Board: developer-kit   [▶ running] ↑12k ↓3k  T:7 [q]│
+│ devpilot run   Board: devpilot   [▶ running] ↑12k ↓3k  T:7 [q]│
 ├──────────────────────┬──────────────────────────────────────────────┤
 │  Lists               │  ▶ "Add auth middleware"                    │
 │  Ready          2    │    Branch: task/abc123-add-auth             │
@@ -199,4 +199,4 @@ The reviewer runs a separate `claude -p` for code review. It stays as-is (plain 
 
 ### 7. Log Saving — Unchanged
 
-Raw stdout (now NDJSON) saved to `~/.config/devkit/logs/{card-id}.log`. The full stream-json is useful for debugging.
+Raw stdout (now NDJSON) saved to `~/.config/devpilot/logs/{card-id}.log`. The full stream-json is useful for debugging.

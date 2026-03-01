@@ -5,19 +5,19 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
-	"github.com/siyuqian/developer-kit/internal/auth"
-	"github.com/siyuqian/developer-kit/internal/initcmd"
-	"github.com/siyuqian/developer-kit/internal/taskrunner"
-	"github.com/siyuqian/developer-kit/internal/trello"
+	"github.com/siyuqian/devpilot/internal/auth"
+	"github.com/siyuqian/devpilot/internal/initcmd"
+	"github.com/siyuqian/devpilot/internal/taskrunner"
+	"github.com/siyuqian/devpilot/internal/trello"
 )
 
 var version = "dev"
 
 func main() {
 	rootCmd := &cobra.Command{
-		Use:   "devkit",
+		Use:   "devpilot",
 		Short: "Developer toolkit for managing service integrations",
-		Long:  "devkit manages authentication and integrations for external services like Trello, GitHub, and more.",
+		Long:  "devpilot manages authentication and integrations for external services like Trello, GitHub, and more.",
 	}
 
 	rootCmd.Version = version

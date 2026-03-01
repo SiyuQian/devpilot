@@ -4,7 +4,7 @@
 
 **Goal:** Create a Claude Code skill that reads a Trello card, analyzes the codebase, and interactively improves the card's plan content before writing it back.
 
-**Architecture:** A pure skill (no Go code changes) in `.claude/skills/task-refiner/` with a SKILL.md defining the workflow and a `references/` directory for the quality checklist. Reuses Trello API patterns from the existing trello skill (curl + credentials from `~/.config/devkit/credentials.json`).
+**Architecture:** A pure skill (no Go code changes) in `.claude/skills/task-refiner/` with a SKILL.md defining the workflow and a `references/` directory for the quality checklist. Reuses Trello API patterns from the existing trello skill (curl + credentials from `~/.config/devpilot/credentials.json`).
 
 **Tech Stack:** Markdown (SKILL.md), Bash/curl (Trello API), Python 3 one-liners (JSON parsing)
 
@@ -174,7 +174,7 @@ Create `.claude/skills/task-refiner/SKILL.md` with the complete skill definition
 ```yaml
 ---
 name: task-refiner
-description: Improve Trello card task plans for the devkit runner. Use when user wants to refine, improve, or expand a Trello task/card plan. Triggers on /refine-task, "refine task", "improve card", "改进任务".
+description: Improve Trello card task plans for the devpilot runner. Use when user wants to refine, improve, or expand a Trello task/card plan. Triggers on /refine-task, "refine task", "improve card", "改进任务".
 ---
 ```
 
@@ -192,8 +192,8 @@ description: Improve Trello card task plans for the devkit runner. Use when user
    - Step 5: Confirm and Update (show diff, get user approval, PUT to Trello, add comment)
 4. **Credential Reading** — Exact bash pattern:
    ```bash
-   TRELLO_KEY=$(cat ~/.config/devkit/credentials.json | python3 -c "import sys,json; print(json.load(sys.stdin)['trello']['api_key'])")
-   TRELLO_TOKEN=$(cat ~/.config/devkit/credentials.json | python3 -c "import sys,json; print(json.load(sys.stdin)['trello']['token'])")
+   TRELLO_KEY=$(cat ~/.config/devpilot/credentials.json | python3 -c "import sys,json; print(json.load(sys.stdin)['trello']['api_key'])")
+   TRELLO_TOKEN=$(cat ~/.config/devpilot/credentials.json | python3 -c "import sys,json; print(json.load(sys.stdin)['trello']['token'])")
    ```
 5. **API Reference** — Card fetch, search, update, comment curl commands
 6. **Mode Detection** — Heuristic: if card description has `#` headings AND numbered steps → Refine; otherwise → Expand
@@ -245,7 +245,7 @@ Search for the credential pattern in both skills to confirm consistency:
 grep -n "credentials.json" .claude/skills/task-refiner/SKILL.md
 grep -n "credentials.json" .claude/skills/trello/SKILL.md
 ```
-Expected: Same `~/.config/devkit/credentials.json` path and similar Python one-liner pattern.
+Expected: Same `~/.config/devpilot/credentials.json` path and similar Python one-liner pattern.
 
 **Step 3: Verify references are mentioned in SKILL.md**
 

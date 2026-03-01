@@ -1,11 +1,11 @@
 ---
-name: developerkit:task-refiner
-description: Improve Trello card task plans for the devkit runner. Use when user wants to refine, improve, or expand a Trello task/card plan. Triggers on /refine-task, "refine task", "improve card", "改进任务".
+name: devpilot:task-refiner
+description: Improve Trello card task plans for the devpilot runner. Use when user wants to refine, improve, or expand a Trello task/card plan. Triggers on /refine-task, "refine task", "improve card", "改进任务".
 ---
 
 # Task Refiner
 
-Improve Trello card task plans so they execute reliably with `devkit run`. Works one card at a time in two modes:
+Improve Trello card task plans so they execute reliably with `devpilot run`. Works one card at a time in two modes:
 
 - **Refine**: Improve an existing structured plan (has headings and numbered steps)
 - **Expand**: Generate a complete plan from a vague idea or short description
@@ -25,11 +25,11 @@ Argument is required. If a Trello URL (contains `trello.com/c/`), extract the ca
 Read credentials and fetch the card:
 
 ```bash
-TRELLO_KEY=$(cat ~/.config/devkit/credentials.json | python3 -c "import sys,json; print(json.load(sys.stdin)['trello']['api_key'])")
-TRELLO_TOKEN=$(cat ~/.config/devkit/credentials.json | python3 -c "import sys,json; print(json.load(sys.stdin)['trello']['token'])")
+TRELLO_KEY=$(cat ~/.config/devpilot/credentials.json | python3 -c "import sys,json; print(json.load(sys.stdin)['trello']['api_key'])")
+TRELLO_TOKEN=$(cat ~/.config/devpilot/credentials.json | python3 -c "import sys,json; print(json.load(sys.stdin)['trello']['token'])")
 ```
 
-If credentials file is missing or fields are absent, tell user to run `devkit login trello` and stop.
+If credentials file is missing or fields are absent, tell user to run `devpilot login trello` and stop.
 
 Fetch the card:
 

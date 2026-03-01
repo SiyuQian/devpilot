@@ -1,12 +1,12 @@
 #!/bin/sh
 set -e
 
-# devkit installer
+# devpilot installer
 # Usage:
-#   curl -sSL https://raw.githubusercontent.com/siyuqian/developer-kit/main/install.sh | sh
+#   curl -sSL https://raw.githubusercontent.com/siyuqian/devpilot/main/install.sh | sh
 #   curl -sSL ... | sh -s -- --version v0.1.0 --dir ~/.local/bin
 
-REPO="siyuqian/developer-kit"
+REPO="siyuqian/devpilot"
 INSTALL_DIR="/usr/local/bin"
 VERSION=""
 
@@ -42,7 +42,7 @@ case "$ARCH" in
     *)       echo "Error: unsupported architecture: $ARCH"; exit 1 ;;
 esac
 
-BINARY="devkit-${OS}-${ARCH}"
+BINARY="devpilot-${OS}-${ARCH}"
 
 # Check for supported platform
 case "${OS}-${ARCH}" in
@@ -62,7 +62,7 @@ if [ -z "$VERSION" ]; then
     fi
 fi
 
-echo "Installing devkit ${VERSION} (${OS}/${ARCH})..."
+echo "Installing devpilot ${VERSION} (${OS}/${ARCH})..."
 
 TMPDIR="$(mktemp -d)"
 trap 'rm -rf "$TMPDIR"' EXIT
@@ -102,16 +102,16 @@ echo "Checksum verified."
 # Install
 mkdir -p "$INSTALL_DIR"
 if [ -w "$INSTALL_DIR" ]; then
-    mv "${TMPDIR}/${BINARY}" "${INSTALL_DIR}/devkit"
-    chmod +x "${INSTALL_DIR}/devkit"
+    mv "${TMPDIR}/${BINARY}" "${INSTALL_DIR}/devpilot"
+    chmod +x "${INSTALL_DIR}/devpilot"
 else
     echo "Need sudo to install to ${INSTALL_DIR}"
-    sudo mv "${TMPDIR}/${BINARY}" "${INSTALL_DIR}/devkit"
-    sudo chmod +x "${INSTALL_DIR}/devkit"
+    sudo mv "${TMPDIR}/${BINARY}" "${INSTALL_DIR}/devpilot"
+    sudo chmod +x "${INSTALL_DIR}/devpilot"
 fi
 
 echo ""
-echo "devkit ${VERSION} installed to ${INSTALL_DIR}/devkit"
+echo "devpilot ${VERSION} installed to ${INSTALL_DIR}/devpilot"
 echo ""
 echo "Verify with:"
-echo "  devkit --version"
+echo "  devpilot --version"

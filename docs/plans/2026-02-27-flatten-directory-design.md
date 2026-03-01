@@ -10,12 +10,12 @@ Restructure the repository from a nested `cli/` subdirectory to follow the [gola
 ## Current Structure
 
 ```
-developer-kit/
+devpilot/
 ├── cli/
 │   ├── main.go
-│   ├── go.mod          # module github.com/siyuqian/developer-kit/cli
+│   ├── go.mod          # module github.com/siyuqian/devpilot/cli
 │   ├── go.sum
-│   ├── devkit           # compiled binary
+│   ├── devpilot           # compiled binary
 │   ├── cmd/
 │   │   ├── root.go
 │   │   ├── login.go
@@ -39,11 +39,11 @@ developer-kit/
 ## Target Structure
 
 ```
-developer-kit/
-├── go.mod              # module github.com/siyuqian/developer-kit
+devpilot/
+├── go.mod              # module github.com/siyuqian/devpilot
 ├── go.sum
 ├── cmd/
-│   └── devkit/
+│   └── devpilot/
 │       └── main.go     # entry point, calls cli.Execute()
 ├── internal/
 │   ├── cli/
@@ -73,7 +73,7 @@ developer-kit/
 |------|-----|
 | `cli/go.mod` | `go.mod` |
 | `cli/go.sum` | `go.sum` |
-| `cli/main.go` | `cmd/devkit/main.go` |
+| `cli/main.go` | `cmd/devpilot/main.go` |
 | `cli/cmd/root.go` | `internal/cli/root.go` |
 | `cli/cmd/login.go` | `internal/cli/login.go` |
 | `cli/cmd/logout.go` | `internal/cli/logout.go` |
@@ -83,13 +83,13 @@ developer-kit/
 
 ### Deleted
 
-- `cli/devkit` (compiled binary)
+- `cli/devpilot` (compiled binary)
 - `cli/` directory (empty after moves)
 
 ### Module Path Update
 
-- **Old:** `github.com/siyuqian/developer-kit/cli`
-- **New:** `github.com/siyuqian/developer-kit`
+- **Old:** `github.com/siyuqian/devpilot/cli`
+- **New:** `github.com/siyuqian/devpilot`
 
 ### Package Rename
 
@@ -97,15 +97,15 @@ developer-kit/
 
 ### Import Path Updates
 
-- `main.go`: `import ".../cli/cmd"` -> `import ".../developer-kit/internal/cli"`
-- `cmd/*.go` -> `internal/cli/*.go`: `import ".../cli/internal/config"` -> `import ".../developer-kit/internal/config"`
-- `cmd/*.go` -> `internal/cli/*.go`: `import ".../cli/internal/services"` -> `import ".../developer-kit/internal/services"`
+- `main.go`: `import ".../cli/cmd"` -> `import ".../devpilot/internal/cli"`
+- `cmd/*.go` -> `internal/cli/*.go`: `import ".../cli/internal/config"` -> `import ".../devpilot/internal/config"`
+- `cmd/*.go` -> `internal/cli/*.go`: `import ".../cli/internal/services"` -> `import ".../devpilot/internal/services"`
 
 ### Build Commands
 
 ```bash
 # From repo root:
-go build -o devkit ./cmd/devkit
+go build -o devpilot ./cmd/devpilot
 go test ./...
 ```
 
@@ -115,7 +115,7 @@ Update build commands and architecture section to reflect new paths.
 
 ## Decisions
 
-- **Binary name:** stays `devkit`
+- **Binary name:** stays `devpilot`
 - **`.claude/skills/`:** unchanged (Claude Code workspace files, not part of Go project)
-- **Cobra commands:** in `internal/cli/` (thin entry point in `cmd/devkit/`)
+- **Cobra commands:** in `internal/cli/` (thin entry point in `cmd/devpilot/`)
 - **No empty scaffolding:** only directories that serve the project's needs

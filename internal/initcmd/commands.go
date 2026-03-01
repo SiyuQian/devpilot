@@ -7,8 +7,8 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
-	"github.com/siyuqian/developer-kit/internal/auth"
-	"github.com/siyuqian/developer-kit/internal/trello"
+	"github.com/siyuqian/devpilot/internal/auth"
+	"github.com/siyuqian/devpilot/internal/trello"
 )
 
 // RegisterCommands adds the init command to the parent command.
@@ -19,7 +19,7 @@ func RegisterCommands(parent *cobra.Command) {
 
 var initCmd = &cobra.Command{
 	Use:   "init",
-	Short: "Initialize a project for use with devkit",
+	Short: "Initialize a project for use with devpilot",
 	Long:  "Detect existing project configuration, report current state, and generate missing pieces.",
 	Run: func(cmd *cobra.Command, args []string) {
 		dir, err := os.Getwd()
@@ -85,7 +85,7 @@ var initCmd = &cobra.Command{
 
 		// Gitignore
 		if status.IsGitRepo {
-			if err := EnsureGitignore(dir, []string{".devkit/logs/"}); err != nil {
+			if err := EnsureGitignore(dir, []string{".devpilot/logs/"}); err != nil {
 				fmt.Fprintf(os.Stderr, "  Error updating .gitignore: %v\n", err)
 			}
 		}

@@ -2,7 +2,7 @@
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
-**Goal:** Parse Claude Code's `--output-format stream-json` NDJSON output to show real-time tool calls, token usage, and file changes in the `devkit run` TUI dashboard.
+**Goal:** Parse Claude Code's `--output-format stream-json` NDJSON output to show real-time tool calls, token usage, and file changes in the `devpilot run` TUI dashboard.
 
 **Architecture:** Add a `StreamParser` that reads NDJSON lines into typed Go structs. Replace the raw `CardOutputEvent` with richer events (`ToolStartEvent`, `ToolResultEvent`, `TextOutputEvent`, `StatsUpdateEvent`). Redesign the Bubble Tea TUI with multi-panel layout: tool call history, Claude text output, file list, and token stats.
 
@@ -1596,7 +1596,7 @@ Note: `toolSummary` and `formatDuration` and `formatTokens` need to be accessibl
 
 **Step 2: Test manually**
 
-Run: `go build ./cmd/devkit && ./bin/devkit run --board developer-kit --no-tui --once --dry-run`
+Run: `go build ./cmd/devpilot && ./bin/devpilot run --board devpilot --no-tui --once --dry-run`
 Expected: Compiles and runs without error. Dry run prints formatted actions.
 
 **Step 3: Run full test suite**
@@ -1632,7 +1632,7 @@ Expected: All tests pass
 
 If a Trello board is available:
 
-Run: `./bin/devkit run --board developer-kit --once`
+Run: `./bin/devpilot run --board devpilot --once`
 
 Verify:
 - Header shows token counts and turn count

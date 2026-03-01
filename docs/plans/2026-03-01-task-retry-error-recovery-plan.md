@@ -139,7 +139,7 @@ Default: `RetryPolicy{MaxRetries: 2, BaseDelay: 30*time.Second, MaxDelay: 5*time
 
 **Step 2: Add CLI flags**
 
-Add to `devkit run`:
+Add to `devpilot run`:
 - `--max-retries` (default 2): Maximum retry attempts per task
 - `--no-retry`: Disable retry entirely (sets MaxRetries=0)
 

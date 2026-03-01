@@ -52,7 +52,7 @@ Write the file with this exact content:
 
 ```markdown
 ---
-name: developerkit:agent-teams
+name: devpilot:agent-teams
 description: Agent Team blueprint library for Claude Code. Use when the user wants to set up agent teams, coordinate multiple Claude instances, do parallel development, run multi-agent workflows, swarm tasks, or orchestrate teammates. Triggers on "agent team", "multi-agent", "parallel agents", "swarm", "团队协作", "多agent", "并行开发".
 ---
 
@@ -1259,7 +1259,7 @@ Run:
 ```bash
 head -4 skills/agent-teams/SKILL.md
 ```
-Expected: Valid YAML frontmatter with `name: developerkit:agent-teams` and description.
+Expected: Valid YAML frontmatter with `name: devpilot:agent-teams` and description.
 
 **Step 3: Check total line counts are within bounds**
 

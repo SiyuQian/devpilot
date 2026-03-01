@@ -6,14 +6,14 @@ import (
 	"path/filepath"
 )
 
-const configFile = ".devkit.json"
+const configFile = ".devpilot.json"
 
-// Config represents project-level configuration stored in .devkit.json.
+// Config represents project-level configuration stored in .devpilot.json.
 type Config struct {
 	Board string `json:"board,omitempty"`
 }
 
-// Load reads .devkit.json from dir. Returns a zero-value Config (not an error)
+// Load reads .devpilot.json from dir. Returns a zero-value Config (not an error)
 // if the file does not exist.
 func Load(dir string) (*Config, error) {
 	data, err := os.ReadFile(filepath.Join(dir, configFile))
@@ -30,7 +30,7 @@ func Load(dir string) (*Config, error) {
 	return &cfg, nil
 }
 
-// Save writes cfg to .devkit.json in dir, creating intermediate directories.
+// Save writes cfg to .devpilot.json in dir, creating intermediate directories.
 func Save(dir string, cfg *Config) error {
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return err
@@ -43,7 +43,7 @@ func Save(dir string, cfg *Config) error {
 	return os.WriteFile(filepath.Join(dir, configFile), data, 0644)
 }
 
-// Exists checks if .devkit.json exists in dir.
+// Exists checks if .devpilot.json exists in dir.
 func Exists(dir string) bool {
 	_, err := os.Stat(filepath.Join(dir, configFile))
 	return err == nil

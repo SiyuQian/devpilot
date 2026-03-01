@@ -1,6 +1,6 @@
 ---
 status: deferred
-idea: "MCP Server for DevKit"
+idea: "MCP Server for DevPilot"
 date: 2026-03-01
 score: 9
 reason: "timing"
@@ -13,5 +13,5 @@ Good idea but not the right time. MCP ecosystem is still maturing and the CLI wo
 ## Original Evidence Summary
 
 - MCP is becoming the "USB-C for AI applications" — adopted by OpenAI, Google DeepMind, Sourcegraph
-- Exposing devkit as an MCP server would make it a native part of the Claude Code ecosystem
+- Exposing devpilot as an MCP server would make it a native part of the Claude Code ecosystem
 - No orchestration tool currently exposes itself as an MCP server; would be a unique differentiator

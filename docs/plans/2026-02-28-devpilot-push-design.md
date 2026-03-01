@@ -1,16 +1,16 @@
-# devkit push — Design Document
+# devpilot push — Design Document
 
 **Date:** 2026-02-28
 **Status:** Approved
 
 ## Summary
 
-A `devkit push` CLI command that reads a superpowers implementation plan markdown file and creates a Trello card from it. The card name is extracted from the file's `# Heading` and the full file contents become the card description. This feeds directly into the `devkit run` workflow, which picks up cards from the "Ready" list.
+A `devpilot push` CLI command that reads a superpowers implementation plan markdown file and creates a Trello card from it. The card name is extracted from the file's `# Heading` and the full file contents become the card description. This feeds directly into the `devpilot run` workflow, which picks up cards from the "Ready" list.
 
 ## CLI Interface
 
 ```
-devkit push <plan-file> [flags]
+devpilot push <plan-file> [flags]
 
 Arguments:
   plan-file              Path to a plan markdown file (required)
@@ -23,8 +23,8 @@ Flags:
 ### Example
 
 ```bash
-devkit push docs/plans/2026-02-28-task-runner-plan.md --board "Sprint Board"
-devkit push docs/plans/2026-02-28-task-runner-plan.md --board "Sprint Board" --list "Backlog"
+devpilot push docs/plans/2026-02-28-task-runner-plan.md --board "Sprint Board"
+devpilot push docs/plans/2026-02-28-task-runner-plan.md --board "Sprint Board" --list "Backlog"
 ```
 
 ## Card Mapping
@@ -38,7 +38,7 @@ devkit push docs/plans/2026-02-28-task-runner-plan.md --board "Sprint Board" --l
 
 1. Validate args: exactly one positional arg (file path)
 2. Read the file, extract the `# Title` from line 1
-3. Load Trello credentials from `~/.config/devkit/credentials.json`
+3. Load Trello credentials from `~/.config/devpilot/credentials.json`
 4. Resolve board name → ID via `FindBoardByName`
 5. Resolve list name → ID via `FindListByName`
 6. Call `CreateCard(listID, name, desc)` — new method on Trello client
@@ -65,4 +65,4 @@ Plans always start with `# Feature Name Implementation Plan`. Extracting this gi
 
 ### Default list = "Ready"
 
-This matches the `devkit run` convention where the runner polls the "Ready" list. Pushing a plan to "Ready" means it's immediately eligible for autonomous execution.
+This matches the `devpilot run` convention where the runner polls the "Ready" list. Pushing a plan to "Ready" means it's immediately eligible for autonomous execution.

@@ -12,9 +12,9 @@ Push a tag matching `v*` (e.g., `v0.1.0`).
 
 | OS      | Arch  | Artifact Name         |
 |---------|-------|-----------------------|
-| darwin  | arm64 | devkit-darwin-arm64   |
-| darwin  | amd64 | devkit-darwin-amd64   |
-| linux   | amd64 | devkit-linux-amd64    |
+| darwin  | arm64 | devpilot-darwin-arm64   |
+| darwin  | amd64 | devpilot-darwin-amd64   |
+| linux   | amd64 | devpilot-linux-amd64    |
 
 ## Workflow Steps
 
@@ -28,18 +28,18 @@ Push a tag matching `v*` (e.g., `v0.1.0`).
 
 ## Version Injection
 
-Add a `version` variable to `cmd/devkit/main.go` and a `--version` flag on the root command. The build injects the tag value at compile time via ldflags.
+Add a `version` variable to `cmd/devpilot/main.go` and a `--version` flag on the root command. The build injects the tag value at compile time via ldflags.
 
 ## Artifact Naming
 
-`devkit-{os}-{arch}` — no `.exe` suffix since Windows is not supported.
+`devpilot-{os}-{arch}` — no `.exe` suffix since Windows is not supported.
 
 ## User Installation
 
 ```bash
-curl -LO https://github.com/siyuqian/developer-kit/releases/latest/download/devkit-darwin-arm64
-chmod +x devkit-darwin-arm64
-sudo mv devkit-darwin-arm64 /usr/local/bin/devkit
+curl -LO https://github.com/siyuqian/devpilot/releases/latest/download/devpilot-darwin-arm64
+chmod +x devpilot-darwin-arm64
+sudo mv devpilot-darwin-arm64 /usr/local/bin/devpilot
 ```
 
 ## Approach

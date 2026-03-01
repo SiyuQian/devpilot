@@ -14,7 +14,7 @@ type AllCredentials map[string]ServiceCredentials
 
 var configDir = func() string {
 	home, _ := os.UserHomeDir()
-	return filepath.Join(home, ".config", "devkit")
+	return filepath.Join(home, ".config", "devpilot")
 }
 
 func credentialsPath() string {

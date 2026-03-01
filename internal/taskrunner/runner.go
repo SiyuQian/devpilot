@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/siyuqian/developer-kit/internal/trello"
+	"github.com/siyuqian/devpilot/internal/trello"
 )
 
 type Config struct {
@@ -255,7 +255,7 @@ func (r *Runner) processCard(ctx context.Context, card trello.Card) {
 	}
 
 	cardURL := fmt.Sprintf("https://trello.com/c/%s", card.ID)
-	prBody := fmt.Sprintf("## Task\n%s\n\n🤖 Executed by devkit runner", cardURL)
+	prBody := fmt.Sprintf("## Task\n%s\n\n🤖 Executed by devpilot runner", cardURL)
 	prURL, err := r.git.CreatePR(card.Name, prBody)
 	if err != nil {
 		r.failCard(card, start, fmt.Sprintf("create PR: %v", err))
@@ -290,7 +290,7 @@ func (r *Runner) processCard(ctx context.Context, card trello.Card) {
 	duration := time.Since(start).Round(time.Second)
 	r.emit(CardDoneEvent{CardID: card.ID, CardName: card.Name, PRURL: prURL, Duration: duration})
 	r.trello.MoveCard(card.ID, r.doneListID)
-	r.trello.AddComment(card.ID, fmt.Sprintf("✅ Task completed by devkit runner\nDuration: %s\nPR: %s", duration, prURL))
+	r.trello.AddComment(card.ID, fmt.Sprintf("✅ Task completed by devpilot runner\nDuration: %s\nPR: %s", duration, prURL))
 	r.logger.Printf("Card %q completed in %s. PR: %s", card.Name, duration, prURL)
 
 	r.git.CheckoutMain()
@@ -318,7 +318,7 @@ Rules:
 func (r *Runner) failCard(card trello.Card, start time.Time, errMsg string) {
 	duration := time.Since(start).Round(time.Second)
 	r.emit(CardFailedEvent{CardID: card.ID, CardName: card.Name, ErrMsg: errMsg, Duration: duration})
-	logPath := filepath.Join(r.config.WorkDir, ".devkit", "logs", card.ID+".log")
+	logPath := filepath.Join(r.config.WorkDir, ".devpilot", "logs", card.ID+".log")
 	comment := fmt.Sprintf("❌ Task failed\nDuration: %s\nError: %s\nSee full log: %s", duration, errMsg, logPath)
 	r.trello.MoveCard(card.ID, r.failedListID)
 	r.trello.AddComment(card.ID, comment)
@@ -329,7 +329,7 @@ func (r *Runner) saveLog(cardID string, result *ExecuteResult) {
 	if result == nil {
 		return
 	}
-	logDir := filepath.Join(r.config.WorkDir, ".devkit", "logs")
+	logDir := filepath.Join(r.config.WorkDir, ".devpilot", "logs")
 	os.MkdirAll(logDir, 0755)
 	logPath := filepath.Join(logDir, cardID+".log")
 	content := fmt.Sprintf("=== STDOUT ===\n%s\n\n=== STDERR ===\n%s\n", result.Stdout, result.Stderr)

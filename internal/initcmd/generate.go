@@ -11,7 +11,7 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/siyuqian/developer-kit/internal/project"
+	"github.com/siyuqian/devpilot/internal/project"
 )
 
 // Board is a simple struct for board listing (avoids importing trello package).
@@ -124,10 +124,10 @@ func GenerateClaudeMD(opts GenerateOpts) error {
 	return nil
 }
 
-// ConfigureBoard sets up the board name in .devkit.json.
+// ConfigureBoard sets up the board name in .devpilot.json.
 func ConfigureBoard(opts GenerateOpts, listBoards func() ([]Board, error)) error {
 	if !opts.Interactive {
-		fmt.Println("  Skipped: board configuration (use devkit init without --yes to configure)")
+		fmt.Println("  Skipped: board configuration (use devpilot init without --yes to configure)")
 		return nil
 	}
 
@@ -208,7 +208,7 @@ func EnsureGitignore(dir string, entries []string) error {
 		}
 	}
 
-	block := "\n# Devkit\n"
+	block := "\n# DevPilot\n"
 	for _, entry := range toAdd {
 		block += entry + "\n"
 	}

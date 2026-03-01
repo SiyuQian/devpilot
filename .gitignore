@@ -4,5 +4,5 @@ bin/
 # Worktrees
 .worktrees/
 
-# Devkit
-.devkit/logs/
+# DevPilot
+.devpilot/logs/

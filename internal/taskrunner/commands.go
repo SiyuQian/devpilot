@@ -12,9 +12,9 @@ import (
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 
-	"github.com/siyuqian/developer-kit/internal/auth"
-	"github.com/siyuqian/developer-kit/internal/project"
-	"github.com/siyuqian/developer-kit/internal/trello"
+	"github.com/siyuqian/devpilot/internal/auth"
+	"github.com/siyuqian/devpilot/internal/project"
+	"github.com/siyuqian/devpilot/internal/trello"
 )
 
 func RegisterCommands(parent *cobra.Command) {
@@ -54,14 +54,14 @@ var runCmd = &cobra.Command{
 			}
 		}
 		if boardName == "" {
-			fmt.Fprintln(os.Stderr, "Error: --board is required (or run: devkit init)")
+			fmt.Fprintln(os.Stderr, "Error: --board is required (or run: devpilot init)")
 			os.Exit(1)
 		}
 
 		// Load Trello credentials
 		creds, err := auth.Load("trello")
 		if err != nil {
-			fmt.Fprintln(os.Stderr, "Not logged in to Trello. Run: devkit login trello")
+			fmt.Fprintln(os.Stderr, "Not logged in to Trello. Run: devpilot login trello")
 			os.Exit(1)
 		}
 

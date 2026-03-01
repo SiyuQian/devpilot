@@ -1,11 +1,11 @@
-# Devkit CLI — Design Document
+# Devpilot CLI — Design Document
 
 **Date:** 2026-02-27
 **Status:** Approved
 
 ## Summary
 
-A Go CLI tool (`devkit`) that handles authentication for external services used with Claude Code. Replaces the MCP server approach with a single installable binary. Trello is the first supported service.
+A Go CLI tool (`devpilot`) that handles authentication for external services used with Claude Code. Replaces the MCP server approach with a single installable binary. Trello is the first supported service.
 
 ## Motivation
 
@@ -40,27 +40,27 @@ Three pain points with the MCP server approach:
 
 ## Commands
 
-### `devkit login trello`
+### `devpilot login trello`
 
 1. Prints instructions for getting API key and token from Trello
 2. Prompts interactively for `API Key:` and `Token:`
 3. Verifies credentials by calling Trello `/members/me` endpoint
-4. On success: saves to `~/.config/devkit/credentials.json`, prints confirmation
+4. On success: saves to `~/.config/devpilot/credentials.json`, prints confirmation
 5. On failure: prints error, does not save
 
-### `devkit logout trello`
+### `devpilot logout trello`
 
 1. Removes the `trello` entry from credentials file
 2. Prints confirmation
 
-### `devkit status`
+### `devpilot status`
 
 1. Lists all services with auth status (e.g., `trello: logged in`)
 2. If nothing configured: `No services configured.`
 
 ## Credentials
 
-Stored at `~/.config/devkit/credentials.json`:
+Stored at `~/.config/devpilot/credentials.json`:
 
 ```json
 {
@@ -82,12 +82,12 @@ cli/
 ├── go.sum
 ├── cmd/
 │   ├── root.go              # Root command, version, help
-│   ├── login.go             # devkit login <service>
-│   ├── logout.go            # devkit logout <service>
-│   └── status.go            # devkit status
+│   ├── login.go             # devpilot login <service>
+│   ├── logout.go            # devpilot logout <service>
+│   └── status.go            # devpilot status
 └── internal/
     ├── config/
-    │   └── credentials.go   # Read/write ~/.config/devkit/credentials.json
+    │   └── credentials.go   # Read/write ~/.config/devpilot/credentials.json
     └── services/
         └── trello.go        # Trello auth flow
 ```
@@ -113,15 +113,15 @@ Services are registered in a `map[string]Service`. Adding a new service means:
 ### Primary: Homebrew
 
 ```
-brew tap siyuqian/devkit
-brew install devkit
+brew tap siyuqian/devpilot
+brew install devpilot
 ```
 
 Use `goreleaser` to automate: build binaries → create GitHub Release → update Homebrew formula.
 
 ### Secondary
 
-- `go install github.com/siyuqian/developer-kit/cli@latest`
+- `go install github.com/siyuqian/devpilot/cli@latest`
 - Direct binary download from GitHub Releases
 
 ## What Gets Removed
@@ -132,7 +132,7 @@ Use `goreleaser` to automate: build binaries → create GitHub Release → updat
 
 ## Non-Goals
 
-- Full API subcommands (`devkit trello list-boards`) — future scope
+- Full API subcommands (`devpilot trello list-boards`) — future scope
 - Plugin system — YAGNI, just add files
 - GUI or web-based auth flows (OAuth browser redirect) — future scope
 - Windows support at launch — can add later via goreleaser

@@ -85,7 +85,7 @@ func TestSaveFilePermissions(t *testing.T) {
 		t.Fatalf("Save failed: %v", err)
 	}
 
-	info, err := os.Stat(filepath.Join(dir, ".devkit.json"))
+	info, err := os.Stat(filepath.Join(dir, ".devpilot.json"))
 	if err != nil {
 		t.Fatalf("Stat failed: %v", err)
 	}
@@ -103,7 +103,7 @@ func TestSaveJSONFormat(t *testing.T) {
 		t.Fatalf("Save failed: %v", err)
 	}
 
-	data, err := os.ReadFile(filepath.Join(dir, ".devkit.json"))
+	data, err := os.ReadFile(filepath.Join(dir, ".devpilot.json"))
 	if err != nil {
 		t.Fatalf("ReadFile failed: %v", err)
 	}

@@ -4,7 +4,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/siyuqian/developer-kit/internal/trello"
+	"github.com/siyuqian/devpilot/internal/trello"
 )
 
 // SortByPriority sorts cards by priority label (P0 > P1 > P2).

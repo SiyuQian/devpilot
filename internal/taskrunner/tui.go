@@ -23,7 +23,7 @@ type sessionStats struct {
 	turns           int
 }
 
-// TUIModel is the Bubble Tea model for the devkit run dashboard.
+// TUIModel is the Bubble Tea model for the devpilot run dashboard.
 type TUIModel struct {
 	// Config
 	boardName string
@@ -336,7 +336,7 @@ func (m TUIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 // View implements tea.Model (stub -- rendering in tui_view.go).
 func (m TUIModel) View() string {
 	if !m.ready {
-		return "  Starting devkit run..."
+		return "  Starting devpilot run..."
 	}
 	return m.renderView()
 }

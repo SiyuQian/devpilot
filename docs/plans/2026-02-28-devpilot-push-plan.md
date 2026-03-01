@@ -1,8 +1,8 @@
-# devkit push Implementation Plan
+# devpilot push Implementation Plan
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
-**Goal:** Add a `devkit push` CLI command that reads a plan markdown file and creates a Trello card from it, feeding into the `devkit run` workflow.
+**Goal:** Add a `devpilot push` CLI command that reads a plan markdown file and creates a Trello card from it, feeding into the `devpilot run` workflow.
 
 **Architecture:** New `CreateCard` method on the existing Trello client, plus a new Cobra command in `internal/cli/push.go` that reads a file, extracts the title from the first `# Heading`, resolves board/list by name, and creates the card.
 
@@ -136,7 +136,7 @@ git commit -m "feat(trello): add CreateCard method"
 
 ---
 
-### Task 3: Create the `devkit push` command
+### Task 3: Create the `devpilot push` command
 
 **Files:**
 - Create: `internal/cli/push.go`
@@ -155,8 +155,8 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
-	"github.com/siyuqian/developer-kit/internal/config"
-	"github.com/siyuqian/developer-kit/internal/trello"
+	"github.com/siyuqian/devpilot/internal/config"
+	"github.com/siyuqian/devpilot/internal/trello"
 )
 
 var pushCmd = &cobra.Command{
@@ -191,7 +191,7 @@ var pushCmd = &cobra.Command{
 		// Load Trello credentials
 		creds, err := config.Load("trello")
 		if err != nil {
-			fmt.Fprintln(os.Stderr, "Not logged in to Trello. Run: devkit login trello")
+			fmt.Fprintln(os.Stderr, "Not logged in to Trello. Run: devpilot login trello")
 			os.Exit(1)
 		}
 
@@ -250,19 +250,19 @@ Expected: no errors
 
 **Step 3: Verify the full binary builds**
 
-Run: `go build -o bin/devkit ./cmd/devkit/`
+Run: `go build -o bin/devpilot ./cmd/devpilot/`
 Expected: no errors
 
 **Step 4: Verify help text appears**
 
-Run: `./bin/devkit push --help`
+Run: `./bin/devpilot push --help`
 Expected: shows usage with `push <plan-file>`, `--board`, and `--list` flags
 
 **Step 5: Commit**
 
 ```bash
 git add internal/cli/push.go
-git commit -m "feat(cli): add devkit push command"
+git commit -m "feat(cli): add devpilot push command"
 ```
 
 ---

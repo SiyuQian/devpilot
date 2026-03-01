@@ -1,10 +1,10 @@
-# Devkit CLI Implementation Plan
+# Devpilot CLI Implementation Plan
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
-**Goal:** Build a Go CLI tool (`devkit`) that handles authentication for external services, starting with Trello.
+**Goal:** Build a Go CLI tool (`devpilot`) that handles authentication for external services, starting with Trello.
 
-**Architecture:** Cobra-based CLI with subcommands (login, logout, status). Each service implements a common interface. Credentials stored as JSON at `~/.config/devkit/credentials.json`.
+**Architecture:** Cobra-based CLI with subcommands (login, logout, status). Each service implements a common interface. Credentials stored as JSON at `~/.config/devpilot/credentials.json`.
 
 **Tech Stack:** Go 1.25, Cobra, net/http (stdlib for HTTP calls)
 
@@ -21,14 +21,14 @@
 
 Run:
 ```bash
-cd /Users/siyu/Works/github.com/siyuqian/developer-kit && mkdir -p cli && cd cli && go mod init github.com/siyuqian/developer-kit/cli
+cd /Users/siyu/Works/github.com/siyuqian/devpilot && mkdir -p cli && cd cli && go mod init github.com/siyuqian/devpilot/cli
 ```
 
 **Step 2: Add Cobra dependency**
 
 Run:
 ```bash
-cd /Users/siyu/Works/github.com/siyuqian/developer-kit/cli && go get github.com/spf13/cobra@latest
+cd /Users/siyu/Works/github.com/siyuqian/devpilot/cli && go get github.com/spf13/cobra@latest
 ```
 
 **Step 3: Create root command**
@@ -45,9 +45,9 @@ import (
 )
 
 var rootCmd = &cobra.Command{
-	Use:   "devkit",
+	Use:   "devpilot",
 	Short: "Developer toolkit for managing service integrations",
-	Long:  "devkit manages authentication and integrations for external services like Trello, GitHub, and more.",
+	Long:  "devpilot manages authentication and integrations for external services like Trello, GitHub, and more.",
 }
 
 func Execute() {
@@ -64,7 +64,7 @@ Create `cli/main.go`:
 ```go
 package main
 
-import "github.com/siyuqian/developer-kit/cli/cmd"
+import "github.com/siyuqian/devpilot/cli/cmd"
 
 func main() {
 	cmd.Execute()
@@ -75,15 +75,15 @@ func main() {
 
 Run:
 ```bash
-cd /Users/siyu/Works/github.com/siyuqian/developer-kit/cli && go build -o devkit . && ./devkit --help
+cd /Users/siyu/Works/github.com/siyuqian/devpilot/cli && go build -o devpilot . && ./devpilot --help
 ```
-Expected: Cobra help text showing "devkit" with description.
+Expected: Cobra help text showing "devpilot" with description.
 
 **Step 6: Commit**
 
 ```bash
 git add cli/
-git commit -m "feat: scaffold devkit CLI with Cobra root command"
+git commit -m "feat: scaffold devpilot CLI with Cobra root command"
 ```
 
 ---
@@ -186,7 +186,7 @@ func TestListServices(t *testing.T) {
 
 Run:
 ```bash
-cd /Users/siyu/Works/github.com/siyuqian/developer-kit/cli && go test ./internal/config/ -v
+cd /Users/siyu/Works/github.com/siyuqian/devpilot/cli && go test ./internal/config/ -v
 ```
 Expected: FAIL — package doesn't exist yet.
 
@@ -210,10 +210,10 @@ type ServiceCredentials map[string]string
 // AllCredentials is the top-level structure of the credentials file.
 type AllCredentials map[string]ServiceCredentials
 
-// configDir returns the devkit config directory path. Variable for testing.
+// configDir returns the devpilot config directory path. Variable for testing.
 var configDir = func() string {
 	home, _ := os.UserHomeDir()
-	return filepath.Join(home, ".config", "devkit")
+	return filepath.Join(home, ".config", "devpilot")
 }
 
 func credentialsPath() string {
@@ -298,7 +298,7 @@ func ListServices() []string {
 
 Run:
 ```bash
-cd /Users/siyu/Works/github.com/siyuqian/developer-kit/cli && go test ./internal/config/ -v
+cd /Users/siyu/Works/github.com/siyuqian/devpilot/cli && go test ./internal/config/ -v
 ```
 Expected: All 4 tests PASS.
 
@@ -370,7 +370,7 @@ func TestTrelloVerify_InvalidCreds(t *testing.T) {
 
 Run:
 ```bash
-cd /Users/siyu/Works/github.com/siyuqian/developer-kit/cli && go test ./internal/services/ -v
+cd /Users/siyu/Works/github.com/siyuqian/devpilot/cli && go test ./internal/services/ -v
 ```
 Expected: FAIL — package doesn't exist yet.
 
@@ -403,7 +403,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/siyuqian/developer-kit/cli/internal/config"
+	"github.com/siyuqian/devpilot/cli/internal/config"
 )
 
 const trelloBaseURL = "https://api.trello.com"
@@ -546,7 +546,7 @@ func AvailableNames() string {
 
 Run:
 ```bash
-cd /Users/siyu/Works/github.com/siyuqian/developer-kit/cli && go test ./internal/services/ -v
+cd /Users/siyu/Works/github.com/siyuqian/devpilot/cli && go test ./internal/services/ -v
 ```
 Expected: Both tests PASS.
 
@@ -577,7 +577,7 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
-	"github.com/siyuqian/developer-kit/cli/internal/services"
+	"github.com/siyuqian/devpilot/cli/internal/services"
 )
 
 var loginCmd = &cobra.Command{
@@ -614,7 +614,7 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
-	"github.com/siyuqian/developer-kit/cli/internal/services"
+	"github.com/siyuqian/devpilot/cli/internal/services"
 )
 
 var logoutCmd = &cobra.Command{
@@ -650,8 +650,8 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
-	"github.com/siyuqian/developer-kit/cli/internal/config"
-	"github.com/siyuqian/developer-kit/cli/internal/services"
+	"github.com/siyuqian/devpilot/cli/internal/config"
+	"github.com/siyuqian/devpilot/cli/internal/services"
 )
 
 var statusCmd = &cobra.Command{
@@ -661,7 +661,7 @@ var statusCmd = &cobra.Command{
 		loggedIn := config.ListServices()
 		if len(loggedIn) == 0 {
 			fmt.Println("No services configured.")
-			fmt.Printf("Run 'devkit login <service>' to get started. Available: %s\n", services.AvailableNames())
+			fmt.Printf("Run 'devpilot login <service>' to get started. Available: %s\n", services.AvailableNames())
 			return
 		}
 		for _, name := range loggedIn {
@@ -679,7 +679,7 @@ func init() {
 
 Run:
 ```bash
-cd /Users/siyu/Works/github.com/siyuqian/developer-kit/cli && go build -o devkit . && ./devkit --help && ./devkit status && ./devkit login --help && ./devkit logout --help
+cd /Users/siyu/Works/github.com/siyuqian/devpilot/cli && go build -o devpilot . && ./devpilot --help && ./devpilot status && ./devpilot login --help && ./devpilot logout --help
 ```
 Expected: Help text shows login, logout, status subcommands. Status shows "No services configured."
 
@@ -702,7 +702,7 @@ git commit -m "feat: add login, logout, and status commands"
 
 Run:
 ```bash
-rm -rf /Users/siyu/Works/github.com/siyuqian/developer-kit/mcps/
+rm -rf /Users/siyu/Works/github.com/siyuqian/devpilot/mcps/
 ```
 
 **Step 2: Update CLAUDE.md**
@@ -718,7 +718,7 @@ The updated CLAUDE.md should reflect:
 ```markdown
 ## Repository Structure
 
-- `cli/` — Go CLI tool (`devkit`) for managing service integrations
+- `cli/` — Go CLI tool (`devpilot`) for managing service integrations
 - `.claude/skills/` — Built-in development skills
   - `skill-creator/` — Guide + scripts for creating new skills
   - `mcp-builder/` — Guide + scripts for building MCP servers
@@ -726,15 +726,15 @@ The updated CLAUDE.md should reflect:
 
 ## Build & Development Commands
 
-### Devkit CLI (`cli/`)
+### Devpilot CLI (`cli/`)
 
 \```bash
 cd cli
-go build -o devkit .    # Build binary
+go build -o devpilot .    # Build binary
 go test ./...           # Run all tests
-./devkit --help         # Show help
-./devkit login trello   # Login to Trello
-./devkit status         # Check auth status
+./devpilot --help         # Show help
+./devpilot login trello   # Login to Trello
+./devpilot status         # Check auth status
 \```
 ```
 
@@ -742,7 +742,7 @@ go test ./...           # Run all tests
 
 ```bash
 git add -A
-git commit -m "feat: remove Trello MCP server, update CLAUDE.md for devkit CLI"
+git commit -m "feat: remove Trello MCP server, update CLAUDE.md for devpilot CLI"
 ```
 
 ---
@@ -753,7 +753,7 @@ git commit -m "feat: remove Trello MCP server, update CLAUDE.md for devkit CLI"
 
 Run:
 ```bash
-cd /Users/siyu/Works/github.com/siyuqian/developer-kit/cli && go test ./... -v
+cd /Users/siyu/Works/github.com/siyuqian/devpilot/cli && go test ./... -v
 ```
 Expected: All tests pass.
 
@@ -761,7 +761,7 @@ Expected: All tests pass.
 
 Run:
 ```bash
-cd /Users/siyu/Works/github.com/siyuqian/developer-kit/cli && go build -o devkit . && ./devkit status
+cd /Users/siyu/Works/github.com/siyuqian/devpilot/cli && go build -o devpilot . && ./devpilot status
 ```
 Expected: "No services configured."
 
@@ -769,7 +769,7 @@ Expected: "No services configured."
 
 Run:
 ```bash
-./devkit login trello
+./devpilot login trello
 ```
 Expected: Prints Trello instructions and prompts for API Key.
 (Ctrl+C to exit without entering credentials)
@@ -778,7 +778,7 @@ Expected: Prints Trello instructions and prompts for API Key.
 
 Run:
 ```bash
-./devkit login github
+./devpilot login github
 ```
 Expected: Error message listing available services.
 

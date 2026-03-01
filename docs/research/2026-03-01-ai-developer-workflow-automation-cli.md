@@ -7,7 +7,7 @@ date: 2026-03-01
 
 ### Market Context
 
-The market has bifurcated into two segments: **IDE-embedded agents** (Cursor, Copilot) and **terminal-first autonomous agents** (Claude Code, Codex CLI, Aider, Devin). Developer Kit competes primarily in the latter, specifically in the **orchestration layer** that sits above raw AI coding agents.
+The market has bifurcated into two segments: **IDE-embedded agents** (Cursor, Copilot) and **terminal-first autonomous agents** (Claude Code, Codex CLI, Aider, Devin). DevPilot competes primarily in the latter, specifically in the **orchestration layer** that sits above raw AI coding agents.
 
 ### Competitor Comparison Table
 
@@ -19,7 +19,7 @@ The market has bifurcated into two segments: **IDE-embedded agents** (Cursor, Co
 | **GitHub Copilot + Agentic Workflows** | Coding Agent (Issue-to-PR); Agent Mode for multi-file edits; Agentic Workflows (Markdown-defined automation via Actions); supports Claude Code/Codex as engines. | Free tier; Pro $10/mo; Pro+ $39/mo; Enterprise $39/user/mo | Native GitHub integration; Markdown-based workflow definition; multi-engine support | Premium request limits (300-1500/mo); Agentic Workflows still in technical preview; tightly coupled to GitHub ecosystem | Dominant -- largest installed base |
 | **Cursor** | AI-native IDE (VS Code fork). Agent Mode, Background Agents, codebase-wide embeddings, multi-file edits. | Free tier; Pro $20/mo; Pro+ ~$60/mo; Ultra $200/mo | Best-in-class IDE experience; deep codebase understanding; 30-40% productivity gains | IDE-only (no CLI/headless mode); no task queue or project management; no autonomous PR pipeline | Very High -- dominant IDE agent |
 | **Gemini CLI** (Google) | Open-source terminal agent with ReAct loop. 1M token context window. MCP server extensibility. | Free (1,000 req/day with Google account) | Extremely generous free tier; massive context window; Apache 2.0; MCP extensibility | Locked to Gemini models; newer/less mature ecosystem; no task orchestration | Growing rapidly -- Google backing |
-| **Chief** | Wraps Claude Code in a task loop. Breaks projects into tasks, one commit per task, resumable progress, fresh context per task. Zero config, single binary, TUI. | Free (open source); requires Claude Code subscription | Closest analog to Developer Kit's task runner; task-level commits; context window management; pretty TUI | No project management integration (Trello/boards); no PR automation; no skills system; no priority sorting | Niche -- early-stage open source |
+| **Chief** | Wraps Claude Code in a task loop. Breaks projects into tasks, one commit per task, resumable progress, fresh context per task. Zero config, single binary, TUI. | Free (open source); requires Claude Code subscription | Closest analog to DevPilot's task runner; task-level commits; context window management; pretty TUI | No project management integration (Trello/boards); no PR automation; no skills system; no priority sorting | Niche -- early-stage open source |
 
 ### Key Differentiation Opportunities
 
