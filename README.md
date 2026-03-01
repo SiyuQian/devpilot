@@ -14,43 +14,75 @@ Plan (markdown) → devkit push → Trello card → devkit run → claude -p →
 4. **Real-time dashboard** — A TUI dashboard shows tool calls, Claude output, token stats, and task progress in real time
 5. **Automatic output** — Branch created, code written with TDD, PR opened, auto code review, auto-merge
 
-## Installation
+## Getting Started
 
-Requires Go 1.25+ and [Claude Code](https://docs.anthropic.com/en/docs/claude-code) installed.
+### Prerequisites
+
+- [Claude Code](https://docs.anthropic.com/en/docs/claude-code) installed and authenticated
+- [GitHub CLI (`gh`)](https://cli.github.com/) installed and authenticated (for PR creation and auto-merge)
+- A [Trello](https://trello.com/) account with an [API key and token](https://trello.com/power-ups/admin)
+- Git repository initialized in your project
+
+### Installation
+
+**Option A: Install from release (recommended)**
+
+```bash
+curl -sSL https://raw.githubusercontent.com/siyuqian/developer-kit/main/install.sh | sh
+```
+
+You can specify a version or install directory:
+
+```bash
+curl -sSL https://raw.githubusercontent.com/siyuqian/developer-kit/main/install.sh | sh -s -- --version v0.1.0 --dir ~/.local/bin
+```
+
+**Option B: Build from source**
+
+Requires Go 1.25+.
 
 ```bash
 git clone https://github.com/siyuqian/developer-kit.git
 cd developer-kit
 make build
+# Binary is at bin/devkit — add it to your PATH or move it:
+sudo mv bin/devkit /usr/local/bin/
 ```
 
-The binary is built to `bin/devkit`.
-
-## Quick Start
-
-### 1. Initialize Your Project
+Verify the installation:
 
 ```bash
+devkit --version
+```
+
+### Setup
+
+**1. Initialize your project**
+
+```bash
+cd your-project
 devkit init
 ```
 
 The interactive wizard detects your project setup (git, CLAUDE.md, Trello credentials, skills) and generates any missing pieces. Use `-y` to accept all defaults.
 
-### 2. Authenticate with Trello
+**2. Authenticate with Trello**
 
 ```bash
 devkit login trello
 ```
 
-Follow the prompts to enter your [Trello API key and token](https://trello.com/power-ups/admin).
+Follow the prompts to enter your [Trello API key and token](https://trello.com/power-ups/admin). You can verify with `devkit status`.
 
-### 3. Push a Plan
+**3. Push a plan**
+
+Write a markdown file with a `# Title` and implementation steps, then push it:
 
 ```bash
 devkit push docs/plans/my-feature-plan.md --board "Sprint Board"
 ```
 
-### 4. Run the Task Runner
+**4. Run the task runner**
 
 ```bash
 # Continuous mode — polls every 5 minutes, shows TUI dashboard
