@@ -5,7 +5,7 @@ description: Product manager skill for market research and feature discovery. Us
 
 # Product Discovery & Market Research
 
-A product manager skill that discovers market needs through parallel deep research. It runs 3 specialized agents concurrently — competitor analysis, user pain point mining, and trend tracking — then synthesizes findings into 2-3 prioritized feature recommendations.
+A product manager skill that discovers market needs through parallel deep research. It runs 3 specialized agents concurrently — competitor analysis, user pain point mining, and trend tracking — then synthesizes findings into 5-10 prioritized feature recommendations. Research results are cached daily to `docs/research/` to avoid redundant agent calls.
 
 ## Process
 
@@ -32,7 +32,18 @@ If no files exist in `docs/rejected/`, skip this phase and proceed to Phase 2.
 
 Store these lists for use in Phase 2 agent prompts.
 
-### Phase 2: Parallel Deep Research
+### Phase 2: Parallel Deep Research (with caching)
+
+#### Step 1: Check research cache
+
+Before launching agents, check if today's research already exists:
+
+1. Derive a `{topic-slug}` from the product description in lowercase kebab-case (e.g. "CLI developer tools" → `cli-developer-tools`)
+2. Use Glob to check for `docs/research/{YYYY-MM-DD}-{topic-slug}.md` (using today's date)
+3. **Cache hit**: Read the cached file and skip directly to Phase 3. Do NOT launch any agents.
+4. **Cache miss**: Continue to Step 2 below.
+
+#### Step 2: Launch agents (cache miss only)
 
 Launch **3 agents in parallel** using the Task tool with `subagent_type: "general-purpose"`. Each agent uses WebSearch extensively.
 
@@ -53,7 +64,29 @@ If there are no rejected or deferred ideas, omit this block entirely.
 **CRITICAL**: Each agent prompt MUST end with this constraint:
 > Keep your response under 800 words. Return ONLY a structured summary — no preamble, no methodology explanation. Focus on actionable findings with specific data points.
 
-**CRITICAL**: After ALL agents return, you MUST immediately proceed to Phase 3 (Synthesis) in the SAME response. Do NOT stop or wait for user input between Phase 2 and Phase 4. The flow is: agents return → synthesize → present to user, all in one response.
+**CRITICAL**: After ALL agents return, you MUST immediately proceed to Step 3 (cache write) and then Phase 3 (Synthesis) in the SAME response. Do NOT stop or wait for user input between Phase 2 and Phase 4.
+
+#### Step 3: Write research cache (cache miss only)
+
+After all 3 agents return, write their combined output to `docs/research/{YYYY-MM-DD}-{topic-slug}.md`:
+
+```markdown
+---
+topic: "{product_description}"
+target_users: "{target_users}"
+date: YYYY-MM-DD
+---
+## Competitor Analysis
+{agent 1 output}
+
+## User Pain Points
+{agent 2 output}
+
+## Market Trends
+{agent 3 output}
+```
+
+Create the `docs/research/` directory if it doesn't exist. Then proceed to Phase 3.
 
 #### Agent 1: Competitor Analyst
 
@@ -148,7 +181,7 @@ After all 3 agents return, synthesize their findings:
    - **Trend alignment** (0-3): Does this match where the market is going?
    - **Feasibility** (0-3): How realistic is this to build?
 
-3. **Select top 2-3 features** by total score.
+3. **Select top 5-10 features** by total score.
 
 ### Phase 4: Collaborative Decision
 
@@ -174,8 +207,7 @@ Present findings to the user in this format:
 #### 2. {Feature Name} — Priority: {HIGH/MEDIUM}
 ...
 
-#### 3. {Feature Name} — Priority: {MEDIUM}
-...
+... (5-10 features total, ranked by score)
 
 ### What should we build first?
 ```
@@ -229,7 +261,8 @@ After the user has made their decisions on which features to pursue, record reje
 
 - **Always launch 3 agents in parallel** — never sequentially
 - **One question at a time** in Phase 1 — don't overwhelm
-- **2-3 features max** — actionable, not a laundry list
+- **5-10 features** — broad enough for ideation, scored and ranked
+- **Cache research daily** — Write to `docs/research/`, reuse same-day same-topic results
 - **Evidence-based** — every recommendation must cite specific findings
 - **No implementation** — this skill discovers WHAT to build, not HOW
 - **Check rejected ideas first** — Always run Phase 1.5 before research; never skip it
