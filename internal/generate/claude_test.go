@@ -1,6 +1,7 @@
 package generate
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -49,5 +50,60 @@ func TestBuildArgs(t *testing.T) {
 		if a == "--model" {
 			t.Error("--model should not be present when model is empty")
 		}
+	}
+}
+
+func TestBuildCommitPrompt(t *testing.T) {
+	prompt, err := buildCommitPrompt("file1.go\nfile2.go", "2 files changed, 10 insertions", "fixing auth bug")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(prompt, "file1.go") {
+		t.Error("prompt should contain file list")
+	}
+	if !strings.Contains(prompt, "10 insertions") {
+		t.Error("prompt should contain diff stat")
+	}
+	if !strings.Contains(prompt, "fixing auth bug") {
+		t.Error("prompt should contain context")
+	}
+	if !strings.Contains(prompt, "conventional commits") {
+		t.Error("prompt should mention conventional commits")
+	}
+}
+
+func TestBuildCommitPromptNoContext(t *testing.T) {
+	prompt, err := buildCommitPrompt("file1.go", "1 file changed", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(prompt, "Additional context") {
+		t.Error("prompt should not contain context section when empty")
+	}
+}
+
+func TestBuildReadmePrompt(t *testing.T) {
+	prompt, err := buildReadmePrompt("src/\n  main.go\n  util.go", "module example.com/foo", "# Old Readme")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(prompt, "main.go") {
+		t.Error("prompt should contain file tree")
+	}
+	if !strings.Contains(prompt, "module example.com/foo") {
+		t.Error("prompt should contain package info")
+	}
+	if !strings.Contains(prompt, "Old Readme") {
+		t.Error("prompt should contain existing readme")
+	}
+}
+
+func TestCollectFileTree(t *testing.T) {
+	tree, err := collectFileTree(".")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if tree == "" {
+		t.Error("file tree should not be empty")
 	}
 }

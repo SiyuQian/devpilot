@@ -1,0 +1,16 @@
+Write a concise commit message in conventional commits format for these changes:
+
+Files changed:
+{{.FileList}}
+
+Git diff stat:
+{{.DiffStat}}
+{{if .Context}}
+Additional context: {{.Context}}
+{{end}}
+Requirements:
+- Use conventional commits format (feat:, fix:, refactor:, docs:, chore:, etc.)
+- Keep the first line under 72 characters
+- Add bullet points for details if the change is complex
+- Be specific about what was changed and why
+- Output ONLY the raw commit message text, no markdown formatting
