@@ -1,0 +1,16 @@
+Generate a professional README.md for this project.
+
+Project structure:
+{{.FileTree}}
+{{if .PackageInfo}}
+Package metadata:
+{{.PackageInfo}}
+{{end}}{{if .ExistingReadme}}
+Existing README (improve upon it):
+{{.ExistingReadme}}
+{{end}}
+Requirements:
+- Include: project title, description, features, installation, usage, tech stack
+- Be concise and practical
+- Use proper markdown formatting
+- Output ONLY the README content, no wrapping code fences
