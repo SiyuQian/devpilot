@@ -10,7 +10,19 @@ const configFile = ".devpilot.json"
 
 // Config represents project-level configuration stored in .devpilot.json.
 type Config struct {
-	Board string `json:"board,omitempty"`
+	Board  string            `json:"board,omitempty"`
+	Models map[string]string `json:"models,omitempty"`
+}
+
+// ModelFor returns the configured model for a command, falling back to "default", then "".
+func (c *Config) ModelFor(command string) string {
+	if c.Models == nil {
+		return ""
+	}
+	if m, ok := c.Models[command]; ok {
+		return m
+	}
+	return c.Models["default"]
 }
 
 // Load reads .devpilot.json from dir. Returns a zero-value Config (not an error)

@@ -96,6 +96,41 @@ func TestSaveFilePermissions(t *testing.T) {
 	}
 }
 
+func TestLoadConfigWithModels(t *testing.T) {
+	dir := t.TempDir()
+	data := `{"board":"myboard","models":{"commit":"claude-haiku-4-5","default":"claude-sonnet-4-6"}}`
+	os.WriteFile(filepath.Join(dir, ".devpilot.json"), []byte(data), 0644)
+
+	cfg, err := Load(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Models["commit"] != "claude-haiku-4-5" {
+		t.Errorf("got %q, want claude-haiku-4-5", cfg.Models["commit"])
+	}
+	if cfg.Models["default"] != "claude-sonnet-4-6" {
+		t.Errorf("got %q, want claude-sonnet-4-6", cfg.Models["default"])
+	}
+}
+
+func TestModelForCommand(t *testing.T) {
+	cfg := &Config{Models: map[string]string{"commit": "claude-haiku-4-5", "default": "claude-sonnet-4-6"}}
+	if got := cfg.ModelFor("commit"); got != "claude-haiku-4-5" {
+		t.Errorf("got %q, want claude-haiku-4-5", got)
+	}
+	if got := cfg.ModelFor("readme"); got != "claude-sonnet-4-6" {
+		t.Errorf("got %q, want claude-sonnet-4-6 (default fallback)", got)
+	}
+	if got := cfg.ModelFor("unknown"); got != "claude-sonnet-4-6" {
+		t.Errorf("got %q, want claude-sonnet-4-6 (default fallback)", got)
+	}
+
+	empty := &Config{}
+	if got := empty.ModelFor("commit"); got != "" {
+		t.Errorf("got %q, want empty string", got)
+	}
+}
+
 func TestSaveJSONFormat(t *testing.T) {
 	dir := t.TempDir()
 
