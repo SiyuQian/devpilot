@@ -186,13 +186,21 @@ func renderToolCallsPanel(m TUIModel, width int) string {
 }
 
 func renderToolCallsList(m TUIModel) string {
+	// Compute summary column width from available content width.
+	// Layout per line: "  X " (4) + tool name (8) + " " (1) + summary + " " (1) + duration (~6)
+	const fixedCols = 4 + 8 + 1 + 1 + 6
+	summaryWidth := m.toolContentWidth - fixedCols
+	if summaryWidth < 10 {
+		summaryWidth = 10
+	}
+
 	var lines []string
 	for _, tc := range m.toolCalls {
-		line := fmt.Sprintf("  ✓ %-6s %-40s %s", tc.toolName, truncate(tc.summary, 40), formatDuration(tc.durationMs))
+		line := fmt.Sprintf("  ✓ %-8s %-*s %s", tc.toolName, summaryWidth, truncate(tc.summary, summaryWidth), formatDuration(tc.durationMs))
 		lines = append(lines, line)
 	}
 	if m.activeCall != nil {
-		line := fmt.Sprintf("  ⚡ %-6s %-40s %s", m.activeCall.toolName, truncate(m.activeCall.summary, 40), formatDuration(m.activeCall.durationMs))
+		line := fmt.Sprintf("  ⚡ %-8s %-*s %s", m.activeCall.toolName, summaryWidth, truncate(m.activeCall.summary, summaryWidth), formatDuration(m.activeCall.durationMs))
 		lines = append(lines, line)
 	}
 	return strings.Join(lines, "\n")

@@ -2,7 +2,6 @@ package taskrunner
 
 import (
 	"context"
-	"strings"
 	"time"
 
 	"github.com/charmbracelet/bubbles/viewport"
@@ -55,9 +54,11 @@ type TUIModel struct {
 	focusedPane string // "tools" or "text"
 
 	// Layout
-	width  int
-	height int
-	ready  bool
+	width            int
+	height           int
+	toolContentWidth int // usable width inside tool panel
+	textContentWidth int // usable width inside text panel
+	ready            bool
 
 	// Event channel
 	eventCh <-chan Event
@@ -122,6 +123,22 @@ func (m TUIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width = msg.Width
 		m.height = msg.Height
 
+		// Compute usable content widths inside bordered+padded panels.
+		// Border takes 2 chars, padding takes 2 chars = 4 total.
+		const panelChrome = 4
+		toolsWidth := m.width - 30 - 1 // matches renderToolsAndFiles layout
+		if toolsWidth < 30 {
+			toolsWidth = 30
+		}
+		m.toolContentWidth = toolsWidth - panelChrome
+		if m.toolContentWidth < 1 {
+			m.toolContentWidth = 1
+		}
+		m.textContentWidth = m.width - panelChrome
+		if m.textContentWidth < 1 {
+			m.textContentWidth = 1
+		}
+
 		// Height budget: header(1) + statusAndActive(~6) + footer(~2)
 		// + 4 newlines joining 5 sections + 6 for panel borders/titles (3 each)
 		fixedOverhead := 19
@@ -139,15 +156,18 @@ func (m TUIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		if !m.ready {
-			m.toolViewport = viewport.New(m.width, toolVPHeight)
-			m.textViewport = viewport.New(m.width, textVPHeight)
+			m.toolViewport = viewport.New(m.toolContentWidth, toolVPHeight)
+			m.textViewport = viewport.New(m.textContentWidth, textVPHeight)
 			m.ready = true
 		} else {
-			m.toolViewport.Width = m.width
+			m.toolViewport.Width = m.toolContentWidth
 			m.toolViewport.Height = toolVPHeight
-			m.textViewport.Width = m.width
+			m.textViewport.Width = m.textContentWidth
 			m.textViewport.Height = textVPHeight
 		}
+
+		// Re-wrap text on resize
+		m.wrapAndSetTextContent()
 		return m, nil
 
 	case tea.KeyMsg:
@@ -274,7 +294,10 @@ func (m TUIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case TextOutputEvent:
 		m.textLines = append(m.textLines, msg.Text)
-		m.textViewport.SetContent(joinLines(m.textLines))
+		if len(m.textLines) > maxTextLines {
+			m.textLines = m.textLines[len(m.textLines)-maxTextLines:]
+		}
+		m.wrapAndSetTextContent()
 		m.textViewport.GotoBottom()
 		return m, waitForEvent(m.eventCh)
 
@@ -341,68 +364,3 @@ func (m TUIModel) View() string {
 	return m.renderView()
 }
 
-func joinLines(lines []string) string {
-	var s string
-	for i, l := range lines {
-		if i > 0 {
-			s += "\n"
-		}
-		s += l
-	}
-	return s
-}
-
-// Helper functions for model updates
-
-func toolSummary(toolName string, input map[string]any) string {
-	switch toolName {
-	case "Read":
-		if fp, ok := input["file_path"].(string); ok {
-			return shortenPath(fp)
-		}
-	case "Edit", "Write":
-		if fp, ok := input["file_path"].(string); ok {
-			return shortenPath(fp)
-		}
-	case "Bash":
-		if cmd, ok := input["command"].(string); ok {
-			if len(cmd) > 60 {
-				return cmd[:60] + "..."
-			}
-			return cmd
-		}
-	case "Grep":
-		if pat, ok := input["pattern"].(string); ok {
-			return pat
-		}
-	case "Glob":
-		if pat, ok := input["pattern"].(string); ok {
-			return pat
-		}
-	}
-	return ""
-}
-
-func extractFilePath(input map[string]any) string {
-	if fp, ok := input["file_path"].(string); ok {
-		return fp
-	}
-	return ""
-}
-
-func addUnique(slice []string, item string) []string {
-	for _, s := range slice {
-		if s == item {
-			return slice
-		}
-	}
-	return append(slice, item)
-}
-
-func shortenPath(path string) string {
-	parts := strings.Split(path, "/")
-	if len(parts) <= 2 {
-		return path
-	}
-	return strings.Join(parts[len(parts)-2:], "/")
-}

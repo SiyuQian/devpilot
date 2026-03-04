@@ -2,6 +2,7 @@ package taskrunner
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -499,5 +500,132 @@ func TestTUICardStartedClearsState(t *testing.T) {
 	}
 	if len(model.filesEdited) != 0 {
 		t.Errorf("filesEdited should be cleared, len = %d", len(model.filesEdited))
+	}
+}
+
+func TestViewportWidthMatchesContainer(t *testing.T) {
+	ch := make(chan Event, 1)
+	_, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	m := NewTUIModel("Test Board", ch, cancel)
+	updated, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+	model := updated.(TUIModel)
+
+	if model.toolViewport.Width != model.toolContentWidth {
+		t.Errorf("toolViewport.Width = %d, want toolContentWidth = %d", model.toolViewport.Width, model.toolContentWidth)
+	}
+	if model.textViewport.Width != model.textContentWidth {
+		t.Errorf("textViewport.Width = %d, want textContentWidth = %d", model.textViewport.Width, model.textContentWidth)
+	}
+
+	// Content widths should account for border(2) + padding(2) = 4
+	expectedTextContent := 120 - 4
+	if model.textContentWidth != expectedTextContent {
+		t.Errorf("textContentWidth = %d, want %d", model.textContentWidth, expectedTextContent)
+	}
+}
+
+func TestTextWrapping(t *testing.T) {
+	ch := make(chan Event, 1)
+	_, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	m := NewTUIModel("Test Board", ch, cancel)
+	// Initialize with a window size first
+	updated, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 30})
+	model := updated.(TUIModel)
+
+	// Add a line longer than textContentWidth
+	longLine := strings.Repeat("word ", 30) // 150 chars
+	updated2, _ := model.Update(TextOutputEvent{Text: longLine})
+	model2 := updated2.(TUIModel)
+
+	// The raw text line should be stored as-is
+	if len(model2.textLines) != 1 {
+		t.Fatalf("textLines len = %d, want 1", len(model2.textLines))
+	}
+
+	// The viewport content should be wrapped (contains newlines for long lines)
+	content := model2.textViewport.View()
+	if !strings.Contains(content, "word") {
+		t.Error("viewport content should contain the text")
+	}
+}
+
+func TestTextLineCapping(t *testing.T) {
+	ch := make(chan Event, 1)
+	_, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	m := NewTUIModel("Test Board", ch, cancel)
+	// Initialize viewport
+	updated, _ := m.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
+	model := updated.(TUIModel)
+
+	// Pre-fill textLines to just below the cap, then add more via Update
+	for i := 0; i < maxTextLines-5; i++ {
+		model.textLines = append(model.textLines, "line")
+	}
+
+	// Add 10 more via Update to trigger capping
+	for i := 0; i < 10; i++ {
+		updated, _ = model.Update(TextOutputEvent{Text: "new"})
+		model = updated.(TUIModel)
+	}
+
+	if len(model.textLines) != maxTextLines {
+		t.Errorf("textLines len = %d, want %d", len(model.textLines), maxTextLines)
+	}
+	// Verify oldest lines were dropped — last 10 should be "new"
+	if model.textLines[maxTextLines-1] != "new" {
+		t.Errorf("last line = %q, want %q", model.textLines[maxTextLines-1], "new")
+	}
+}
+
+func TestResizeReWrapsText(t *testing.T) {
+	ch := make(chan Event, 1)
+	_, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	m := NewTUIModel("Test Board", ch, cancel)
+	// Wide terminal — 200 cols, textContentWidth = 196
+	updated, _ := m.Update(tea.WindowSizeMsg{Width: 200, Height: 30})
+	model := updated.(TUIModel)
+
+	longLine := strings.Repeat("x", 150)
+	updated, _ = model.Update(TextOutputEvent{Text: longLine})
+	model = updated.(TUIModel)
+
+	wideContentWidth := model.textContentWidth
+
+	// Shrink terminal — 80 cols, textContentWidth = 76
+	updated, _ = model.Update(tea.WindowSizeMsg{Width: 80, Height: 30})
+	model = updated.(TUIModel)
+
+	narrowContentWidth := model.textContentWidth
+
+	// Verify the content widths changed
+	if narrowContentWidth >= wideContentWidth {
+		t.Errorf("narrowContentWidth (%d) should be less than wideContentWidth (%d)", narrowContentWidth, wideContentWidth)
+	}
+
+	// Verify the viewport width was updated to match
+	if model.textViewport.Width != narrowContentWidth {
+		t.Errorf("textViewport.Width = %d, want %d", model.textViewport.Width, narrowContentWidth)
+	}
+
+	// The 150-char line should now be wrapped into multiple lines in the viewport content
+	// (76 chars wide means at least 2 lines needed for 150 chars)
+	content := model.textViewport.View()
+	lines := strings.Split(content, "\n")
+	nonEmpty := 0
+	for _, l := range lines {
+		if l != "" {
+			nonEmpty++
+		}
+	}
+	if nonEmpty < 2 {
+		t.Errorf("expected wrapped content to have at least 2 non-empty lines, got %d", nonEmpty)
 	}
 }
