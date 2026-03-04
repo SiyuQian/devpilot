@@ -15,6 +15,18 @@ type Config struct {
 	Models map[string]string `json:"models,omitempty"`
 }
 
+// ResolveSource returns the effective task source: flag value takes priority,
+// then the config file value, then "trello" as the default.
+func (c *Config) ResolveSource(flagValue string) string {
+	if flagValue != "" {
+		return flagValue
+	}
+	if c.Source != "" {
+		return c.Source
+	}
+	return "trello"
+}
+
 // ModelFor returns the configured model for a command, falling back to "default", then "".
 func (c *Config) ModelFor(command string) string {
 	if c.Models == nil {

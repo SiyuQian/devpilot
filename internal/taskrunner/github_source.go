@@ -7,6 +7,12 @@ import (
 	"strings"
 )
 
+const (
+	ghLabelDevpilot   = "devpilot"
+	ghLabelInProgress = "in-progress"
+	ghLabelFailed     = "failed"
+)
+
 // GitHubSource implements TaskSource using the gh CLI.
 // Authentication is handled by gh (run 'gh auth login' separately).
 type GitHubSource struct{}
@@ -16,12 +22,9 @@ func NewGitHubSource() *GitHubSource {
 }
 
 func (s *GitHubSource) Init() (SourceInfo, error) {
-	if out, err := exec.Command("gh", "auth", "status").CombinedOutput(); err != nil {
-		return SourceInfo{}, fmt.Errorf("not authenticated with GitHub CLI: run 'gh auth login'\n%s", string(out))
-	}
 	out, err := exec.Command("gh", "repo", "view", "--json", "nameWithOwner", "--jq", ".nameWithOwner").Output()
 	if err != nil {
-		return SourceInfo{}, fmt.Errorf("detect repo from origin: %w (are you in a GitHub repo?)", err)
+		return SourceInfo{}, fmt.Errorf("detect repo: %w (run 'gh auth login' if not authenticated)", err)
 	}
 	repo := strings.TrimSpace(string(out))
 	return SourceInfo{DisplayName: repo}, nil
@@ -41,10 +44,10 @@ type ghIssue struct {
 
 func (s *GitHubSource) FetchReady() ([]Task, error) {
 	out, err := exec.Command("gh", "issue", "list",
-		"--label", "devpilot",
+		"--label", ghLabelDevpilot,
 		"--state", "open",
 		"--json", "number,title,body,url,labels",
-		"--limit", "100",
+		"--limit", "25",
 	).Output()
 	if err != nil {
 		return nil, fmt.Errorf("gh issue list: %w", err)
@@ -60,7 +63,7 @@ func (s *GitHubSource) FetchReady() ([]Task, error) {
 func issuesToReadyTasks(issues []ghIssue) []Task {
 	var tasks []Task
 	for _, issue := range issues {
-		if ghHasLabel(issue, "in-progress") || ghHasLabel(issue, "failed") {
+		if ghHasLabel(issue, ghLabelInProgress) || ghHasLabel(issue, ghLabelFailed) {
 			continue
 		}
 		tasks = append(tasks, Task{
@@ -75,7 +78,7 @@ func issuesToReadyTasks(issues []ghIssue) []Task {
 }
 
 func (s *GitHubSource) MarkInProgress(id string) error {
-	_, err := exec.Command("gh", "issue", "edit", id, "--add-label", "in-progress").Output()
+	_, err := exec.Command("gh", "issue", "edit", id, "--add-label", ghLabelInProgress).Output()
 	if err != nil {
 		return fmt.Errorf("add in-progress label to issue %s: %w", id, err)
 	}
@@ -83,20 +86,17 @@ func (s *GitHubSource) MarkInProgress(id string) error {
 }
 
 func (s *GitHubSource) MarkDone(id, comment string) error {
-	if err := s.addComment(id, comment); err != nil {
-		return err
-	}
 	_, err := exec.Command("gh", "issue", "close", id).Output()
 	if err != nil {
 		return fmt.Errorf("close issue %s: %w", id, err)
 	}
-	return nil
+	return s.addComment(id, comment)
 }
 
 func (s *GitHubSource) MarkFailed(id, comment string) error {
 	_, err := exec.Command("gh", "issue", "edit", id,
-		"--remove-label", "in-progress",
-		"--add-label", "failed",
+		"--remove-label", ghLabelInProgress,
+		"--add-label", ghLabelFailed,
 	).Output()
 	if err != nil {
 		return fmt.Errorf("update labels on issue %s: %w", id, err)
@@ -122,17 +122,9 @@ func ghHasLabel(issue ghIssue, name string) bool {
 }
 
 func ghPriority(issue ghIssue) int {
-	for _, l := range issue.Labels {
-		name := strings.ToUpper(l.Name)
-		if strings.HasPrefix(name, "P0") {
-			return 0
-		}
-		if strings.HasPrefix(name, "P1") {
-			return 1
-		}
-		if strings.HasPrefix(name, "P2") {
-			return 2
-		}
+	names := make([]string, len(issue.Labels))
+	for i, l := range issue.Labels {
+		names[i] = l.Name
 	}
-	return 2
+	return priorityFromLabelNames(names)
 }

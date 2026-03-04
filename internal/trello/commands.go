@@ -31,12 +31,7 @@ var pushCmd = &cobra.Command{
 		sourceName, _ := cmd.Flags().GetString("source")
 		dir, _ := os.Getwd()
 		projectCfg, _ := project.Load(dir)
-		if sourceName == "" && projectCfg.Source != "" {
-			sourceName = projectCfg.Source
-		}
-		if sourceName == "" {
-			sourceName = "trello"
-		}
+		sourceName = projectCfg.ResolveSource(sourceName)
 
 		// Read the plan file
 		content, err := os.ReadFile(filePath)

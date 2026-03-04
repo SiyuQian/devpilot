@@ -57,12 +57,7 @@ var runCmd = &cobra.Command{
 			}
 		}
 
-		if sourceName == "" && projectCfg.Source != "" {
-			sourceName = projectCfg.Source
-		}
-		if sourceName == "" {
-			sourceName = "trello"
-		}
+		sourceName = projectCfg.ResolveSource(sourceName)
 
 		var source TaskSource
 		switch sourceName {

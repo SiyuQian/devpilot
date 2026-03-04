@@ -2,7 +2,6 @@ package taskrunner
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/siyuqian/devpilot/internal/trello"
 )
@@ -86,17 +85,9 @@ func (s *TrelloSource) MarkFailed(id, comment string) error {
 }
 
 func trelloPriority(c trello.Card) int {
-	for _, label := range c.Labels {
-		name := strings.ToUpper(label.Name)
-		if strings.HasPrefix(name, "P0") {
-			return 0
-		}
-		if strings.HasPrefix(name, "P1") {
-			return 1
-		}
-		if strings.HasPrefix(name, "P2") {
-			return 2
-		}
+	names := make([]string, len(c.Labels))
+	for i, l := range c.Labels {
+		names[i] = l.Name
 	}
-	return 2
+	return priorityFromLabelNames(names)
 }
