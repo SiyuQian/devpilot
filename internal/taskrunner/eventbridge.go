@@ -1,5 +1,7 @@
 package taskrunner
 
+import "github.com/charmbracelet/x/ansi"
+
 // eventBridge converts ClaudeEvents from the stream parser into runner Events.
 // It tracks in-flight tool use IDs to map results back to tool names.
 type eventBridge struct {
@@ -52,7 +54,7 @@ func (b *eventBridge) Handle(ce ClaudeEvent) {
 		})
 	case RawOutputMsg:
 		if msg.Text != "" {
-			b.emit(TextOutputEvent{Text: msg.Text})
+			b.emit(TextOutputEvent{Text: ansi.Strip(msg.Text)})
 		}
 	}
 }

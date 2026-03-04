@@ -8,8 +8,6 @@ import (
 	"os"
 	"path/filepath"
 	"time"
-
-	"github.com/siyuqian/devpilot/internal/trello"
 )
 
 type Config struct {
@@ -24,19 +22,12 @@ type Config struct {
 
 type Runner struct {
 	config       Config
-	trello       *trello.Client
+	source       TaskSource
 	executor     *Executor
 	reviewer     *Reviewer
 	git          *GitOps
 	logger       *log.Logger
 	eventHandler EventHandler
-
-	// Resolved IDs
-	boardID      string
-	readyListID  string
-	inProgListID string
-	doneListID   string
-	failedListID string
 }
 
 // RunnerOption configures a Runner.
@@ -49,10 +40,10 @@ func WithEventHandler(handler EventHandler) RunnerOption {
 	}
 }
 
-func New(cfg Config, trelloClient *trello.Client, opts ...RunnerOption) *Runner {
+func New(cfg Config, source TaskSource, opts ...RunnerOption) *Runner {
 	r := &Runner{
 		config: cfg,
-		trello: trelloClient,
+		source: source,
 		git:    NewGitOps(cfg.WorkDir),
 		logger: log.New(os.Stdout, "", log.LstdFlags),
 	}
@@ -87,31 +78,13 @@ func (r *Runner) emit(e Event) {
 }
 
 func (r *Runner) init() error {
-	r.logger.Printf("Resolving board: %s", r.config.BoardName)
-	board, err := r.trello.FindBoardByName(r.config.BoardName)
+	r.logger.Printf("Initializing task source...")
+	info, err := r.source.Init()
 	if err != nil {
-		return fmt.Errorf("find board: %w", err)
+		return err
 	}
-	r.boardID = board.ID
-	r.logger.Printf("Board found: %s (%s)", board.Name, board.ID)
-
-	listNames := map[string]*string{
-		"Ready":       &r.readyListID,
-		"In Progress": &r.inProgListID,
-		"Done":        &r.doneListID,
-		"Failed":      &r.failedListID,
-	}
-	resolvedMap := make(map[string]string, len(listNames))
-	for name, idPtr := range listNames {
-		list, err := r.trello.FindListByName(r.boardID, name)
-		if err != nil {
-			return fmt.Errorf("find list %q: %w", name, err)
-		}
-		*idPtr = list.ID
-		resolvedMap[name] = list.ID
-		r.logger.Printf("List %q → %s", name, list.ID)
-	}
-	r.emit(RunnerStartedEvent{BoardName: board.Name, BoardID: board.ID, Lists: resolvedMap})
+	r.logger.Printf("Connected: %s", info.DisplayName)
+	r.emit(RunnerStartedEvent{BoardName: info.DisplayName, BoardID: info.BoardID, Lists: info.Lists})
 	return nil
 }
 
@@ -141,7 +114,7 @@ func (r *Runner) Run(ctx context.Context) error {
 		}
 
 		r.emit(PollingEvent{})
-		cards, err := r.trello.GetListCards(r.readyListID)
+		tasks, err := r.source.FetchReady()
 		if err != nil {
 			r.logger.Printf("Error polling: %v. Retrying in %s...", err, r.config.Interval)
 			r.emit(RunnerErrorEvent{Err: err})
@@ -153,7 +126,7 @@ func (r *Runner) Run(ctx context.Context) error {
 			continue
 		}
 
-		if len(cards) == 0 {
+		if len(tasks) == 0 {
 			r.logger.Printf("No tasks. Sleeping %s...", r.config.Interval)
 			r.emit(NoTasksEvent{NextPoll: r.config.Interval})
 			if !r.sleep(ctx, r.config.Interval) {
@@ -164,9 +137,9 @@ func (r *Runner) Run(ctx context.Context) error {
 			continue
 		}
 
-		SortByPriority(cards)
-		card := cards[0]
-		r.processCard(ctx, card)
+		SortByPriority(tasks)
+		task := tasks[0]
+		r.processCard(ctx, task)
 
 		if r.config.Once {
 			r.logger.Println("--once flag set. Exiting.")
@@ -176,42 +149,41 @@ func (r *Runner) Run(ctx context.Context) error {
 	}
 }
 
-func (r *Runner) processCard(ctx context.Context, card trello.Card) {
+func (r *Runner) processCard(ctx context.Context, task Task) {
 	start := time.Now()
-	r.logger.Printf("Processing card: %q (%s)", card.Name, card.ID)
+	r.logger.Printf("Processing card: %q (%s)", task.Name, task.ID)
 
-	if card.Desc == "" {
+	if task.Description == "" {
 		r.logger.Printf("Card has empty description, marking as failed")
-		r.trello.MoveCard(card.ID, r.failedListID)
-		r.trello.AddComment(card.ID, "❌ Task failed\nError: Empty plan — card description is empty")
+		r.source.MarkFailed(task.ID, "❌ Task failed\nError: Empty plan — card description is empty")
 		return
 	}
 
 	if r.config.DryRun {
-		r.logger.Printf("[DRY RUN] Would process card: %q", card.Name)
+		r.logger.Printf("[DRY RUN] Would process card: %q", task.Name)
 		return
 	}
 
 	// Move to In Progress
-	if err := r.trello.MoveCard(card.ID, r.inProgListID); err != nil {
+	if err := r.source.MarkInProgress(task.ID); err != nil {
 		r.logger.Printf("Failed to move card to In Progress: %v", err)
 	}
 
 	// Git: checkout main, pull, create branch
-	branch := r.git.BranchName(card.ID, card.Name)
+	branch := r.git.BranchName(task.ID, task.Name)
 	if err := r.git.CheckoutMain(); err != nil {
-		r.failCard(card, start, fmt.Sprintf("git checkout main: %v", err))
+		r.failCard(task, start, fmt.Sprintf("git checkout main: %v", err))
 		return
 	}
 	r.git.Pull() // best-effort
 	if err := r.git.CreateBranch(branch); err != nil {
-		r.failCard(card, start, fmt.Sprintf("git create branch: %v", err))
+		r.failCard(task, start, fmt.Sprintf("git create branch: %v", err))
 		return
 	}
-	r.emit(CardStartedEvent{CardID: card.ID, CardName: card.Name, Branch: branch})
+	r.emit(CardStartedEvent{CardID: task.ID, CardName: task.Name, Branch: branch})
 
 	// Build prompt
-	prompt := r.buildPrompt(card)
+	prompt := r.buildPrompt(task)
 
 	// Execute
 	taskCtx, cancel := context.WithTimeout(ctx, r.config.Timeout)
@@ -220,7 +192,7 @@ func (r *Runner) processCard(ctx context.Context, card trello.Card) {
 	result, err := r.executor.Run(taskCtx, prompt)
 
 	// Save log
-	r.saveLog(card.ID, result)
+	r.saveLog(task.ID, result)
 
 	if err != nil || result.ExitCode != 0 {
 		errMsg := "non-zero exit code"
@@ -229,7 +201,7 @@ func (r *Runner) processCard(ctx context.Context, card trello.Card) {
 		} else if result.Stderr != "" {
 			errMsg = truncate(result.Stderr, 500)
 		}
-		r.failCard(card, start, errMsg)
+		r.failCard(task, start, errMsg)
 		r.git.CheckoutMain()
 		return
 	}
@@ -237,28 +209,27 @@ func (r *Runner) processCard(ctx context.Context, card trello.Card) {
 	// Verify claude produced commits before pushing
 	hasCommits, err := r.git.HasNewCommits(branch)
 	if err != nil {
-		r.failCard(card, start, fmt.Sprintf("check commits: %v", err))
+		r.failCard(task, start, fmt.Sprintf("check commits: %v", err))
 		r.git.CheckoutMain()
 		return
 	}
 	if !hasCommits {
-		r.failCard(card, start, "claude produced no commits on task branch")
+		r.failCard(task, start, "claude produced no commits on task branch")
 		r.git.CheckoutMain()
 		return
 	}
 
 	// Push and create PR
 	if err := r.git.Push(branch); err != nil {
-		r.failCard(card, start, fmt.Sprintf("git push: %v", err))
+		r.failCard(task, start, fmt.Sprintf("git push: %v", err))
 		r.git.CheckoutMain()
 		return
 	}
 
-	cardURL := fmt.Sprintf("https://trello.com/c/%s", card.ID)
-	prBody := fmt.Sprintf("## Task\n%s\n\n🤖 Executed by devpilot runner", cardURL)
-	prURL, err := r.git.CreatePR(card.Name, prBody)
+	prBody := fmt.Sprintf("## Task\n%s\n\n🤖 Executed by devpilot runner", task.URL)
+	prURL, err := r.git.CreatePR(task.Name, prBody)
 	if err != nil {
-		r.failCard(card, start, fmt.Sprintf("create PR: %v", err))
+		r.failCard(task, start, fmt.Sprintf("create PR: %v", err))
 		r.git.CheckoutMain()
 		return
 	}
@@ -288,16 +259,16 @@ func (r *Runner) processCard(ctx context.Context, card trello.Card) {
 
 	// Move to Done
 	duration := time.Since(start).Round(time.Second)
-	r.emit(CardDoneEvent{CardID: card.ID, CardName: card.Name, PRURL: prURL, Duration: duration})
-	r.trello.MoveCard(card.ID, r.doneListID)
-	r.trello.AddComment(card.ID, fmt.Sprintf("✅ Task completed by devpilot runner\nDuration: %s\nPR: %s", duration, prURL))
-	r.logger.Printf("Card %q completed in %s. PR: %s", card.Name, duration, prURL)
+	r.emit(CardDoneEvent{CardID: task.ID, CardName: task.Name, PRURL: prURL, Duration: duration})
+	comment := fmt.Sprintf("✅ Task completed by devpilot runner\nDuration: %s\nPR: %s", duration, prURL)
+	r.source.MarkDone(task.ID, comment)
+	r.logger.Printf("Card %q completed in %s. PR: %s", task.Name, duration, prURL)
 
 	r.git.CheckoutMain()
 	r.git.Pull()
 }
 
-func (r *Runner) buildPrompt(card trello.Card) string {
+func (r *Runner) buildPrompt(task Task) string {
 	return fmt.Sprintf(`Execute the following task plan autonomously from start to finish. This runs unattended — never stop to ask for feedback, confirmation, or approval. Execute ALL steps/batches continuously without pausing.
 
 Use /superpowers:test-driven-development and /superpowers:verification-before-completion skills during execution.
@@ -312,17 +283,16 @@ Rules:
 - Commit after each logical unit of work
 - Never ask for user input or feedback
 - If a step is blocked, skip it and continue with the next step
-- When ALL steps are complete, push to the current branch`, card.Name, card.Desc)
+- When ALL steps are complete, push to the current branch`, task.Name, task.Description)
 }
 
-func (r *Runner) failCard(card trello.Card, start time.Time, errMsg string) {
+func (r *Runner) failCard(task Task, start time.Time, errMsg string) {
 	duration := time.Since(start).Round(time.Second)
-	r.emit(CardFailedEvent{CardID: card.ID, CardName: card.Name, ErrMsg: errMsg, Duration: duration})
-	logPath := filepath.Join(r.config.WorkDir, ".devpilot", "logs", card.ID+".log")
+	r.emit(CardFailedEvent{CardID: task.ID, CardName: task.Name, ErrMsg: errMsg, Duration: duration})
+	logPath := filepath.Join(r.config.WorkDir, ".devpilot", "logs", task.ID+".log")
 	comment := fmt.Sprintf("❌ Task failed\nDuration: %s\nError: %s\nSee full log: %s", duration, errMsg, logPath)
-	r.trello.MoveCard(card.ID, r.failedListID)
-	r.trello.AddComment(card.ID, comment)
-	r.logger.Printf("Card %q failed: %s", card.Name, errMsg)
+	r.source.MarkFailed(task.ID, comment)
+	r.logger.Printf("Card %q failed: %s", task.Name, errMsg)
 }
 
 func (r *Runner) saveLog(cardID string, result *ExecuteResult) {
@@ -345,9 +315,3 @@ func (r *Runner) sleep(ctx context.Context, d time.Duration) bool {
 	}
 }
 
-func truncate(s string, max int) string {
-	if len(s) <= max {
-		return s
-	}
-	return s[:max] + "..."
-}

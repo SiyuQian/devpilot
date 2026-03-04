@@ -1,6 +1,6 @@
 # DevPilot
 
-A Go CLI tool and collection of [Claude Code](https://claude.ai/code) skills for automating development workflows. Write a plan, push it to Trello, and let an autonomous runner execute it — creating branches, PRs, and code reviews automatically.
+**Autonomous development workflow automation for [Claude Code](https://claude.ai/code).** Write a plan in markdown, push it to Trello, and let DevPilot execute it — creating branches, writing code, opening PRs, running code review, and auto-merging.
 
 ## How It Works
 
@@ -9,90 +9,69 @@ Plan (markdown) → devpilot push → Trello card → devpilot run → claude -p
 ```
 
 1. **Write a plan** — A markdown file with a `# Title` and implementation steps
-2. **Push to Trello** — `devpilot push plan.md --board "Sprint Board"` creates a card in the "Ready" list
-3. **Runner picks it up** — `devpilot run --board "Sprint Board"` polls the board, prioritizes by P0/P1/P2 labels, and executes each card's plan via `claude -p`
-4. **Real-time dashboard** — A TUI dashboard shows tool calls, Claude output, token stats, and task progress in real time
-5. **Automatic output** — Branch created, code written with TDD, PR opened, auto code review, auto-merge
+2. **Push to Trello** — `devpilot push plan.md --board "My Board"` creates a card in the "Ready" list
+3. **Runner picks it up** — `devpilot run` polls the board, prioritizes by P0/P1/P2 labels, and executes each plan via `claude -p`
+4. **Watch it work** — A real-time TUI dashboard shows tool calls, Claude output, token stats, and progress
+5. **Ship it** — Branch created, code written, PR opened, AI code review, auto-merge
+
+## Features
+
+- **Autonomous task execution** — Cards flow through Ready → In Progress → Done/Failed without human intervention
+- **Priority scheduling** — P0/P1/P2 labels control execution order
+- **Real-time TUI dashboard** — Bubble Tea terminal UI with tool call history, file tracking, token stats, and scrollable output
+- **Automated code review** — A second `claude -p` invocation reviews the diff against the original plan before merging
+- **Built-in Claude Code skills** — PM research, Trello management, task refinement, and more
+- **Project scaffolding** — `devpilot init` detects your stack and generates config, hooks, and skills
 
 ## Getting Started
 
 ### Prerequisites
 
 - [Claude Code](https://docs.anthropic.com/en/docs/claude-code) installed and authenticated
-- [GitHub CLI (`gh`)](https://cli.github.com/) installed and authenticated (for PR creation and auto-merge)
+- [GitHub CLI (`gh`)](https://cli.github.com/) installed and authenticated
 - A [Trello](https://trello.com/) account with an [API key and token](https://trello.com/power-ups/admin)
 - Git repository initialized in your project
 
 ### Installation
 
-**Option A: Install from release (recommended)**
+**From release (recommended):**
 
 ```bash
 curl -sSL https://raw.githubusercontent.com/siyuqian/devpilot/main/install.sh | sh
 ```
 
-You can specify a version or install directory:
+Optionally specify a version or directory:
 
 ```bash
 curl -sSL https://raw.githubusercontent.com/siyuqian/devpilot/main/install.sh | sh -s -- --version v0.1.0 --dir ~/.local/bin
 ```
 
-**Option B: Build from source**
-
-Requires Go 1.25+.
+**From source** (requires Go 1.25+):
 
 ```bash
 git clone https://github.com/siyuqian/devpilot.git
 cd devpilot
 make build
-# Binary is at bin/devpilot — add it to your PATH or move it:
 sudo mv bin/devpilot /usr/local/bin/
 ```
 
-Verify the installation:
+Verify: `devpilot --version`
+
+### Quick Start
 
 ```bash
-devpilot --version
-```
-
-### Setup
-
-**1. Initialize your project**
-
-```bash
+# 1. Initialize your project
 cd your-project
-devpilot init
-```
+devpilot init          # interactive wizard; use -y for defaults
 
-The interactive wizard detects your project setup (git, CLAUDE.md, Trello credentials, skills) and generates any missing pieces. Use `-y` to accept all defaults.
-
-**2. Authenticate with Trello**
-
-```bash
+# 2. Authenticate with Trello
 devpilot login trello
-```
 
-Follow the prompts to enter your [Trello API key and token](https://trello.com/power-ups/admin). You can verify with `devpilot status`.
-
-**3. Push a plan**
-
-Write a markdown file with a `# Title` and implementation steps, then push it:
-
-```bash
+# 3. Push a plan
 devpilot push docs/plans/my-feature-plan.md --board "Sprint Board"
-```
 
-**4. Run the task runner**
-
-```bash
-# Continuous mode — polls every 5 minutes, shows TUI dashboard
+# 4. Run the task runner
 devpilot run --board "Sprint Board"
-
-# Plain text mode (no TUI)
-devpilot run --board "Sprint Board" --no-tui
-
-# Test mode — one card, no execution
-devpilot run --board "Sprint Board" --once --dry-run
 ```
 
 ## CLI Reference
@@ -105,12 +84,8 @@ devpilot run --board "Sprint Board" --once --dry-run
 | `devpilot status` | Show authentication status |
 | `devpilot push <file>` | Create a Trello card from a plan markdown file |
 | `devpilot run` | Autonomously process tasks from a Trello board |
-
-### `devpilot init` Flags
-
-| Flag | Default | Description |
-|------|---------|-------------|
-| `-y, --yes` | `false` | Accept all defaults without prompting |
+| `devpilot commit` | Generate a commit message from staged changes |
+| `devpilot readme` | Generate or improve README.md |
 
 ### `devpilot push` Flags
 
@@ -125,11 +100,11 @@ devpilot run --board "Sprint Board" --once --dry-run
 |------|---------|-------------|
 | `--board` | *(required)* | Trello board name |
 | `--interval` | `300` | Poll interval in seconds |
-| `--timeout` | `30` | Per-task execution timeout in minutes |
+| `--timeout` | `30` | Per-task timeout in minutes |
 | `--review-timeout` | `10` | Code review timeout in minutes (0 to disable) |
 | `--once` | `false` | Process one card and exit |
 | `--dry-run` | `false` | Print actions without executing |
-| `--no-tui` | `false` | Disable TUI dashboard, use plain text output |
+| `--no-tui` | `false` | Disable TUI dashboard |
 
 ## Task Runner Workflow
 
@@ -141,21 +116,21 @@ Ready → In Progress → Done
 ```
 
 For each card:
-1. Polls "Ready" list and sorts by priority (P0 > P1 > P2 labels; default P2)
+1. Polls "Ready" list and sorts by priority (P0 > P1 > P2; default P2)
 2. Validates the card has a description (the plan)
 3. Moves card to "In Progress"
-4. Creates a branch `task/{cardID}-{slug}` from main
-5. Runs `claude -p` with the plan as prompt, streaming output via `stream-json`
-6. Pushes the branch and creates a PR via `gh`
+4. Creates branch `task/{cardID}-{slug}` from main
+5. Runs `claude -p` with the plan, streaming output via `stream-json`
+6. Pushes branch and creates a PR via `gh`
 7. Optionally runs automated code review via a second `claude -p` invocation
 8. Auto-merges PR (`gh pr merge --squash --auto`)
 9. Moves card to "Done" (with PR link) or "Failed" (with error details)
 
-Per-card logs are saved to `~/.config/devpilot/logs/{card-id}.log`.
+Per-card logs: `~/.config/devpilot/logs/{card-id}.log`
 
 ### TUI Dashboard
 
-In TTY mode, the runner displays a real-time terminal dashboard (Bubble Tea):
+In TTY mode, the runner displays a real-time terminal dashboard:
 
 ```
 ┌─────────────────────────────────────────────┐
@@ -163,7 +138,7 @@ In TTY mode, the runner displays a real-time terminal dashboard (Bubble Tea):
 ├──────────────────────┬──────────────────────┤
 │ Trello Lists Status  │ Active Card Info     │
 ├──────────────────────┼──────────────────────┤
-│ Tool Call History    │ Files Read/Edited     │
+│ Tool Call History     │ Files Read/Edited    │
 ├──────────────────────┴──────────────────────┤
 │ Claude Text Output (scrollable)             │
 ├─────────────────────────────────────────────┤
@@ -171,17 +146,13 @@ In TTY mode, the runner displays a real-time terminal dashboard (Bubble Tea):
 └─────────────────────────────────────────────┘
 ```
 
-Keyboard shortcuts: `q`/`Ctrl-C` quit, `Tab` switch pane, `j/k/↑/↓` scroll, `g/G` top/bottom.
+Keys: `q`/`Ctrl-C` quit, `Tab` switch pane, `j/k/↑/↓` scroll, `g/G` top/bottom.
 
 ## Architecture
 
-### Core Concept
-
-DevPilot turns **markdown plans into shipped code** by orchestrating three systems: a task queue (Trello), an AI coding agent (`claude -p`), and standard Git/GitHub workflows. The human writes *what* to build; the machine handles *how*.
+DevPilot turns **markdown plans into shipped code** by orchestrating three systems: a task queue (Trello), an AI coding agent (`claude -p`), and standard Git/GitHub workflows.
 
 ### Event-Driven Pipeline
-
-The runner is built on an event-driven architecture with three layers:
 
 ```
 ┌──────────────────────────────────────────────────────────┐
@@ -196,48 +167,14 @@ The runner is built on an event-driven architecture with three layers:
 └──────────────────────────────────────────────────────────┘
 ```
 
-- **Runner** owns the card state machine (Ready → In Progress → Done/Failed) and drives the full lifecycle: git branch, execute, push, PR, review, merge.
-- **Executor** wraps `claude -p` with `--output-format stream-json`, which produces a stream of structured JSON events (tool calls, text output, token usage, etc.) instead of plain text.
-- **EventBridge** parses this stream in real-time and translates each JSON event into typed runner events (`ToolStart`, `ToolEnd`, `TextOutput`, `TokenUsage`, etc.).
-- **TUI** and **Logger** subscribe to these events via a buffered Go channel, decoupling the execution pipeline from presentation.
-
-### How `claude -p` Is Used
-
-The key integration point is Claude Code's headless mode:
-
-```bash
-claude -p "your prompt here" --output-format stream-json
-```
-
-This runs Claude Code non-interactively with a prompt (the plan from the Trello card). The `stream-json` format emits one JSON object per line as Claude works, allowing the runner to track progress, tool usage, and token consumption in real-time without waiting for completion.
-
-### Task Prioritization
-
-Cards are sorted before execution using Trello labels:
-- **P0** (critical) → **P1** (high) → **P2** (normal, default)
-- Cards without a priority label default to P2
-- Within the same priority, cards are processed in list order
-
-### Automated Code Review
-
-After the PR is created, the runner optionally spawns a *second* `claude -p` invocation that reviews the diff against the original plan. This acts as an AI code reviewer, posting feedback as PR comments before auto-merging.
-
-### Skills System
-
-Skills extend Claude Code's capabilities through structured markdown files:
-
-```
-.claude/skills/my-skill/
-├── SKILL.md          # YAML frontmatter (metadata) + markdown body (instructions)
-├── references/       # Additional context loaded on demand
-└── scripts/          # Helper scripts the skill can invoke
-```
-
-Skills use **progressive disclosure**: frontmatter metadata is always visible to Claude (for skill discovery), the body loads only when the skill is invoked, and references load only when explicitly requested. This keeps context usage efficient.
+- **Runner** owns the card state machine and drives the full lifecycle: branch, execute, push, PR, review, merge
+- **Executor** wraps `claude -p --output-format stream-json` for real-time structured output
+- **EventBridge** translates stream-json events into typed runner events (`ToolStart`, `TextOutput`, `TokenUsage`, etc.)
+- **TUI** and **Logger** subscribe via buffered Go channels, decoupling execution from presentation
 
 ## Built-in Skills
 
-The kit includes Claude Code skills in `.claude/skills/`:
+DevPilot ships with Claude Code skills in `.claude/skills/`:
 
 | Skill | Description |
 |-------|-------------|
@@ -253,33 +190,33 @@ The kit includes Claude Code skills in `.claude/skills/`:
 devpilot/
 ├── cmd/devpilot/            CLI entry point
 ├── internal/
-│   ├── auth/              Authentication, credentials, service registry
-│   ├── initcmd/           Project initialization wizard (devpilot init)
-│   ├── project/           Project config (.devpilot.json)
-│   ├── trello/            Trello API client + push command
-│   └── taskrunner/        Task runner, executor, TUI dashboard
-│       ├── runner.go        Poll loop + card processing
-│       ├── executor.go      claude -p wrapper (stream-json)
-│       ├── reviewer.go      Automated code review
-│       ├── git.go           Branch, push, PR, merge
-│       ├── priority.go      P0/P1/P2 card sorting
-│       ├── eventbridge.go   Claude events → runner events
-│       ├── tui.go           Bubble Tea model
-│       └── tui_view.go      Dashboard rendering
-├── .claude/skills/        Built-in Claude Code skills
-├── docs/
-│   ├── plans/             Design and implementation plans
-│   └── rejected/          Rejected idea records (prevents re-recommendation)
-├── Makefile               Build targets
-└── CLAUDE.md              Project instructions for Claude Code
+│   ├── auth/                Authentication & credential management
+│   ├── generate/            AI-powered commit & readme generation
+│   ├── initcmd/             Project initialization wizard
+│   ├── project/             Project config (.devpilot.json)
+│   ├── trello/              Trello API client & push command
+│   └── taskrunner/          Runner, executor, TUI dashboard
+├── .claude/skills/          Built-in Claude Code skills
+├── docs/plans/              Design & implementation plans
+├── Makefile                 Build targets
+└── CLAUDE.md                Project instructions for Claude Code
 ```
+
+## Tech Stack
+
+- **Language:** Go 1.25
+- **CLI framework:** [Cobra](https://github.com/spf13/cobra)
+- **TUI:** [Bubble Tea](https://github.com/charmbracelet/bubbletea) + [Lip Gloss](https://github.com/charmbracelet/lipgloss)
+- **AI engine:** [Claude Code](https://claude.ai/code) (`claude -p` headless mode)
+- **Task queue:** [Trello API](https://developer.atlassian.com/cloud/trello/)
+- **Git/CI:** GitHub CLI (`gh`) for PRs and auto-merge
 
 ## Development
 
 ```bash
-make build    # Build binary
-make test     # Run tests
-make clean    # Clean build artifacts
+make build    # Build binary to bin/devpilot
+make test     # Run all tests
+make clean    # Remove build artifacts
 ```
 
 ## License

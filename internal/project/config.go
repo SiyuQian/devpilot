@@ -11,7 +11,20 @@ const configFile = ".devpilot.json"
 // Config represents project-level configuration stored in .devpilot.json.
 type Config struct {
 	Board  string            `json:"board,omitempty"`
+	Source string            `json:"source,omitempty"` // "trello" or "github"
 	Models map[string]string `json:"models,omitempty"`
+}
+
+// ResolveSource returns the effective task source: flag value takes priority,
+// then the config file value, then "trello" as the default.
+func (c *Config) ResolveSource(flagValue string) string {
+	if flagValue != "" {
+		return flagValue
+	}
+	if c.Source != "" {
+		return c.Source
+	}
+	return "trello"
 }
 
 // ModelFor returns the configured model for a command, falling back to "default", then "".

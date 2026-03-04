@@ -131,6 +131,21 @@ func TestModelForCommand(t *testing.T) {
 	}
 }
 
+func TestConfig_SourceField(t *testing.T) {
+	dir := t.TempDir()
+	cfg := &Config{Board: "My Board", Source: "github"}
+	if err := Save(dir, cfg); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+	got, err := Load(dir)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if got.Source != "github" {
+		t.Errorf("expected source=github, got %q", got.Source)
+	}
+}
+
 func TestSaveJSONFormat(t *testing.T) {
 	dir := t.TempDir()
 
