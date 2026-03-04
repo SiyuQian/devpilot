@@ -164,7 +164,7 @@ func (r *Runner) Run(ctx context.Context) error {
 			continue
 		}
 
-		SortByPriority(cards)
+		// TODO(Task 4): SortByPriority(tasks) after runner is refactored to use Task.
 		card := cards[0]
 		r.processCard(ctx, card)
 
