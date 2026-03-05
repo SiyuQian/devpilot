@@ -1,5 +1,6 @@
 ---
-status: deferred
+status: implemented
+implemented: 2026-03-04
 idea: "GitHub Issues as Task Source"
 date: 2026-03-01
 score: 10

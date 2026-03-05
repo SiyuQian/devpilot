@@ -18,7 +18,8 @@ import (
 )
 
 func RegisterCommands(parent *cobra.Command) {
-	runCmd.Flags().String("board", "", "Trello board name (required)")
+	runCmd.Flags().String("board", "", "Trello board name (required for trello source)")
+	runCmd.Flags().String("source", "", "Task source: trello or github (default from .devpilot.json, fallback to trello)")
 	runCmd.Flags().Int("interval", 300, "Poll interval in seconds")
 	runCmd.Flags().Int("timeout", 30, "Per-task timeout in minutes")
 	runCmd.Flags().Int("review-timeout", 10, "Code review timeout in minutes (0 to disable)")
@@ -30,10 +31,11 @@ func RegisterCommands(parent *cobra.Command) {
 
 var runCmd = &cobra.Command{
 	Use:   "run",
-	Short: "Autonomously process tasks from a Trello board",
-	Long:  "Poll a Trello board for Ready cards, execute their plans via Claude Code, and create PRs.",
+	Short: "Autonomously process tasks from a board or issue tracker",
+	Long:  "Poll a task source (Trello or GitHub Issues) for ready tasks, execute their plans via Claude Code, and create PRs.",
 	Run: func(cmd *cobra.Command, args []string) {
 		boardName, _ := cmd.Flags().GetString("board")
+		sourceName, _ := cmd.Flags().GetString("source")
 		interval, _ := cmd.Flags().GetInt("interval")
 		timeout, _ := cmd.Flags().GetInt("timeout")
 		reviewTimeout, _ := cmd.Flags().GetInt("review-timeout")
@@ -47,25 +49,36 @@ var runCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
+		projectCfg, _ := project.Load(dir)
+
 		if boardName == "" {
-			cfg, _ := project.Load(dir)
-			if cfg.Board != "" {
-				boardName = cfg.Board
+			if projectCfg.Board != "" {
+				boardName = projectCfg.Board
 			}
 		}
-		if boardName == "" {
-			fmt.Fprintln(os.Stderr, "Error: --board is required (or run: devpilot init)")
+
+		sourceName = projectCfg.ResolveSource(sourceName)
+
+		var source TaskSource
+		switch sourceName {
+		case "trello":
+			if boardName == "" {
+				fmt.Fprintln(os.Stderr, "Error: --board is required for trello source (or run: devpilot init)")
+				os.Exit(1)
+			}
+			creds, err := auth.Load("trello")
+			if err != nil {
+				fmt.Fprintln(os.Stderr, "Not logged in to Trello. Run: devpilot login trello")
+				os.Exit(1)
+			}
+			trelloClient := trello.NewClient(creds["api_key"], creds["token"])
+			source = NewTrelloSource(trelloClient, boardName)
+		case "github":
+			source = NewGitHubSource()
+		default:
+			fmt.Fprintf(os.Stderr, "Unknown source %q. Must be trello or github.\n", sourceName)
 			os.Exit(1)
 		}
-
-		// Load Trello credentials
-		creds, err := auth.Load("trello")
-		if err != nil {
-			fmt.Fprintln(os.Stderr, "Not logged in to Trello. Run: devpilot login trello")
-			os.Exit(1)
-		}
-
-		trelloClient := trello.NewClient(creds["api_key"], creds["token"])
 
 		cfg := Config{
 			BoardName:     boardName,
@@ -80,14 +93,14 @@ var runCmd = &cobra.Command{
 		isInteractive := term.IsTerminal(int(os.Stdout.Fd()))
 
 		if isInteractive && !noTUI {
-			runWithTUI(cfg, trelloClient, boardName)
+			runWithTUI(cfg, source, boardName)
 		} else {
-			runPlainText(cfg, trelloClient)
+			runPlainText(cfg, source)
 		}
 	},
 }
 
-func runWithTUI(cfg Config, trelloClient *trello.Client, boardName string) {
+func runWithTUI(cfg Config, source TaskSource, boardName string) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -96,7 +109,7 @@ func runWithTUI(cfg Config, trelloClient *trello.Client, boardName string) {
 		eventCh <- e
 	}
 
-	r := New(cfg, trelloClient, WithEventHandler(handler))
+	r := New(cfg, source, WithEventHandler(handler))
 	model := NewTUIModel(boardName, eventCh, cancel)
 
 	p := tea.NewProgram(model, tea.WithAltScreen())
@@ -121,7 +134,7 @@ func runWithTUI(cfg Config, trelloClient *trello.Client, boardName string) {
 	}
 }
 
-func runPlainText(cfg Config, trelloClient *trello.Client) {
+func runPlainText(cfg Config, source TaskSource) {
 	logger := log.New(os.Stdout, "", log.LstdFlags)
 
 	handler := func(e Event) {
@@ -165,7 +178,7 @@ func runPlainText(cfg Config, trelloClient *trello.Client) {
 		}
 	}
 
-	r := New(cfg, trelloClient, WithEventHandler(handler))
+	r := New(cfg, source, WithEventHandler(handler))
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

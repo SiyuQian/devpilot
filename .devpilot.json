@@ -1,3 +1,4 @@
 {
-  "board": "devpilot"
+  "board": "devpilot",
+  "source": "github"
 }
