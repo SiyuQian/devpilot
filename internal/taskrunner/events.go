@@ -67,6 +67,21 @@ type ReviewDoneEvent struct {
 
 func (e ReviewDoneEvent) eventType() string { return "review_done" }
 
+type FixStartedEvent struct {
+	PRURL   string
+	Attempt int
+}
+
+func (e FixStartedEvent) eventType() string { return "fix_started" }
+
+type FixDoneEvent struct {
+	PRURL    string
+	Attempt  int
+	ExitCode int
+}
+
+func (e FixDoneEvent) eventType() string { return "fix_done" }
+
 type RunnerStoppedEvent struct{}
 
 func (e RunnerStoppedEvent) eventType() string { return "runner_stopped" }

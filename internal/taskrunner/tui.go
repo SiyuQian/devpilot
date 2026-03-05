@@ -342,6 +342,12 @@ func (m TUIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case ReviewDoneEvent:
 		return m, waitForEvent(m.eventCh)
 
+	case FixStartedEvent:
+		return m, waitForEvent(m.eventCh)
+
+	case FixDoneEvent:
+		return m, waitForEvent(m.eventCh)
+
 	case RunnerStoppedEvent:
 		m.phase = "stopped"
 		return m, waitForEvent(m.eventCh)

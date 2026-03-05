@@ -19,6 +19,8 @@ func TestEventTypes(t *testing.T) {
 		{"CardFailed", CardFailedEvent{CardID: "c1", CardName: "Fix bug", ErrMsg: "oops", Duration: time.Minute}, "card_failed"},
 		{"ReviewStarted", ReviewStartedEvent{PRURL: "http://pr"}, "review_started"},
 		{"ReviewDone", ReviewDoneEvent{PRURL: "http://pr", ExitCode: 0}, "review_done"},
+		{"FixStarted", FixStartedEvent{PRURL: "http://pr", Attempt: 1}, "fix_started"},
+		{"FixDone", FixDoneEvent{PRURL: "http://pr", Attempt: 1, ExitCode: 0}, "fix_done"},
 		{"RunnerStopped", RunnerStoppedEvent{}, "runner_stopped"},
 		{"RunnerError", RunnerErrorEvent{Err: nil}, "runner_error"},
 		{"ToolStart", ToolStartEvent{ToolName: "Read", Input: map[string]any{"file_path": "/tmp/f.go"}}, "tool_start"},

@@ -169,6 +169,10 @@ func runPlainText(cfg Config, source TaskSource) {
 			logger.Printf("[review] Starting code review for %s", ev.PRURL)
 		case ReviewDoneEvent:
 			logger.Printf("[review] Done (exit %d)", ev.ExitCode)
+		case FixStartedEvent:
+			logger.Printf("[fix] Attempting fix for %s (attempt %d)", ev.PRURL, ev.Attempt)
+		case FixDoneEvent:
+			logger.Printf("[fix] Fix done (attempt %d, exit %d)", ev.Attempt, ev.ExitCode)
 		case RunnerStoppedEvent:
 			logger.Printf("Runner stopped.")
 		case RunnerErrorEvent:

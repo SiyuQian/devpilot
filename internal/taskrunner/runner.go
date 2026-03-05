@@ -234,22 +234,63 @@ func (r *Runner) processCard(ctx context.Context, task Task) {
 		return
 	}
 
-	// Code review (non-blocking)
+	// Code review gate (blocking with self-heal loop)
 	if r.reviewer != nil {
-		r.logger.Printf("Running code review for PR: %s", prURL)
-		r.emit(ReviewStartedEvent{PRURL: prURL})
-		reviewCtx, reviewCancel := context.WithTimeout(ctx, r.config.ReviewTimeout)
-		reviewResult, reviewErr := r.reviewer.Review(reviewCtx, prURL)
-		reviewCancel()
-		if reviewErr != nil {
-			r.logger.Printf("Code review error: %v", reviewErr)
-			r.emit(ReviewDoneEvent{PRURL: prURL, ExitCode: -1})
-		} else if reviewResult.ExitCode != 0 {
-			r.logger.Printf("Code review finished with non-zero exit: %d", reviewResult.ExitCode)
+		approved := false
+		for attempt := 0; attempt <= MaxReviewRetries; attempt++ {
+			r.logger.Printf("Running code review for PR: %s (attempt %d)", prURL, attempt+1)
+			r.emit(ReviewStartedEvent{PRURL: prURL})
+			reviewCtx, reviewCancel := context.WithTimeout(ctx, r.config.ReviewTimeout)
+			reviewResult, reviewErr := r.reviewer.Review(reviewCtx, prURL)
+			reviewCancel()
+
+			if reviewErr != nil {
+				r.logger.Printf("Code review error: %v", reviewErr)
+				r.emit(ReviewDoneEvent{PRURL: prURL, ExitCode: -1})
+				break
+			}
+
 			r.emit(ReviewDoneEvent{PRURL: prURL, ExitCode: reviewResult.ExitCode})
-		} else {
-			r.logger.Printf("Code review completed for PR: %s", prURL)
-			r.emit(ReviewDoneEvent{PRURL: prURL, ExitCode: 0})
+
+			if IsApproved(reviewResult.Stdout) {
+				r.logger.Printf("Code review approved for PR: %s", prURL)
+				approved = true
+				break
+			}
+
+			// Review found issues — attempt fix if retries remain
+			if attempt < MaxReviewRetries {
+				r.logger.Printf("Review found issues, attempting fix (attempt %d/%d)", attempt+1, MaxReviewRetries)
+				r.emit(FixStartedEvent{PRURL: prURL, Attempt: attempt + 1})
+				fixCtx, fixCancel := context.WithTimeout(ctx, r.config.ReviewTimeout)
+				fixResult, fixErr := r.reviewer.Fix(fixCtx, prURL)
+				fixCancel()
+
+				fixExitCode := -1
+				if fixErr == nil {
+					fixExitCode = fixResult.ExitCode
+				}
+				r.emit(FixDoneEvent{PRURL: prURL, Attempt: attempt + 1, ExitCode: fixExitCode})
+
+				if fixErr != nil {
+					r.logger.Printf("Fix attempt failed: %v", fixErr)
+					continue
+				}
+
+				// Push the fix
+				if err := r.git.Push(branch); err != nil {
+					r.logger.Printf("Failed to push fix: %v", err)
+					r.failCard(task, start, fmt.Sprintf("push fix: %v", err))
+					r.git.CheckoutMain()
+					return
+				}
+			}
+		}
+
+		if !approved {
+			r.failCard(task, start, fmt.Sprintf("code review failed after %d attempts", MaxReviewRetries+1))
+			r.git.CheckoutMain()
+			return
 		}
 	}
 

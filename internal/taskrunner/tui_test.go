@@ -583,6 +583,26 @@ func TestTextLineCapping(t *testing.T) {
 	}
 }
 
+func TestTUIModel_FixEvents(t *testing.T) {
+	eventCh := make(chan Event, 10)
+	cancel := func() {}
+	m := NewTUIModel("test", eventCh, cancel)
+
+	// Simulate FixStartedEvent
+	updated, _ := m.Update(FixStartedEvent{PRURL: "http://pr", Attempt: 1})
+	model := updated.(TUIModel)
+	if model.phase != "starting" {
+		t.Errorf("phase should not change on fix event, got %q", model.phase)
+	}
+
+	// Simulate FixDoneEvent
+	updated, _ = model.Update(FixDoneEvent{PRURL: "http://pr", Attempt: 1, ExitCode: 0})
+	model = updated.(TUIModel)
+	if model.phase != "starting" {
+		t.Errorf("phase should not change on fix done event, got %q", model.phase)
+	}
+}
+
 func TestResizeReWrapsText(t *testing.T) {
 	ch := make(chan Event, 1)
 	_, cancel := context.WithCancel(context.Background())

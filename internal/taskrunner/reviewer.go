@@ -3,6 +3,7 @@ package taskrunner
 import (
 	"context"
 	"fmt"
+	"strings"
 )
 
 type Reviewer struct {
@@ -20,25 +21,19 @@ func (rv *Reviewer) Review(ctx context.Context, prURL string) (*ExecuteResult, e
 	return rv.executor.Run(ctx, prompt)
 }
 
+func (rv *Reviewer) Fix(ctx context.Context, prURL string) (*ExecuteResult, error) {
+	prompt := FixPrompt(prURL)
+	return rv.executor.Run(ctx, prompt)
+}
+
 func ReviewPrompt(prURL string) string {
-	return fmt.Sprintf(`You are a code reviewer. Review the pull request at: %s
+	return fmt.Sprintf("Code review: %s", prURL)
+}
 
-Steps:
-1. Run "gh pr diff" to see the full diff of the PR
-2. Analyze the changes for:
-   - Bugs or logic errors
-   - Security vulnerabilities
-   - Performance issues
-   - Code style and readability
-   - Missing error handling
-   - Test coverage gaps
-3. Post your review using "gh pr review" with appropriate comments
+func FixPrompt(prURL string) string {
+	return fmt.Sprintf(`Fix the code review comments on %s. Read the review with gh pr view and address all requested changes. Commit and push your fixes.`, prURL)
+}
 
-If the changes look good, approve the PR:
-  gh pr review --approve --body "your summary"
-
-If there are issues, request changes:
-  gh pr review --request-changes --body "your summary"
-
-Be concise and actionable in your feedback. Focus on substantive issues, not style nitpicks.`, prURL)
+func IsApproved(stdout string) bool {
+	return strings.Contains(stdout, "No issues found")
 }
