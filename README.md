@@ -1,5 +1,9 @@
 # DevPilot
 
+[![Test](https://github.com/siyuqian/devpilot/actions/workflows/test.yml/badge.svg)](https://github.com/siyuqian/devpilot/actions/workflows/test.yml)
+[![codecov](https://codecov.io/gh/siyuqian/devpilot/branch/main/graph/badge.svg)](https://codecov.io/gh/siyuqian/devpilot)
+[![GitHub Downloads](https://img.shields.io/github/downloads/siyuqian/devpilot/total)](https://github.com/siyuqian/devpilot/releases)
+
 **Autonomous development workflow automation for [Claude Code](https://claude.ai/code).** Write a plan in markdown, push it to Trello, and let DevPilot execute it — creating branches, writing code, opening PRs, running code review, and auto-merging.
 
 ## How It Works
