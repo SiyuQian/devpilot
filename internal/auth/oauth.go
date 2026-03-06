@@ -41,11 +41,14 @@ type OAuthToken struct {
 }
 
 func SaveOAuthToken(serviceName string, token *OAuthToken) error {
-	creds := ServiceCredentials{
-		"access_token":  token.AccessToken,
-		"refresh_token": token.RefreshToken,
-		"token_type":    token.TokenType,
+	// Load existing credentials to preserve non-token fields (e.g. client_id).
+	creds, _ := Load(serviceName)
+	if creds == nil {
+		creds = ServiceCredentials{}
 	}
+	creds["access_token"] = token.AccessToken
+	creds["refresh_token"] = token.RefreshToken
+	creds["token_type"] = token.TokenType
 	if !token.Expiry.IsZero() {
 		creds["expiry"] = token.Expiry.Format(time.RFC3339)
 	}
