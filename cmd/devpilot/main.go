@@ -10,6 +10,7 @@ import (
 	"github.com/siyuqian/devpilot/internal/gmail"
 	"github.com/siyuqian/devpilot/internal/initcmd"
 	"github.com/siyuqian/devpilot/internal/openspec"
+	"github.com/siyuqian/devpilot/internal/slack"
 	"github.com/siyuqian/devpilot/internal/taskrunner"
 	"github.com/siyuqian/devpilot/internal/trello"
 )
@@ -29,6 +30,7 @@ func main() {
 	initcmd.RegisterCommands(rootCmd)
 	trello.RegisterCommands(rootCmd)
 	gmail.RegisterCommands(rootCmd)
+	slack.RegisterCommands(rootCmd)
 	taskrunner.RegisterCommands(rootCmd)
 	generate.RegisterCommands(rootCmd)
 	openspec.RegisterCommands(rootCmd)
