@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"crypto/x509"
 	"encoding/json"
 	"fmt"
 	"net"
@@ -241,6 +242,28 @@ func TestRefreshTokenExpired(t *testing.T) {
 	_, err := RefreshToken(cfg, "expired-refresh")
 	if err != ErrReauthRequired {
 		t.Errorf("expected ErrReauthRequired, got %v", err)
+	}
+}
+
+func TestGenerateSelfSignedCert(t *testing.T) {
+	tlsCert, err := generateSelfSignedCert()
+	if err != nil {
+		t.Fatalf("generateSelfSignedCert() error: %v", err)
+	}
+	if len(tlsCert.Certificate) == 0 {
+		t.Fatal("expected at least one certificate")
+	}
+
+	// Parse the leaf cert and verify it covers localhost
+	leaf, err := x509.ParseCertificate(tlsCert.Certificate[0])
+	if err != nil {
+		t.Fatalf("ParseCertificate error: %v", err)
+	}
+	if err := leaf.VerifyHostname("localhost"); err != nil {
+		t.Errorf("cert should be valid for localhost: %v", err)
+	}
+	if leaf.NotAfter.Before(time.Now()) {
+		t.Error("cert should not already be expired")
 	}
 }
 
