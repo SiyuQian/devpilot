@@ -18,6 +18,7 @@ Standard Go project layout: `cmd/devpilot/` for the CLI entry point, `internal/`
 
 **Other top-level directories:**
 - `.claude/skills/` — Built-in Claude Code skills (each skill is a dir with `SKILL.md`)
+- `.github/workflows/` — CI/CD (test + release pipelines)
 - `docs/plans/` — Design and implementation plan documents
 - `docs/rejected/` — Rejected/deferred idea records (read by PM skill to avoid re-recommending)
 
@@ -131,4 +132,4 @@ Skills are defined by a `SKILL.md` file (YAML frontmatter + markdown body) with 
 - Functional options pattern (`WithXxx()`) for testability in Executor and trello.Client
 - Design docs come in pairs: `{date}-{feature}-design.md` + `{date}-{feature}-plan.md`
 - Skill helper scripts use Python 3
-- No CI/CD pipeline configured
+- CI/CD: GitHub Actions for tests (`test.yml`) and releases (`release.yml`)
