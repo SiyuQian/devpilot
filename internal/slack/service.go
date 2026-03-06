@@ -77,6 +77,8 @@ func (s *SlackService) oauthConfig() auth.OAuthConfig {
 		ClientID:     os.Getenv("SLACK_CLIENT_ID"),
 		ClientSecret: os.Getenv("SLACK_CLIENT_SECRET"),
 		Scopes:       []string{slackScopeChat, slackScopeRead},
+		UseTLS:       true,
+		RedirectPort: 17321,
 	}
 }
 
