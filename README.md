@@ -24,7 +24,8 @@ Plan (markdown) → devpilot push → Trello card → devpilot run → claude -p
 - **Priority scheduling** — P0/P1/P2 labels control execution order
 - **Real-time TUI dashboard** — Bubble Tea terminal UI with tool call history, file tracking, token stats, and scrollable output
 - **Automated code review** — A second `claude -p` invocation reviews the diff against the original plan before merging
-- **Built-in Claude Code skills** — PM research, Trello management, task refinement, and more
+- **OpenSpec integration** — Sync spec-driven changes to Trello or GitHub Issues with `devpilot sync`
+- **Built-in Claude Code skills** — PM research, Trello management, task refinement, Confluence review, and more
 - **Project scaffolding** — `devpilot init` detects your stack and generates config, hooks, and skills
 
 ## Getting Started
@@ -88,6 +89,7 @@ devpilot run --board "Sprint Board"
 | `devpilot status` | Show authentication status |
 | `devpilot push <file>` | Create a Trello card from a plan markdown file |
 | `devpilot run` | Autonomously process tasks from a Trello board |
+| `devpilot sync` | Sync OpenSpec changes to Trello board or GitHub Issues |
 | `devpilot commit` | Generate a commit message from staged changes |
 | `devpilot readme` | Generate or improve README.md |
 
@@ -109,6 +111,13 @@ devpilot run --board "Sprint Board"
 | `--once` | `false` | Process one card and exit |
 | `--dry-run` | `false` | Print actions without executing |
 | `--no-tui` | `false` | Disable TUI dashboard |
+
+### `devpilot sync` Flags
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--board` | *(from config)* | Override Trello board name |
+| `--source` | `trello` | Task source (`trello` or `github`) |
 
 ## Task Runner Workflow
 
@@ -182,11 +191,11 @@ DevPilot ships with Claude Code skills in `.claude/skills/`:
 
 | Skill | Description |
 |-------|-------------|
-| `skill-creator` | Guide and scripts for creating new Claude Code skills |
 | `devpilot:pm` | Product manager — market research, competitor analysis, feature prioritization |
 | `devpilot:trello` | Direct Trello board and card management from Claude Code |
 | `devpilot:task-executor` | Autonomous plan execution (used internally by `devpilot run`) |
 | `devpilot:task-refiner` | Improve and expand Trello card task plans |
+| `devpilot:confluence-reviewer` | Review Atlassian Confluence pages and leave comments |
 
 ## Project Structure
 
@@ -197,10 +206,12 @@ devpilot/
 │   ├── auth/                Authentication & credential management
 │   ├── generate/            AI-powered commit & readme generation
 │   ├── initcmd/             Project initialization wizard
+│   ├── openspec/            OpenSpec integration & sync command
 │   ├── project/             Project config (.devpilot.json)
 │   ├── trello/              Trello API client & push command
 │   └── taskrunner/          Runner, executor, TUI dashboard
 ├── .claude/skills/          Built-in Claude Code skills
+├── .github/workflows/       CI/CD (test + release pipelines)
 ├── docs/plans/              Design & implementation plans
 ├── Makefile                 Build targets
 └── CLAUDE.md                Project instructions for Claude Code
