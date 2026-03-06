@@ -59,12 +59,24 @@ var sendCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		channelName := strings.TrimPrefix(channel, "#")
-
-		channelID, err := client.ResolveChannel(channelName)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-			os.Exit(1)
+		var channelID, label string
+		if strings.HasPrefix(channel, "U") && !strings.Contains(channel, " ") {
+			dmID, err := client.OpenConversation(channel)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+				os.Exit(1)
+			}
+			channelID = dmID
+			label = "as DM"
+		} else {
+			channelName := strings.TrimPrefix(channel, "#")
+			id, err := client.ResolveChannel(channelName)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+				os.Exit(1)
+			}
+			channelID = id
+			label = "to #" + channelName
 		}
 
 		if err := client.PostMessage(channelID, message); err != nil {
@@ -72,6 +84,6 @@ var sendCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		fmt.Printf("Message sent to #%s.\n", channelName)
+		fmt.Printf("Message sent %s.\n", label)
 	},
 }

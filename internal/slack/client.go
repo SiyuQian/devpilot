@@ -59,6 +59,14 @@ type postMessageResponse struct {
 	Error string `json:"error"`
 }
 
+type conversationsOpenResponse struct {
+	OK      bool   `json:"ok"`
+	Error   string `json:"error"`
+	Channel struct {
+		ID string `json:"id"`
+	} `json:"channel"`
+}
+
 func (c *Client) ListConversations() ([]Channel, error) {
 	var all []Channel
 	cursor := ""
@@ -112,6 +120,27 @@ func (c *Client) ResolveChannel(name string) (string, error) {
 	}
 
 	return "", fmt.Errorf("Channel not found: %s", name)
+}
+
+func (c *Client) OpenConversation(userID string) (string, error) {
+	params := url.Values{
+		"users": {userID},
+	}
+
+	body, err := c.doPost("/conversations.open", params)
+	if err != nil {
+		return "", err
+	}
+
+	var resp conversationsOpenResponse
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return "", fmt.Errorf("parse conversations.open response: %w", err)
+	}
+	if !resp.OK {
+		return "", fmt.Errorf("conversations.open failed: %s", resp.Error)
+	}
+
+	return resp.Channel.ID, nil
 }
 
 func (c *Client) PostMessage(channelID, text string) error {
