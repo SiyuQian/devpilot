@@ -4,8 +4,5 @@ bin/
 # Worktrees
 .worktrees/
 
-# Secrets
-.env
-
 # DevPilot
 .devpilot/logs/
