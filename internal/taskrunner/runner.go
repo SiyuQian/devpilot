@@ -18,6 +18,7 @@ type Config struct {
 	Once          bool
 	DryRun        bool
 	WorkDir       string
+	UseOpenSpec   bool
 }
 
 type Runner struct {
@@ -310,6 +311,18 @@ func (r *Runner) processCard(ctx context.Context, task Task) {
 }
 
 func (r *Runner) buildPrompt(task Task) string {
+	if r.config.UseOpenSpec {
+		return fmt.Sprintf(`Execute the following OpenSpec change autonomously from start to finish. This runs unattended — never stop to ask for feedback, confirmation, or approval.
+
+Run: /opsx:apply %s
+
+Rules:
+- Execute ALL tasks without stopping
+- Commit after each logical unit of work
+- Never ask for user input or feedback
+- If a task is blocked, skip it and continue with the next task
+- When ALL tasks are complete, push to the current branch`, task.Name)
+	}
 	return fmt.Sprintf(`Execute the following task plan autonomously from start to finish. This runs unattended — never stop to ask for feedback, confirmation, or approval. Execute ALL steps/batches continuously without pausing.
 
 Use /superpowers:test-driven-development and /superpowers:verification-before-completion skills during execution.

@@ -13,6 +13,7 @@ import (
 	"golang.org/x/term"
 
 	"github.com/siyuqian/devpilot/internal/auth"
+	"github.com/siyuqian/devpilot/internal/openspec"
 	"github.com/siyuqian/devpilot/internal/project"
 	"github.com/siyuqian/devpilot/internal/trello"
 )
@@ -80,6 +81,13 @@ var runCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
+		useOpenSpec := false
+		if openspec.CheckInstalled("openspec") == nil {
+			if _, err := openspec.ScanChanges(dir); err == nil {
+				useOpenSpec = true
+			}
+		}
+
 		cfg := Config{
 			BoardName:     boardName,
 			Interval:      time.Duration(interval) * time.Second,
@@ -88,6 +96,7 @@ var runCmd = &cobra.Command{
 			Once:          once,
 			DryRun:        dryRun,
 			WorkDir:       dir,
+			UseOpenSpec:   useOpenSpec,
 		}
 
 		isInteractive := term.IsTerminal(int(os.Stdout.Fd()))

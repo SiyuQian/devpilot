@@ -202,3 +202,54 @@ func TestCreateCard(t *testing.T) {
 		t.Errorf("expected shortUrl, got %s", card.ShortURL)
 	}
 }
+
+func TestUpdateCard(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPut {
+			t.Errorf("expected PUT, got %s", r.Method)
+		}
+		if r.URL.Path != "/1/cards/card1" {
+			t.Errorf("unexpected path: %s", r.URL.Path)
+		}
+		if r.URL.Query().Get("desc") != "updated body" {
+			t.Errorf("expected desc=updated body, got %s", r.URL.Query().Get("desc"))
+		}
+		fmt.Fprint(w, `{"id":"card1","name":"My Card","desc":"updated body"}`)
+	}))
+	defer server.Close()
+
+	client := NewClient("k", "t", WithBaseURL(server.URL))
+	err := client.UpdateCard("card1", "updated body")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestFindCardByName(t *testing.T) {
+	cards := []Card{
+		{ID: "c1", Name: "add-auth", Desc: "old"},
+		{ID: "c2", Name: "fix-bug", Desc: "other"},
+	}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		json.NewEncoder(w).Encode(cards)
+	}))
+	defer server.Close()
+
+	client := NewClient("k", "t", WithBaseURL(server.URL))
+
+	card, err := client.FindCardByName("list1", "add-auth")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if card.ID != "c1" {
+		t.Errorf("expected c1, got %s", card.ID)
+	}
+
+	card, err = client.FindCardByName("list1", "nonexistent")
+	if err != nil {
+		t.Error("expected nil error for not found")
+	}
+	if card != nil {
+		t.Errorf("expected nil card, got %+v", card)
+	}
+}

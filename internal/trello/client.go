@@ -182,6 +182,27 @@ func (c *Client) CreateCard(listID, name, desc string) (*Card, error) {
 	return &card, nil
 }
 
+// UpdateCard updates the description of an existing card.
+func (c *Client) UpdateCard(cardID, desc string) error {
+	params := url.Values{"desc": {desc}}
+	_, err := c.put(fmt.Sprintf("/1/cards/%s", cardID), params)
+	return err
+}
+
+// FindCardByName searches for a card by name in a list. Returns nil, nil if not found.
+func (c *Client) FindCardByName(listID, name string) (*Card, error) {
+	cards, err := c.GetListCards(listID)
+	if err != nil {
+		return nil, err
+	}
+	for _, card := range cards {
+		if card.Name == name {
+			return &card, nil
+		}
+	}
+	return nil, nil
+}
+
 func (c *Client) FindBoardByName(name string) (*Board, error) {
 	boards, err := c.GetBoards()
 	if err != nil {

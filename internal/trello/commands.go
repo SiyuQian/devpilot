@@ -25,6 +25,10 @@ var pushCmd = &cobra.Command{
 	Long:  "Read a plan markdown file and create a Trello card or GitHub Issue with the title from the first # heading and the full file contents as the description.",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
+		fmt.Fprintln(os.Stderr, "WARNING: 'devpilot push' is deprecated. Use OpenSpec + 'devpilot sync' instead.")
+		fmt.Fprintln(os.Stderr, "  See: https://github.com/Fission-AI/OpenSpec")
+		fmt.Fprintln(os.Stderr, "")
+
 		filePath := args[0]
 		listName, _ := cmd.Flags().GetString("list")
 

@@ -146,6 +146,25 @@ func TestConfig_SourceField(t *testing.T) {
 	}
 }
 
+func TestConfig_OpenSpecMinVersion(t *testing.T) {
+	dir := t.TempDir()
+	cfg := &Config{
+		Board:              "devpilot",
+		Source:             "github",
+		OpenSpecMinVersion: "1.2.0",
+	}
+	if err := Save(dir, cfg); err != nil {
+		t.Fatalf("save: %v", err)
+	}
+	loaded, err := Load(dir)
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	if loaded.OpenSpecMinVersion != "1.2.0" {
+		t.Errorf("expected 1.2.0, got %s", loaded.OpenSpecMinVersion)
+	}
+}
+
 func TestSaveJSONFormat(t *testing.T) {
 	dir := t.TempDir()
 

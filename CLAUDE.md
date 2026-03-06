@@ -49,6 +49,10 @@ devpilot run --board "Board Name" --once --dry-run         # Test with one card,
 devpilot run --board "Board Name" --interval 60            # Poll every 60s (default: 300)
 devpilot run --board "Board Name" --timeout 45             # 45min per-task timeout (default: 30)
 devpilot run --board "Board Name" --review-timeout 0       # Disable auto code review
+
+devpilot sync                                              # Sync OpenSpec changes to board/issues
+devpilot sync --board "Board Name"                         # Override board
+devpilot sync --source github                              # Override source
 ```
 
 ### Skill Helper Scripts (Python 3)
@@ -87,6 +91,15 @@ Cards move through Trello as a state machine: **Ready** -> **In Progress** -> **
 9. Moves card to "Done" (with PR link) or "Failed" (with error log path)
 
 Logs per-card output to `~/.config/devpilot/logs/{card-id}.log`.
+
+### OpenSpec Integration
+
+When OpenSpec is installed and `openspec/changes/` exists:
+- `devpilot sync` scans changes and creates/updates Trello cards or GitHub Issues
+- Card title = change directory name (used as `opsx:apply` argument)
+- Card description = full content of proposal.md + tasks.md
+- Runner auto-detects OpenSpec and uses `/opsx:apply <change-name>` instead of raw plan text
+- Supports resumability: interrupted tasks pick up from last unchecked task
 
 ### TUI Dashboard
 
