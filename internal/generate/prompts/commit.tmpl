@@ -1,16 +1,32 @@
-Write a concise commit message in conventional commits format for these changes:
+Analyze these staged git changes and produce a commit plan as JSON.
 
-Files changed:
-{{.FileList}}
+Files changed (with status):
+{{.NameStatus}}
 
 Git diff stat:
 {{.DiffStat}}
+
+Full diff:
+{{.DiffContent}}
 {{if .Context}}
 Additional context: {{.Context}}
 {{end}}
-Requirements:
-- Use conventional commits format (feat:, fix:, refactor:, docs:, chore:, etc.)
-- Keep the first line under 72 characters
-- Add bullet points for details if the change is complex
-- Be specific about what was changed and why
-- Output ONLY the raw commit message text, no markdown formatting
+Instructions:
+1. Group related files into logical, atomic commits. Each commit should represent one coherent change.
+2. Write conventional commit messages (feat:, fix:, refactor:, docs:, chore:, etc.) with optional scope.
+3. Keep the first line of each message under 72 characters. Add bullet points for details if needed.
+4. Identify files that should NOT be committed (secrets like .env, debug artifacts, build outputs) and list them as excluded with a reason.
+5. Every staged file must appear in exactly one commit or in excluded.
+
+Output ONLY valid JSON in this exact format, no other text:
+{
+  "commits": [
+    {
+      "message": "type(scope): description\n\n- Detail line if needed",
+      "files": ["path/to/file1.go", "path/to/file2.go"]
+    }
+  ],
+  "excluded": [
+    {"file": ".env.local", "reason": "Contains secrets"}
+  ]
+}

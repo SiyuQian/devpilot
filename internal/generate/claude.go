@@ -44,7 +44,7 @@ func cleanOutput(s string) string {
 	// Strip language hints after opening fence
 	if idx := strings.Index(s, "\n"); idx >= 0 && !strings.Contains(s[:idx], " ") && len(s[:idx]) < 15 {
 		first := strings.TrimSpace(s[:idx])
-		if first == "markdown" || first == "text" || first == "" {
+		if first == "markdown" || first == "text" || first == "json" || first == "" {
 			s = s[idx+1:]
 		}
 	}

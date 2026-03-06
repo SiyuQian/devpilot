@@ -3,29 +3,111 @@ package generate
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
-	"os"
 	"os/exec"
 	"strings"
 	"text/template"
+
+	tea "github.com/charmbracelet/bubbletea"
 )
 
 var commitTmpl = template.Must(template.ParseFS(promptsFS, "prompts/commit.tmpl"))
 
 type commitData struct {
-	FileList string
-	DiffStat string
-	Context  string
+	NameStatus  string
+	DiffStat    string
+	DiffContent string
+	Context     string
 }
 
-func buildCommitPrompt(fileList, diffStat, userContext string) (string, error) {
+const (
+	maxLinesPerFile = 200
+	maxDiffChars    = 15000
+)
+
+func buildCommitPrompt(nameStatus, diffStat, diffContent, userContext string) (string, error) {
+	truncated := truncateDiff(diffContent)
 	var buf bytes.Buffer
 	err := commitTmpl.Execute(&buf, commitData{
-		FileList: fileList,
-		DiffStat: diffStat,
-		Context:  userContext,
+		NameStatus:  nameStatus,
+		DiffStat:    diffStat,
+		DiffContent: truncated,
+		Context:     userContext,
 	})
 	return buf.String(), err
+}
+
+// truncateDiff truncates diff content per-file (200 lines) and total (15K chars).
+func truncateDiff(diff string) string {
+	if diff == "" {
+		return diff
+	}
+
+	var result strings.Builder
+	sections := splitDiffSections(diff)
+
+	for _, section := range sections {
+		if isBinaryDiff(section) {
+			path := extractDiffPath(section)
+			result.WriteString(fmt.Sprintf("Binary file: %s\n", path))
+			continue
+		}
+
+		lines := strings.Split(section, "\n")
+		if len(lines) > maxLinesPerFile {
+			remaining := len(lines) - maxLinesPerFile
+			lines = lines[:maxLinesPerFile]
+			lines = append(lines, fmt.Sprintf("[truncated — %d more lines]", remaining))
+		}
+		truncated := strings.Join(lines, "\n")
+
+		if result.Len()+len(truncated) > maxDiffChars {
+			result.WriteString(fmt.Sprintf("\n[truncated — diff too large, %d chars remaining]\n", len(truncated)))
+			break
+		}
+		result.WriteString(truncated)
+		result.WriteString("\n")
+	}
+
+	return result.String()
+}
+
+// splitDiffSections splits a unified diff into per-file sections.
+func splitDiffSections(diff string) []string {
+	var sections []string
+	var current strings.Builder
+	for _, line := range strings.Split(diff, "\n") {
+		if strings.HasPrefix(line, "diff --git ") && current.Len() > 0 {
+			sections = append(sections, current.String())
+			current.Reset()
+		}
+		current.WriteString(line)
+		current.WriteString("\n")
+	}
+	if current.Len() > 0 {
+		sections = append(sections, current.String())
+	}
+	return sections
+}
+
+// isBinaryDiff checks if a diff section is for a binary file.
+func isBinaryDiff(section string) bool {
+	return strings.Contains(section, "Binary files") ||
+		strings.Contains(section, "GIT binary patch")
+}
+
+// extractDiffPath extracts the file path from a diff header.
+func extractDiffPath(section string) string {
+	for _, line := range strings.Split(section, "\n") {
+		if strings.HasPrefix(line, "diff --git ") {
+			parts := strings.Fields(line)
+			if len(parts) >= 4 {
+				return strings.TrimPrefix(parts[3], "b/")
+			}
+		}
+	}
+	return "unknown"
 }
 
 // gitOutput runs a git command and returns trimmed stdout.
@@ -38,98 +120,21 @@ func gitOutput(args ...string) (string, error) {
 	return strings.TrimSpace(string(out)), nil
 }
 
-// RunCommit stages all changes, generates a commit message via Claude, and commits.
+// RunCommit launches the Bubble Tea commit workflow.
 func RunCommit(ctx context.Context, model, userContext string, dryRun bool) error {
-	// Stage all changes
-	if out, err := exec.Command("git", "add", ".").CombinedOutput(); err != nil {
-		return fmt.Errorf("git add: %w\n%s", err, out)
-	}
-
-	// Check for staged changes
-	diffCached, err := gitOutput("diff", "--cached", "--stat")
-	if err != nil {
-		return err
-	}
-	if diffCached == "" {
-		fmt.Println("No changes to commit.")
-		return nil
-	}
-
-	fileList, err := gitOutput("diff", "--cached", "--name-only")
+	m := NewCommitModel(ctx, model, userContext, dryRun)
+	p := tea.NewProgram(m)
+	finalModel, err := p.Run()
 	if err != nil {
 		return err
 	}
 
-	prompt, err := buildCommitPrompt(fileList, diffCached, userContext)
-	if err != nil {
-		return fmt.Errorf("build prompt: %w", err)
-	}
-
-	fmt.Println("Generating commit message...")
-	message, err := Generate(ctx, prompt, model)
-	if err != nil {
-		return err
-	}
-
-	fmt.Printf("\n%s\n\n", message)
-
-	if dryRun {
-		fmt.Println("(dry-run: not committing)")
-		return nil
-	}
-
-	// Prompt user for confirmation
-	fmt.Print("Commit with this message? [y/n/e(dit)] ")
-	var choice string
-	fmt.Scanln(&choice)
-	switch strings.ToLower(strings.TrimSpace(choice)) {
-	case "y", "yes", "":
-		// proceed
-	case "e", "edit":
-		edited, err := editInTerminal(message)
-		if err != nil {
-			return err
+	fm := finalModel.(CommitModel)
+	if fm.err != nil {
+		if errors.Is(fm.err, errAborted) || errors.Is(fm.err, errNoChanges) {
+			return nil
 		}
-		message = edited
-	default:
-		fmt.Println("Aborted.")
-		return nil
+		return fm.err
 	}
-
-	if out, err := exec.Command("git", "commit", "-m", message).CombinedOutput(); err != nil {
-		return fmt.Errorf("git commit: %w\n%s", err, out)
-	}
-	fmt.Println("Committed.")
 	return nil
-}
-
-// editInTerminal opens $EDITOR for the user to edit the message.
-func editInTerminal(initial string) (string, error) {
-	editor := os.Getenv("EDITOR")
-	if editor == "" {
-		editor = "vi"
-	}
-	tmpFile, err := os.CreateTemp("", "devpilot-commit-*.txt")
-	if err != nil {
-		return "", err
-	}
-	defer os.Remove(tmpFile.Name())
-	if _, err := tmpFile.WriteString(initial); err != nil {
-		return "", err
-	}
-	tmpFile.Close()
-
-	cmd := exec.Command(editor, tmpFile.Name())
-	cmd.Stdin = os.Stdin
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	if err := cmd.Run(); err != nil {
-		return "", fmt.Errorf("editor: %w", err)
-	}
-
-	data, err := os.ReadFile(tmpFile.Name())
-	if err != nil {
-		return "", err
-	}
-	return strings.TrimSpace(string(data)), nil
 }

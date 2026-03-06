@@ -54,7 +54,7 @@ func TestBuildArgs(t *testing.T) {
 }
 
 func TestBuildCommitPrompt(t *testing.T) {
-	prompt, err := buildCommitPrompt("file1.go\nfile2.go", "2 files changed, 10 insertions", "fixing auth bug")
+	prompt, err := buildCommitPrompt("M\tfile1.go\nA\tfile2.go", "2 files changed, 10 insertions", "+some diff content", "fixing auth bug")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -67,13 +67,16 @@ func TestBuildCommitPrompt(t *testing.T) {
 	if !strings.Contains(prompt, "fixing auth bug") {
 		t.Error("prompt should contain context")
 	}
-	if !strings.Contains(prompt, "conventional commits") {
+	if !strings.Contains(prompt, "conventional commit") {
 		t.Error("prompt should mention conventional commits")
+	}
+	if !strings.Contains(prompt, "some diff content") {
+		t.Error("prompt should contain diff content")
 	}
 }
 
 func TestBuildCommitPromptNoContext(t *testing.T) {
-	prompt, err := buildCommitPrompt("file1.go", "1 file changed", "")
+	prompt, err := buildCommitPrompt("M\tfile1.go", "1 file changed", "+change", "")
 	if err != nil {
 		t.Fatal(err)
 	}
