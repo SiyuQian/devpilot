@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/joho/godotenv"
 	"github.com/spf13/cobra"
 	"github.com/siyuqian/devpilot/internal/auth"
 	"github.com/siyuqian/devpilot/internal/generate"
@@ -18,6 +19,8 @@ import (
 var version = "dev"
 
 func main() {
+	_ = godotenv.Load() // optional .env file
+
 	rootCmd := &cobra.Command{
 		Use:   "devpilot",
 		Short: "Developer toolkit for managing service integrations",
