@@ -3,17 +3,16 @@ package slack
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 
 	"github.com/siyuqian/devpilot/internal/auth"
 )
 
 const (
-	slackClientID     = "xxxx.xxxx"
-	slackClientSecret = "xxxx"
-	slackAuthURL      = "https://slack.com/oauth/v2/authorize"
-	slackTokenURL     = "https://slack.com/api/oauth.v2.access"
-	slackScopeChat    = "chat:write"
-	slackScopeRead    = "channels:read"
+	slackAuthURL   = "https://slack.com/oauth/v2/authorize"
+	slackTokenURL  = "https://slack.com/api/oauth.v2.access"
+	slackScopeChat = "chat:write"
+	slackScopeRead = "channels:read"
 )
 
 func init() {
@@ -75,8 +74,8 @@ func (s *SlackService) oauthConfig() auth.OAuthConfig {
 		ProviderName: "slack",
 		AuthURL:      slackAuthURL,
 		TokenURL:     slackTokenURL,
-		ClientID:     slackClientID,
-		ClientSecret: slackClientSecret,
+		ClientID:     os.Getenv("SLACK_CLIENT_ID"),
+		ClientSecret: os.Getenv("SLACK_CLIENT_SECRET"),
 		Scopes:       []string{slackScopeChat, slackScopeRead},
 	}
 }
