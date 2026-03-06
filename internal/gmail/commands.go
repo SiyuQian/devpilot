@@ -20,9 +20,13 @@ func RegisterCommands(parent *cobra.Command) {
 	listCmd.Flags().String("after", "", "Show messages after this date (YYYY-MM-DD)")
 	listCmd.Flags().Int("limit", 20, "Maximum number of messages to return")
 
+	bulkMarkReadCmd.Flags().String("query", "", "Gmail search query (e.g. 'category:promotions')")
+	bulkMarkReadCmd.MarkFlagRequired("query")
+
 	gmailCmd.AddCommand(listCmd)
 	gmailCmd.AddCommand(readCmd)
 	gmailCmd.AddCommand(markReadCmd)
+	gmailCmd.AddCommand(bulkMarkReadCmd)
 
 	parent.AddCommand(gmailCmd)
 }
@@ -127,6 +131,53 @@ var readCmd = &cobra.Command{
 		fmt.Printf("Date: %s\n", GetHeader(msg, "Date"))
 		fmt.Println()
 		fmt.Println(GetBody(msg))
+	},
+}
+
+var bulkMarkReadCmd = &cobra.Command{
+	Use:   "bulk-mark-read --query <gmail-query>",
+	Short: "Mark all emails matching a query as read",
+	Run: func(cmd *cobra.Command, args []string) {
+		client, err := requireLogin()
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+
+		query, _ := cmd.Flags().GetString("query")
+		fullQuery := "is:unread " + query
+
+		fmt.Printf("Searching for emails matching: %s\n", fullQuery)
+		ids, err := client.ListAllMessageIDs(fullQuery)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			os.Exit(1)
+		}
+
+		if len(ids) == 0 {
+			fmt.Println("No matching unread messages found.")
+			return
+		}
+
+		fmt.Printf("Found %d messages. Marking as read...\n", len(ids))
+
+		// BatchModify supports up to 1000 IDs per call
+		batchSize := 1000
+		marked := 0
+		for i := 0; i < len(ids); i += batchSize {
+			end := i + batchSize
+			if end > len(ids) {
+				end = len(ids)
+			}
+			if err := client.BatchModify(ids[i:end], []string{"UNREAD"}); err != nil {
+				fmt.Fprintf(os.Stderr, "Error at batch %d-%d: %v\n", i, end, err)
+				os.Exit(1)
+			}
+			marked += end - i
+			fmt.Printf("  Progress: %d/%d\n", marked, len(ids))
+		}
+
+		fmt.Printf("Done. Marked %d message(s) as read.\n", len(ids))
 	},
 }
 

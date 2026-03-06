@@ -54,7 +54,8 @@ func NewClientFromToken(token *auth.OAuthToken, opts ...Option) *Client {
 }
 
 type MessageListResponse struct {
-	Messages []MessageRef `json:"messages"`
+	Messages      []MessageRef `json:"messages"`
+	NextPageToken string       `json:"nextPageToken"`
 }
 
 type MessageRef struct {
@@ -225,6 +226,39 @@ func (c *Client) ListMessages(query string, limit int) ([]MessageRef, error) {
 		return nil, fmt.Errorf("parse message list: %w", err)
 	}
 	return resp.Messages, nil
+}
+
+func (c *Client) ListAllMessageIDs(query string) ([]string, error) {
+	var allIDs []string
+	pageToken := ""
+	for {
+		params := url.Values{}
+		if query != "" {
+			params.Set("q", query)
+		}
+		params.Set("maxResults", "500")
+		if pageToken != "" {
+			params.Set("pageToken", pageToken)
+		}
+
+		data, err := c.doRequest(http.MethodGet, "/gmail/v1/users/me/messages", params)
+		if err != nil {
+			return nil, err
+		}
+
+		var resp MessageListResponse
+		if err := json.Unmarshal(data, &resp); err != nil {
+			return nil, fmt.Errorf("parse message list: %w", err)
+		}
+		for _, m := range resp.Messages {
+			allIDs = append(allIDs, m.ID)
+		}
+		if resp.NextPageToken == "" {
+			break
+		}
+		pageToken = resp.NextPageToken
+	}
+	return allIDs, nil
 }
 
 func (c *Client) GetMessage(id string) (*Message, error) {
