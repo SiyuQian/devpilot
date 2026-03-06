@@ -7,6 +7,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/siyuqian/devpilot/internal/auth"
 	"github.com/siyuqian/devpilot/internal/generate"
+	"github.com/siyuqian/devpilot/internal/gmail"
 	"github.com/siyuqian/devpilot/internal/initcmd"
 	"github.com/siyuqian/devpilot/internal/openspec"
 	"github.com/siyuqian/devpilot/internal/taskrunner"
@@ -27,6 +28,7 @@ func main() {
 	auth.RegisterCommands(rootCmd)
 	initcmd.RegisterCommands(rootCmd)
 	trello.RegisterCommands(rootCmd)
+	gmail.RegisterCommands(rootCmd)
 	taskrunner.RegisterCommands(rootCmd)
 	generate.RegisterCommands(rootCmd)
 	openspec.RegisterCommands(rootCmd)
