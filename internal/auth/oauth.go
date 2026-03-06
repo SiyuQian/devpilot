@@ -29,7 +29,8 @@ type OAuthConfig struct {
 	ClientID     string
 	ClientSecret string
 	Scopes       []string
-	RedirectPort int // 0 means random available port
+	RedirectPort int  // 0 means random available port
+	UseTLS       bool // Use HTTPS for callback server (required by some providers like Slack)
 }
 
 type OAuthToken struct {
@@ -116,7 +117,7 @@ func generateSelfSignedCert() (tls.Certificate, error) {
 	}, nil
 }
 
-func startCallbackServer(state string) (net.Listener, *http.Server, <-chan callbackResult, error) {
+func startCallbackServer(state string, useTLS bool, port int) (net.Listener, *http.Server, <-chan callbackResult, error) {
 	resultCh := make(chan callbackResult, 1)
 
 	mux := http.NewServeMux()
@@ -149,16 +150,33 @@ func startCallbackServer(state string) (net.Listener, *http.Server, <-chan callb
 
 	srv := &http.Server{Handler: mux}
 
+	addr := fmt.Sprintf("127.0.0.1:%d", port)
 	var listener net.Listener
 	var err error
-	for range 3 {
-		listener, err = net.Listen("tcp", "127.0.0.1:0")
-		if err == nil {
-			break
+	if port == 0 {
+		// Random port: retry in case of transient conflicts
+		for range 3 {
+			listener, err = net.Listen("tcp", addr)
+			if err == nil {
+				break
+			}
 		}
+	} else {
+		// Fixed port: no point retrying the same address
+		listener, err = net.Listen("tcp", addr)
 	}
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("failed to bind to a local port after 3 attempts: %w", err)
+		return nil, nil, nil, fmt.Errorf("failed to bind to local port %s: %w", addr, err)
+	}
+
+	if useTLS {
+		cert, err := generateSelfSignedCert()
+		if err != nil {
+			listener.Close()
+			return nil, nil, nil, fmt.Errorf("failed to generate TLS certificate: %w", err)
+		}
+		tlsConfig := &tls.Config{Certificates: []tls.Certificate{cert}}
+		listener = tls.NewListener(listener, tlsConfig)
 	}
 
 	go srv.Serve(listener) //nolint:errcheck
@@ -309,14 +327,18 @@ func StartFlow(cfg OAuthConfig) (*OAuthToken, error) {
 		return nil, err
 	}
 
-	listener, srv, resultCh, err := startCallbackServer(state)
+	listener, srv, resultCh, err := startCallbackServer(state, cfg.UseTLS, cfg.RedirectPort)
 	if err != nil {
 		return nil, err
 	}
 	defer srv.Shutdown(context.Background()) //nolint:errcheck
 
 	port := listener.Addr().(*net.TCPAddr).Port
-	redirectURI := fmt.Sprintf("http://localhost:%d/callback", port)
+	scheme := "http"
+	if cfg.UseTLS {
+		scheme = "https"
+	}
+	redirectURI := fmt.Sprintf("%s://localhost:%d/callback", scheme, port)
 	authURL := buildAuthURL(cfg, redirectURI, state)
 
 	if err := openBrowser(authURL); err != nil {

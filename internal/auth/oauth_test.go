@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
 	"fmt"
@@ -35,7 +36,7 @@ func callbackPort(listener net.Listener) int {
 
 func TestCallbackServerValidState(t *testing.T) {
 	state := "test-state-123"
-	listener, srv, resultCh, err := startCallbackServer(state)
+	listener, srv, resultCh, err := startCallbackServer(state, false, 0)
 	if err != nil {
 		t.Fatalf("startCallbackServer() error: %v", err)
 	}
@@ -65,7 +66,7 @@ func TestCallbackServerValidState(t *testing.T) {
 
 func TestCallbackServerInvalidState(t *testing.T) {
 	state := "correct-state"
-	listener, srv, resultCh, err := startCallbackServer(state)
+	listener, srv, resultCh, err := startCallbackServer(state, false, 0)
 	if err != nil {
 		t.Fatalf("startCallbackServer() error: %v", err)
 	}
@@ -88,7 +89,7 @@ func TestCallbackServerInvalidState(t *testing.T) {
 
 func TestCallbackServerDeniedAuth(t *testing.T) {
 	state := "test-state"
-	listener, srv, resultCh, err := startCallbackServer(state)
+	listener, srv, resultCh, err := startCallbackServer(state, false, 0)
 	if err != nil {
 		t.Fatalf("startCallbackServer() error: %v", err)
 	}
@@ -106,6 +107,42 @@ func TestCallbackServerDeniedAuth(t *testing.T) {
 	result := <-resultCh
 	if result.err != ErrAuthDenied {
 		t.Errorf("expected ErrAuthDenied, got %v", result.err)
+	}
+}
+
+func TestCallbackServerTLS(t *testing.T) {
+	state := "tls-test-state"
+	listener, srv, resultCh, err := startCallbackServer(state, true, 0)
+	if err != nil {
+		t.Fatalf("startCallbackServer(TLS) error: %v", err)
+	}
+	defer srv.Close()
+
+	port := callbackPort(listener)
+	url := fmt.Sprintf("https://localhost:%d/callback?code=tlscode&state=%s", port, state)
+
+	// Use a client that skips TLS verification (self-signed cert)
+	client := &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		},
+	}
+	resp, err := client.Get(url)
+	if err != nil {
+		t.Fatalf("GET TLS callback error: %v", err)
+	}
+	resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("expected 200, got %d", resp.StatusCode)
+	}
+
+	result := <-resultCh
+	if result.err != nil {
+		t.Errorf("unexpected error: %v", result.err)
+	}
+	if result.code != "tlscode" {
+		t.Errorf("expected code 'tlscode', got %q", result.code)
 	}
 }
 
