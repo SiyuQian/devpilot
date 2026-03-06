@@ -2,16 +2,15 @@ package gmail
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/siyuqian/devpilot/internal/auth"
 )
 
 const (
-	gmailClientID     = "xxxx.apps.googleusercontent.com"
-	gmailClientSecret = "GOCSPX-xxxx"
-	gmailAuthURL      = "https://accounts.google.com/o/oauth2/v2/auth"
-	gmailTokenURL     = "https://oauth2.googleapis.com/token"
-	gmailScope        = "https://www.googleapis.com/auth/gmail.modify"
+	gmailAuthURL  = "https://accounts.google.com/o/oauth2/v2/auth"
+	gmailTokenURL = "https://oauth2.googleapis.com/token"
+	gmailScope    = "https://www.googleapis.com/auth/gmail.modify"
 )
 
 func init() {
@@ -59,8 +58,8 @@ func (g *GmailService) oauthConfig() auth.OAuthConfig {
 		ProviderName: "gmail",
 		AuthURL:      gmailAuthURL,
 		TokenURL:     gmailTokenURL,
-		ClientID:     gmailClientID,
-		ClientSecret: gmailClientSecret,
+		ClientID:     os.Getenv("GMAIL_CLIENT_ID"),
+		ClientSecret: os.Getenv("GMAIL_CLIENT_SECRET"),
 		Scopes:       []string{gmailScope},
 	}
 }
