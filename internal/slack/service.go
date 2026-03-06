@@ -1,9 +1,11 @@
 package slack
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/siyuqian/devpilot/internal/auth"
 )
@@ -30,24 +32,47 @@ func (s *SlackService) Name() string {
 }
 
 func (s *SlackService) Login() error {
+	fmt.Println("Slack Login")
+	fmt.Println("===========")
+	fmt.Println()
+	fmt.Println("To authenticate, you need a Slack App Client ID and Secret:")
+	fmt.Println()
+	fmt.Println("1. Go to https://api.slack.com/apps")
+	fmt.Println("2. Create a new app (or use an existing one)")
+	fmt.Println("3. Copy the Client ID and Client Secret from Basic Information")
+	fmt.Println()
+
+	reader := bufio.NewReader(os.Stdin)
+
+	fmt.Print("Client ID: ")
+	clientID, _ := reader.ReadString('\n')
+	clientID = strings.TrimSpace(clientID)
+
+	fmt.Print("Client Secret: ")
+	clientSecret, _ := reader.ReadString('\n')
+	clientSecret = strings.TrimSpace(clientSecret)
+
+	if clientID == "" || clientSecret == "" {
+		return fmt.Errorf("both Client ID and Client Secret are required")
+	}
+
+	// Save client credentials first so oauthConfig() can read them.
+	creds := auth.ServiceCredentials{
+		"client_id":     clientID,
+		"client_secret": clientSecret,
+	}
+	if err := auth.Save(s.Name(), creds); err != nil {
+		return fmt.Errorf("failed to save credentials: %w", err)
+	}
+
 	cfg := s.oauthConfig()
 	token, err := auth.StartFlow(cfg)
 	if err != nil {
 		return fmt.Errorf("slack login failed: %w", err)
 	}
 
-	// Slack OAuth V2 returns bot token and workspace info in the token response.
-	// We need to re-exchange the code to get the full response, but StartFlow
-	// already parsed it. The access_token is the bot token (xoxb-...).
-	// We also need team_id and team_name from the raw response.
-	// Since StartFlow only returns the standard OAuthToken, we store what we have
-	// and parse additional fields from a second approach.
-	//
-	// Actually, Slack's oauth.v2.access response includes access_token at the top level,
-	// which StartFlow's parseTokenResponse will capture. We save the bot token directly.
-	creds := auth.ServiceCredentials{
-		"access_token": token.AccessToken,
-	}
+	// Preserve client credentials alongside the access token.
+	creds["access_token"] = token.AccessToken
 	if err := auth.Save(s.Name(), creds); err != nil {
 		return fmt.Errorf("failed to save credentials: %w", err)
 	}
@@ -70,12 +95,13 @@ func (s *SlackService) IsLoggedIn() bool {
 }
 
 func (s *SlackService) oauthConfig() auth.OAuthConfig {
+	creds, _ := auth.Load(s.Name())
 	return auth.OAuthConfig{
 		ProviderName: "slack",
 		AuthURL:      slackAuthURL,
 		TokenURL:     slackTokenURL,
-		ClientID:     os.Getenv("SLACK_CLIENT_ID"),
-		ClientSecret: os.Getenv("SLACK_CLIENT_SECRET"),
+		ClientID:     creds["client_id"],
+		ClientSecret: creds["client_secret"],
 		Scopes:       []string{slackScopeChat, slackScopeRead},
 		UseTLS:       true,
 		RedirectPort: 17321,
