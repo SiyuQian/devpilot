@@ -55,10 +55,10 @@ devpilot sync                                              # Sync OpenSpec chang
 devpilot sync --board "Board Name"                         # Override board
 devpilot sync --source github                              # Override source
 
-devpilot gmail summary                                     # Summarize today's unread emails via AI
-devpilot gmail summary --channel daily-digest              # Send summary to a Slack channel
-devpilot gmail summary --dm U0123ABCDE                     # Send summary as a DM
-devpilot gmail summary --no-mark-read                      # Preview mode (don't mark emails as read)
+devpilot gmail summary                                     # Dry run: summarize all unread emails (won't mark as read)
+devpilot gmail summary --channel daily-digest              # Send summary to a Slack channel (marks as read)
+devpilot gmail summary --dm U0123ABCDE                     # Send summary as a DM (marks as read)
+devpilot gmail summary --no-mark-read=false                # Explicitly mark emails as read without sending
 ```
 
 ### Skill Helper Scripts (Python 3)

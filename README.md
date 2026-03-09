@@ -25,7 +25,7 @@ Plan (markdown) → devpilot push → Trello card → devpilot run → claude -p
 - **Real-time TUI dashboard** — Bubble Tea terminal UI with tool call history, file tracking, token stats, and scrollable output
 - **Automated code review** — A second `claude -p` invocation reviews the diff against the original plan before merging
 - **OpenSpec integration** — Sync spec-driven changes to Trello or GitHub Issues with `devpilot sync`
-- **Gmail AI digest** — `devpilot gmail summary` summarizes today's unread emails via Claude and optionally sends to Slack
+- **Gmail AI digest** — `devpilot gmail summary` summarizes all unread emails via Claude (dry run by default, marks as read when sending to Slack)
 - **Slack integration** — Send messages to channels or DMs, used as an output target for Gmail summaries
 - **Built-in Claude Code skills** — PM research, Trello management, task refinement, Confluence review, and more
 - **Project scaffolding** — `devpilot init` detects your stack and generates config, hooks, and skills
@@ -149,7 +149,7 @@ devpilot run --board "Sprint Board"
 |------|---------|-------------|
 | `--channel` | | Send summary to a Slack channel |
 | `--dm` | | Send summary as DM to a Slack user ID |
-| `--no-mark-read` | `false` | Preview mode (don't mark emails as read) |
+| `--no-mark-read` | `true` (without `--channel`/`--dm`) | Don't mark emails as read (default when no output target) |
 
 ### `devpilot slack send` Flags
 
