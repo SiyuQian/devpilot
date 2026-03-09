@@ -5,7 +5,6 @@ import (
 	"os/exec"
 	"strings"
 	"sync"
-	"time"
 )
 
 // EmailSummary holds a fetched email's key fields for summarization.
@@ -17,9 +16,9 @@ type EmailSummary struct {
 	Body    string
 }
 
-// TodayQuery returns a Gmail query for today's unread emails.
-func TodayQuery() string {
-	return "is:unread after:" + time.Now().Format("2006/01/02")
+// UnreadQuery returns a Gmail query for all unread emails.
+func UnreadQuery() string {
+	return "is:unread"
 }
 
 // FetchEmails fetches full email content for all given message IDs concurrently.

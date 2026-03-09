@@ -207,8 +207,14 @@ var summaryCmd = &cobra.Command{
 		dm, _ := cmd.Flags().GetString("dm")
 		noMarkRead, _ := cmd.Flags().GetBool("no-mark-read")
 
-		// Fetch today's unread email IDs
-		query := TodayQuery()
+		// Default to dry run when no output target is specified
+		hasOutputTarget := channel != "" || dm != ""
+		if !hasOutputTarget && !cmd.Flags().Changed("no-mark-read") {
+			noMarkRead = true
+		}
+
+		// Fetch all unread email IDs
+		query := UnreadQuery()
 		fmt.Printf("Fetching unread emails (%s)...\n", query)
 		ids, err := client.ListAllMessageIDs(query)
 		if err != nil {
