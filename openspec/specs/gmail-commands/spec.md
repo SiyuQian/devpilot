@@ -1,4 +1,4 @@
-## ADDED Requirements
+## Requirements
 
 ### Requirement: List unread emails
 The system SHALL provide a `devpilot gmail list` command that lists unread emails from the user's inbox.
