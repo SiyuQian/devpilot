@@ -25,6 +25,8 @@ Plan (markdown) → devpilot push → Trello card → devpilot run → claude -p
 - **Real-time TUI dashboard** — Bubble Tea terminal UI with tool call history, file tracking, token stats, and scrollable output
 - **Automated code review** — A second `claude -p` invocation reviews the diff against the original plan before merging
 - **OpenSpec integration** — Sync spec-driven changes to Trello or GitHub Issues with `devpilot sync`
+- **Gmail AI digest** — `devpilot gmail summary` summarizes today's unread emails via Claude and optionally sends to Slack
+- **Slack integration** — Send messages to channels or DMs, used as an output target for Gmail summaries
 - **Built-in Claude Code skills** — PM research, Trello management, task refinement, Confluence review, and more
 - **Project scaffolding** — `devpilot init` detects your stack and generates config, hooks, and skills
 
@@ -36,6 +38,8 @@ Plan (markdown) → devpilot push → Trello card → devpilot run → claude -p
 - [GitHub CLI (`gh`)](https://cli.github.com/) installed and authenticated
 - A [Trello](https://trello.com/) account with an [API key and token](https://trello.com/power-ups/admin)
 - Git repository initialized in your project
+- *(Optional)* Google OAuth credentials for Gmail integration
+- *(Optional)* Slack OAuth credentials for Slack integration
 
 ### Installation
 
@@ -84,12 +88,18 @@ devpilot run --board "Sprint Board"
 | Command | Description |
 |---------|-------------|
 | `devpilot init` | Interactive project setup wizard |
-| `devpilot login <service>` | Authenticate with a service (currently: `trello`) |
+| `devpilot login <service>` | Authenticate with a service (`trello`, `gmail`, `slack`) |
 | `devpilot logout <service>` | Remove stored credentials |
 | `devpilot status` | Show authentication status |
 | `devpilot push <file>` | Create a Trello card from a plan markdown file |
 | `devpilot run` | Autonomously process tasks from a Trello board |
 | `devpilot sync` | Sync OpenSpec changes to Trello board or GitHub Issues |
+| `devpilot gmail list` | List emails with search filters |
+| `devpilot gmail read <id>` | Display full email content |
+| `devpilot gmail mark-read <id>...` | Mark emails as read |
+| `devpilot gmail bulk-mark-read` | Bulk mark emails as read by query |
+| `devpilot gmail summary` | AI-powered email digest via Claude |
+| `devpilot slack send` | Send message to a Slack channel or DM |
 | `devpilot commit` | Generate a commit message from staged changes |
 | `devpilot readme` | Generate or improve README.md |
 
@@ -118,6 +128,35 @@ devpilot run --board "Sprint Board"
 |------|---------|-------------|
 | `--board` | *(from config)* | Override Trello board name |
 | `--source` | `trello` | Task source (`trello` or `github`) |
+
+### `devpilot gmail list` Flags
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--unread` | `false` | Show only unread emails |
+| `--after` | | Filter emails after date (YYYY-MM-DD) |
+| `--limit` | `20` | Maximum number of emails to list |
+
+### `devpilot gmail bulk-mark-read` Flags
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--query` | *(required)* | Gmail search query (e.g. `category:promotions`) |
+
+### `devpilot gmail summary` Flags
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--channel` | | Send summary to a Slack channel |
+| `--dm` | | Send summary as DM to a Slack user ID |
+| `--no-mark-read` | `false` | Preview mode (don't mark emails as read) |
+
+### `devpilot slack send` Flags
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--channel` | *(required)* | Channel name or user ID for DM |
+| `--message` | | Message text (reads from stdin if omitted) |
 
 ## Task Runner Workflow
 
@@ -203,11 +242,13 @@ DevPilot ships with Claude Code skills in `.claude/skills/`:
 devpilot/
 ├── cmd/devpilot/            CLI entry point
 ├── internal/
-│   ├── auth/                Authentication & credential management
+│   ├── auth/                Authentication & credential management (OAuth 2.0)
 │   ├── generate/            AI-powered commit & readme generation
+│   ├── gmail/               Gmail API client, email listing & AI summary
 │   ├── initcmd/             Project initialization wizard
 │   ├── openspec/            OpenSpec integration & sync command
 │   ├── project/             Project config (.devpilot.json)
+│   ├── slack/               Slack API client & message sending
 │   ├── trello/              Trello API client & push command
 │   └── taskrunner/          Runner, executor, TUI dashboard
 ├── .claude/skills/          Built-in Claude Code skills
@@ -219,7 +260,7 @@ devpilot/
 
 ## Tech Stack
 
-- **Language:** Go 1.25
+- **Language:** Go 1.25.6
 - **CLI framework:** [Cobra](https://github.com/spf13/cobra)
 - **TUI:** [Bubble Tea](https://github.com/charmbracelet/bubbletea) + [Lip Gloss](https://github.com/charmbracelet/lipgloss)
 - **AI engine:** [Claude Code](https://claude.ai/code) (`claude -p` headless mode)
