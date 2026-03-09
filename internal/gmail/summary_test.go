@@ -7,7 +7,6 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
-	"time"
 )
 
 func TestTruncateBody(t *testing.T) {
@@ -101,12 +100,11 @@ func TestBuildPromptWithTruncation(t *testing.T) {
 	}
 }
 
-func TestTodayQuery(t *testing.T) {
-	query := TodayQuery()
-	today := time.Now().Format("2006/01/02")
-	expected := "is:unread after:" + today
+func TestUnreadQuery(t *testing.T) {
+	query := UnreadQuery()
+	expected := "is:unread"
 	if query != expected {
-		t.Errorf("TodayQuery() = %q, want %q", query, expected)
+		t.Errorf("UnreadQuery() = %q, want %q", query, expected)
 	}
 }
 
