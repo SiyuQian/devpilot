@@ -3,6 +3,7 @@ package gmail
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"strings"
 	"text/tabwriter"
 
@@ -23,10 +24,15 @@ func RegisterCommands(parent *cobra.Command) {
 	bulkMarkReadCmd.Flags().String("query", "", "Gmail search query (e.g. 'category:promotions')")
 	bulkMarkReadCmd.MarkFlagRequired("query")
 
+	summaryCmd.Flags().String("channel", "", "Send summary to a Slack channel")
+	summaryCmd.Flags().String("dm", "", "Send summary as a DM to a Slack user ID")
+	summaryCmd.Flags().Bool("no-mark-read", false, "Skip marking emails as read (preview mode)")
+
 	gmailCmd.AddCommand(listCmd)
 	gmailCmd.AddCommand(readCmd)
 	gmailCmd.AddCommand(markReadCmd)
 	gmailCmd.AddCommand(bulkMarkReadCmd)
+	gmailCmd.AddCommand(summaryCmd)
 
 	parent.AddCommand(gmailCmd)
 }
@@ -178,6 +184,96 @@ var bulkMarkReadCmd = &cobra.Command{
 		}
 
 		fmt.Printf("Done. Marked %d message(s) as read.\n", len(ids))
+	},
+}
+
+var summaryCmd = &cobra.Command{
+	Use:   "summary",
+	Short: "Summarize today's unread emails using AI",
+	Run: func(cmd *cobra.Command, args []string) {
+		client, err := requireLogin()
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+
+		// Check claude is available
+		if _, err := exec.LookPath("claude"); err != nil {
+			fmt.Fprintln(os.Stderr, "Error: Claude Code CLI is required but not found on PATH. Install it from https://claude.ai/code")
+			os.Exit(1)
+		}
+
+		channel, _ := cmd.Flags().GetString("channel")
+		dm, _ := cmd.Flags().GetString("dm")
+		noMarkRead, _ := cmd.Flags().GetBool("no-mark-read")
+
+		// Fetch today's unread email IDs
+		query := TodayQuery()
+		fmt.Printf("Fetching unread emails (%s)...\n", query)
+		ids, err := client.ListAllMessageIDs(query)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error fetching emails: %v\n", err)
+			os.Exit(1)
+		}
+
+		if len(ids) == 0 {
+			fmt.Println("No unread emails for today.")
+			return
+		}
+
+		fmt.Printf("Found %d unread email(s). Fetching content...\n", len(ids))
+
+		// Fetch email content concurrently
+		emails, err := FetchEmails(client, ids)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error fetching email content: %v\n", err)
+			os.Exit(1)
+		}
+
+		// Build prompt and invoke claude -p
+		prompt := BuildPrompt(emails)
+		fmt.Println("Generating summary with Claude...")
+		summary, err := RunClaude(prompt)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			os.Exit(1)
+		}
+
+		// Print summary to stdout
+		fmt.Println()
+		fmt.Println(summary)
+
+		// Send to Slack if requested
+		slackTarget := channel
+		if dm != "" {
+			slackTarget = dm
+		}
+		if slackTarget != "" {
+			fmt.Printf("\nSending summary to Slack (%s)...\n", slackTarget)
+			if err := SendToSlack(summary, slackTarget); err != nil {
+				fmt.Fprintf(os.Stderr, "Warning: %v\n", err)
+				// Still mark as read per design decision
+			} else {
+				fmt.Println("Summary sent to Slack.")
+			}
+		}
+
+		// Mark emails as read unless --no-mark-read
+		if !noMarkRead {
+			fmt.Printf("Marking %d email(s) as read...\n", len(ids))
+			batchSize := 1000
+			for i := 0; i < len(ids); i += batchSize {
+				end := i + batchSize
+				if end > len(ids) {
+					end = len(ids)
+				}
+				if err := client.BatchModify(ids[i:end], []string{"UNREAD"}); err != nil {
+					fmt.Fprintf(os.Stderr, "Error marking emails as read: %v\n", err)
+					os.Exit(1)
+				}
+			}
+			fmt.Println("Done.")
+		}
 	},
 }
 
