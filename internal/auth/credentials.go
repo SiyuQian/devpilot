@@ -17,6 +17,14 @@ var configDir = func() string {
 	return filepath.Join(home, ".config", "devpilot")
 }
 
+// OverrideConfigDir replaces the config directory function and returns
+// a restore function. Intended for use in tests outside the auth package.
+func OverrideConfigDir(dir string) (restore func()) {
+	orig := configDir
+	configDir = func() string { return dir }
+	return func() { configDir = orig }
+}
+
 func credentialsPath() string {
 	return filepath.Join(configDir(), "credentials.json")
 }

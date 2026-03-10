@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/siyuqian/devpilot/internal/auth"
 )
 
 func TestListConversations(t *testing.T) {
@@ -238,6 +240,9 @@ func TestServiceName(t *testing.T) {
 }
 
 func TestServiceIsLoggedIn(t *testing.T) {
+	restore := auth.OverrideConfigDir(t.TempDir())
+	defer restore()
+
 	svc := NewSlackService()
 	// Without credentials saved, should return false
 	if svc.IsLoggedIn() {
