@@ -6,9 +6,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/spf13/cobra"
 	"github.com/siyuqian/devpilot/internal/auth"
 	"github.com/siyuqian/devpilot/internal/trello"
+	"github.com/spf13/cobra"
 )
 
 // RegisterCommands adds the init command to the parent command.

@@ -50,7 +50,7 @@ func TestParseTrelloPriority(t *testing.T) {
 		{[]trello.Label{{Name: "P1-high"}}, 1},
 		{[]trello.Label{{Name: "P2-normal"}}, 2},
 		{[]trello.Label{{Name: "p0-critical"}}, 0}, // case insensitive
-		{[]trello.Label{{Name: "bug"}}, 2},          // non-priority label defaults to P2
+		{[]trello.Label{{Name: "bug"}}, 2},         // non-priority label defaults to P2
 		{nil, 2},
 	}
 	for _, c := range cases {

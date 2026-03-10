@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/spf13/cobra"
 	"github.com/siyuqian/devpilot/internal/auth"
 	"github.com/siyuqian/devpilot/internal/project"
 	"github.com/siyuqian/devpilot/internal/trello"
+	"github.com/spf13/cobra"
 )
 
 func RegisterCommands(parent *cobra.Command) {

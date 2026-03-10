@@ -10,9 +10,9 @@ import (
 )
 
 const (
-	gmailAuthURL = "https://accounts.google.com/o/oauth2/v2/auth"
+	gmailAuthURL  = "https://accounts.google.com/o/oauth2/v2/auth"
 	gmailTokenURL = "https://oauth2.googleapis.com/token"
-	gmailScope   = "https://www.googleapis.com/auth/gmail.modify"
+	gmailScope    = "https://www.googleapis.com/auth/gmail.modify"
 )
 
 func init() {

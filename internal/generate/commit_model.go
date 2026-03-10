@@ -28,10 +28,10 @@ const (
 // CommitModel is the Bubble Tea model for the commit workflow.
 type CommitModel struct {
 	// Config
-	model      string
-	context    string
-	dryRun     bool
-	genCtx     context.Context
+	model   string
+	context string
+	dryRun  bool
+	genCtx  context.Context
 
 	// State
 	phase    string

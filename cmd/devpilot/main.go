@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/spf13/cobra"
 	"github.com/siyuqian/devpilot/internal/auth"
 	"github.com/siyuqian/devpilot/internal/generate"
 	"github.com/siyuqian/devpilot/internal/gmail"
@@ -13,6 +12,7 @@ import (
 	"github.com/siyuqian/devpilot/internal/slack"
 	"github.com/siyuqian/devpilot/internal/taskrunner"
 	"github.com/siyuqian/devpilot/internal/trello"
+	"github.com/spf13/cobra"
 )
 
 var version = "dev"

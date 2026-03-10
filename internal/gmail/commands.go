@@ -7,8 +7,8 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	"github.com/spf13/cobra"
 	"github.com/siyuqian/devpilot/internal/auth"
+	"github.com/spf13/cobra"
 )
 
 func RegisterCommands(parent *cobra.Command) {

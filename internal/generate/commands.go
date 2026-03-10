@@ -6,8 +6,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/spf13/cobra"
 	"github.com/siyuqian/devpilot/internal/project"
+	"github.com/spf13/cobra"
 )
 
 func RegisterCommands(parent *cobra.Command) {

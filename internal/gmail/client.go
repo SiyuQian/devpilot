@@ -69,10 +69,10 @@ type Message struct {
 }
 
 type Payload struct {
-	Headers []Header  `json:"headers"`
-	Body    Body      `json:"body"`
-	Parts   []Payload `json:"parts"`
-	MimeType string   `json:"mimeType"`
+	Headers  []Header  `json:"headers"`
+	Body     Body      `json:"body"`
+	Parts    []Payload `json:"parts"`
+	MimeType string    `json:"mimeType"`
 }
 
 type Header struct {
@@ -277,8 +277,8 @@ func (c *Client) GetMessage(id string) (*Message, error) {
 
 func (c *Client) BatchModify(ids []string, removeLabelIds []string) error {
 	payload := map[string]any{
-		"ids":             ids,
-		"removeLabelIds":  removeLabelIds,
+		"ids":            ids,
+		"removeLabelIds": removeLabelIds,
 	}
 	_, err := c.doPost("/gmail/v1/users/me/messages/batchModify", payload)
 	return err

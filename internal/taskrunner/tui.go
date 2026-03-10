@@ -369,4 +369,3 @@ func (m TUIModel) View() string {
 	}
 	return m.renderView()
 }
-

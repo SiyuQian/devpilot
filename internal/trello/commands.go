@@ -7,9 +7,9 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/spf13/cobra"
 	"github.com/siyuqian/devpilot/internal/auth"
 	"github.com/siyuqian/devpilot/internal/project"
+	"github.com/spf13/cobra"
 )
 
 func RegisterCommands(parent *cobra.Command) {

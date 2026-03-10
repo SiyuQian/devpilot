@@ -13,7 +13,7 @@ type Status struct {
 	HasClaudeMD    bool
 	HasTrelloCreds bool
 	HasBoardConfig bool
-HasSkills      bool
+	HasSkills      bool
 	IsGitRepo      bool
 	WorkDir        string
 }

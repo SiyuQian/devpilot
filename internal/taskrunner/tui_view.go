@@ -175,7 +175,7 @@ func renderToolCallsPanel(m TUIModel, width int) string {
 	style := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(focusColor).
-		Width(width - 2).
+		Width(width-2).
 		Padding(0, 1)
 
 	if len(m.toolCalls) == 0 && m.activeCall == nil {
@@ -210,7 +210,7 @@ func renderFilesPanel(m TUIModel, width int) string {
 	style := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(lipgloss.Color("240")).
-		Width(width - 2).
+		Width(width-2).
 		Padding(0, 1)
 
 	if len(m.filesRead) == 0 && len(m.filesEdited) == 0 {
@@ -236,7 +236,7 @@ func renderTextPane(m TUIModel) string {
 	style := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(focusColor).
-		Width(m.width - 2).
+		Width(m.width-2).
 		Padding(0, 1)
 
 	if len(m.textLines) == 0 {
