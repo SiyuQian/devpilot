@@ -354,10 +354,15 @@ func (r *Runner) saveLog(cardID string, result *ExecuteResult) {
 		return
 	}
 	logDir := filepath.Join(r.config.WorkDir, ".devpilot", "logs")
-	os.MkdirAll(logDir, 0755)
+	if err := os.MkdirAll(logDir, 0755); err != nil {
+		r.logger.Printf("Failed to create log directory: %v", err)
+		return
+	}
 	logPath := filepath.Join(logDir, cardID+".log")
 	content := fmt.Sprintf("=== STDOUT ===\n%s\n\n=== STDERR ===\n%s\n", result.Stdout, result.Stderr)
-	os.WriteFile(logPath, []byte(content), 0644)
+	if err := os.WriteFile(logPath, []byte(content), 0644); err != nil {
+		r.logger.Printf("Failed to write log file %s: %v", logPath, err)
+	}
 }
 
 func (r *Runner) sleep(ctx context.Context, d time.Duration) bool {
@@ -368,4 +373,3 @@ func (r *Runner) sleep(ctx context.Context, d time.Duration) bool {
 		return true
 	}
 }
-
