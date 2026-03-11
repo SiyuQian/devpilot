@@ -10,8 +10,10 @@ import (
 	"strconv"
 	"strings"
 	"text/template"
+	"time"
 
 	"github.com/siyuqian/devpilot/internal/project"
+	"github.com/siyuqian/devpilot/internal/skillmgr"
 )
 
 // Board is a simple struct for board listing (avoids importing trello package).
@@ -124,7 +126,7 @@ func GenerateClaudeMD(opts GenerateOpts) error {
 	return nil
 }
 
-// ConfigureBoard sets up the board name in .devpilot.json.
+// ConfigureBoard sets up the board name in .devpilot.yaml.
 func ConfigureBoard(opts GenerateOpts, listBoards func() ([]Board, error)) error {
 	if !opts.Interactive {
 		fmt.Println("  Skipped: board configuration (use devpilot init without --yes to configure)")
@@ -218,6 +220,72 @@ func EnsureGitignore(dir string, entries []string) error {
 
 	fmt.Printf("  Updated .gitignore: added %s\n", strings.Join(toAdd, ", "))
 	return nil
+}
+
+// SkillSelector is a function that presents a skill catalog and returns selected names.
+type SkillSelector func(catalog []skillmgr.CatalogEntry) ([]string, error)
+
+// SkillFetcher is a function that fetches skill files for a given name and tag.
+type SkillFetcher func(name, tag string) ([]skillmgr.SkillFile, error)
+
+// InstallSkills presents a multi-select checklist of devpilot's built-in skills
+// and installs the selected ones. Skipped in non-interactive mode.
+// selectFn and fetchFn may be nil; defaults are used in that case.
+func InstallSkills(opts GenerateOpts, selectFn SkillSelector, fetchFn SkillFetcher) error {
+	if !opts.Interactive {
+		return nil
+	}
+
+	if selectFn == nil {
+		selectFn = skillmgr.SelectSkillsFromCatalog
+	}
+
+	selected, err := selectFn(skillmgr.BuiltinCatalog)
+	if err != nil {
+		return fmt.Errorf("skill selection: %w", err)
+	}
+	if len(selected) == 0 {
+		return nil
+	}
+
+	var tag string
+	if fetchFn == nil {
+		fmt.Printf("  Resolving latest devpilot version...\n")
+		tag, err = skillmgr.FetchLatestTag("siyuqian", "devpilot")
+		if err != nil {
+			return fmt.Errorf("resolving latest tag: %w", err)
+		}
+		fetchFn = func(name, t string) ([]skillmgr.SkillFile, error) {
+			return skillmgr.FetchSkill("siyuqian", "devpilot", name, t)
+		}
+	}
+
+	cfg, err := project.Load(opts.Dir)
+	if err != nil {
+		return fmt.Errorf("loading config: %w", err)
+	}
+
+	for _, name := range selected {
+		fmt.Printf("  Installing skill %q at %s...\n", name, tag)
+		files, err := fetchFn(name, tag)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "  Warning: failed to fetch skill %q: %v\n", name, err)
+			continue
+		}
+		if err := skillmgr.InstallSkill(opts.Dir, name, files); err != nil {
+			fmt.Fprintf(os.Stderr, "  Warning: failed to install skill %q: %v\n", name, err)
+			continue
+		}
+		cfg.UpsertSkill(project.SkillEntry{
+			Name:        name,
+			Source:      skillmgr.DefaultSource,
+			Version:     tag,
+			InstalledAt: time.Now().UTC(),
+		})
+		fmt.Printf("  Installed .claude/skills/%s/\n", name)
+	}
+
+	return project.Save(opts.Dir, cfg)
 }
 
 // CreateSkill creates an initial skill directory with a SKILL.md file.

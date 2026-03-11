@@ -15,7 +15,7 @@ import (
 func RegisterCommands(parent *cobra.Command) {
 	pushCmd.Flags().String("board", "", "Trello board name (required)")
 	pushCmd.Flags().String("list", "Ready", "Target list name")
-	pushCmd.Flags().String("source", "", "Task source: trello or github (default from .devpilot.json, fallback to trello)")
+	pushCmd.Flags().String("source", "", "Task source: trello or github (default from .devpilot.yaml, fallback to trello)")
 	parent.AddCommand(pushCmd)
 }
 

@@ -32,7 +32,7 @@ func Detect(dir string) *Status {
 		s.HasTrelloCreds = true
 	}
 
-	// Board config in .devpilot.json
+	// Board config in .devpilot.yaml
 	cfg, err := project.Load(dir)
 	if err == nil && cfg.Board != "" {
 		s.HasBoardConfig = true

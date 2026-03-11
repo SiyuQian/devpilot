@@ -20,7 +20,7 @@ import (
 
 func RegisterCommands(parent *cobra.Command) {
 	runCmd.Flags().String("board", "", "Trello board name (required for trello source)")
-	runCmd.Flags().String("source", "", "Task source: trello or github (default from .devpilot.json, fallback to trello)")
+	runCmd.Flags().String("source", "", "Task source: trello or github (default from .devpilot.yaml, fallback to trello)")
 	runCmd.Flags().Int("interval", 300, "Poll interval in seconds")
 	runCmd.Flags().Int("timeout", 30, "Per-task timeout in minutes")
 	runCmd.Flags().Int("review-timeout", 10, "Code review timeout in minutes (0 to disable)")
