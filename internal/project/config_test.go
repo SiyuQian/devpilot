@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 func TestSaveAndLoad(t *testing.T) {
@@ -85,7 +86,7 @@ func TestSaveFilePermissions(t *testing.T) {
 		t.Fatalf("Save failed: %v", err)
 	}
 
-	info, err := os.Stat(filepath.Join(dir, ".devpilot.json"))
+	info, err := os.Stat(filepath.Join(dir, ".devpilot.yaml"))
 	if err != nil {
 		t.Fatalf("Stat failed: %v", err)
 	}
@@ -98,8 +99,8 @@ func TestSaveFilePermissions(t *testing.T) {
 
 func TestLoadConfigWithModels(t *testing.T) {
 	dir := t.TempDir()
-	data := `{"board":"myboard","models":{"commit":"claude-haiku-4-5","default":"claude-sonnet-4-6"}}`
-	os.WriteFile(filepath.Join(dir, ".devpilot.json"), []byte(data), 0644)
+	data := "board: myboard\nmodels:\n  commit: claude-haiku-4-5\n  default: claude-sonnet-4-6\n"
+	os.WriteFile(filepath.Join(dir, ".devpilot.yaml"), []byte(data), 0644)
 
 	cfg, err := Load(dir)
 	if err != nil {
@@ -165,20 +166,99 @@ func TestConfig_OpenSpecMinVersion(t *testing.T) {
 	}
 }
 
-func TestSaveJSONFormat(t *testing.T) {
+func TestSaveYAMLFormat(t *testing.T) {
 	dir := t.TempDir()
 
 	if err := Save(dir, &Config{Board: "My Board"}); err != nil {
 		t.Fatalf("Save failed: %v", err)
 	}
 
-	data, err := os.ReadFile(filepath.Join(dir, ".devpilot.json"))
+	data, err := os.ReadFile(filepath.Join(dir, ".devpilot.yaml"))
 	if err != nil {
 		t.Fatalf("ReadFile failed: %v", err)
 	}
 
-	expected := "{\n  \"board\": \"My Board\"\n}\n"
-	if string(data) != expected {
-		t.Errorf("file content = %q, want %q", string(data), expected)
+	content := string(data)
+	if content != "board: My Board\n" {
+		t.Errorf("file content = %q, want %q", content, "board: My Board\n")
+	}
+}
+
+func TestUpsertSkillAdd(t *testing.T) {
+	cfg := &Config{}
+	entry := SkillEntry{
+		Name:        "pm",
+		Source:      "github.com/siyuqian/devpilot",
+		Version:     "v1.0.0",
+		InstalledAt: time.Now(),
+	}
+	cfg.UpsertSkill(entry)
+	if len(cfg.Skills) != 1 {
+		t.Fatalf("len(Skills) = %d, want 1", len(cfg.Skills))
+	}
+	if cfg.Skills[0].Name != "pm" {
+		t.Errorf("Name = %q, want %q", cfg.Skills[0].Name, "pm")
+	}
+}
+
+func TestUpsertSkillUpdate(t *testing.T) {
+	cfg := &Config{
+		Skills: []SkillEntry{
+			{Name: "pm", Source: "github.com/siyuqian/devpilot", Version: "v1.0.0"},
+		},
+	}
+	updated := SkillEntry{
+		Name:    "pm",
+		Source:  "github.com/siyuqian/devpilot",
+		Version: "v1.1.0",
+	}
+	cfg.UpsertSkill(updated)
+	if len(cfg.Skills) != 1 {
+		t.Fatalf("len(Skills) = %d after update, want 1 (no duplicates)", len(cfg.Skills))
+	}
+	if cfg.Skills[0].Version != "v1.1.0" {
+		t.Errorf("Version = %q, want v1.1.0", cfg.Skills[0].Version)
+	}
+}
+
+func TestUpsertSkillMultiple(t *testing.T) {
+	cfg := &Config{}
+	cfg.UpsertSkill(SkillEntry{Name: "pm"})
+	cfg.UpsertSkill(SkillEntry{Name: "trello"})
+	cfg.UpsertSkill(SkillEntry{Name: "pm", Version: "v2.0.0"})
+
+	if len(cfg.Skills) != 2 {
+		t.Fatalf("len(Skills) = %d, want 2", len(cfg.Skills))
+	}
+	if cfg.Skills[0].Version != "v2.0.0" {
+		t.Errorf("pm version = %q, want v2.0.0", cfg.Skills[0].Version)
+	}
+}
+
+func TestSkillsRoundTrip(t *testing.T) {
+	dir := t.TempDir()
+	now := time.Now().UTC().Truncate(time.Second)
+	cfg := &Config{
+		Board: "My Board",
+		Skills: []SkillEntry{
+			{Name: "pm", Source: "github.com/siyuqian/devpilot", Version: "v1.0.0", InstalledAt: now},
+		},
+	}
+	if err := Save(dir, cfg); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+	loaded, err := Load(dir)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if len(loaded.Skills) != 1 {
+		t.Fatalf("len(Skills) = %d, want 1", len(loaded.Skills))
+	}
+	s := loaded.Skills[0]
+	if s.Name != "pm" || s.Source != "github.com/siyuqian/devpilot" || s.Version != "v1.0.0" {
+		t.Errorf("skill = %+v, unexpected values", s)
+	}
+	if !s.InstalledAt.Equal(now) {
+		t.Errorf("InstalledAt = %v, want %v", s.InstalledAt, now)
 	}
 }

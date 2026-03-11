@@ -12,7 +12,7 @@ import (
 
 func RegisterCommands(parent *cobra.Command) {
 	syncCmd.Flags().String("board", "", "Trello board name (required for trello source)")
-	syncCmd.Flags().String("source", "", "Task source: trello or github (default from .devpilot.json)")
+	syncCmd.Flags().String("source", "", "Task source: trello or github (default from .devpilot.yaml)")
 	syncCmd.Flags().String("list", "Ready", "Target list name (trello only)")
 	parent.AddCommand(syncCmd)
 }

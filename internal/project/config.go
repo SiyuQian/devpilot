@@ -1,19 +1,30 @@
 package project
 
 import (
-	"encoding/json"
 	"os"
 	"path/filepath"
+	"time"
+
+	"gopkg.in/yaml.v3"
 )
 
-const configFile = ".devpilot.json"
+const configFile = ".devpilot.yaml"
 
-// Config represents project-level configuration stored in .devpilot.json.
+// SkillEntry records an installed skill in the project config.
+type SkillEntry struct {
+	Name        string    `yaml:"name"`
+	Source      string    `yaml:"source"`
+	Version     string    `yaml:"version"`
+	InstalledAt time.Time `yaml:"installedAt"`
+}
+
+// Config represents project-level configuration stored in .devpilot.yaml.
 type Config struct {
-	Board              string            `json:"board,omitempty"`
-	Source             string            `json:"source,omitempty"` // "trello" or "github"
-	Models             map[string]string `json:"models,omitempty"`
-	OpenSpecMinVersion string            `json:"openspecMinVersion,omitempty"`
+	Board              string            `yaml:"board,omitempty"`
+	Source             string            `yaml:"source,omitempty"` // "trello" or "github"
+	Models             map[string]string `yaml:"models,omitempty"`
+	OpenSpecMinVersion string            `yaml:"openspecMinVersion,omitempty"`
+	Skills             []SkillEntry      `yaml:"skills,omitempty"`
 }
 
 // ResolveSource returns the effective task source: flag value takes priority,
@@ -39,7 +50,18 @@ func (c *Config) ModelFor(command string) string {
 	return c.Models["default"]
 }
 
-// Load reads .devpilot.json from dir. Returns a zero-value Config (not an error)
+// UpsertSkill adds or updates a skill entry by name.
+func (c *Config) UpsertSkill(entry SkillEntry) {
+	for i, s := range c.Skills {
+		if s.Name == entry.Name {
+			c.Skills[i] = entry
+			return
+		}
+	}
+	c.Skills = append(c.Skills, entry)
+}
+
+// Load reads .devpilot.yaml from dir. Returns a zero-value Config (not an error)
 // if the file does not exist.
 func Load(dir string) (*Config, error) {
 	data, err := os.ReadFile(filepath.Join(dir, configFile))
@@ -50,26 +72,25 @@ func Load(dir string) (*Config, error) {
 		return nil, err
 	}
 	var cfg Config
-	if err := json.Unmarshal(data, &cfg); err != nil {
+	if err := yaml.Unmarshal(data, &cfg); err != nil {
 		return nil, err
 	}
 	return &cfg, nil
 }
 
-// Save writes cfg to .devpilot.json in dir, creating intermediate directories.
+// Save writes cfg to .devpilot.yaml in dir, creating intermediate directories.
 func Save(dir string, cfg *Config) error {
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return err
 	}
-	data, err := json.MarshalIndent(cfg, "", "  ")
+	data, err := yaml.Marshal(cfg)
 	if err != nil {
 		return err
 	}
-	data = append(data, '\n')
 	return os.WriteFile(filepath.Join(dir, configFile), data, 0644)
 }
 
-// Exists checks if .devpilot.json exists in dir.
+// Exists checks if .devpilot.yaml exists in dir.
 func Exists(dir string) bool {
 	_, err := os.Stat(filepath.Join(dir, configFile))
 	return err == nil

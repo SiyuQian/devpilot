@@ -28,20 +28,20 @@ func TestDetectHasClaudeMD(t *testing.T) {
 func TestDetectHasBoardConfig(t *testing.T) {
 	dir := t.TempDir()
 
-	// Without .devpilot.json
+	// Without .devpilot.yaml
 	s := Detect(dir)
 	if s.HasBoardConfig {
 		t.Error("HasBoardConfig = true, want false")
 	}
 
-	// With .devpilot.json but no board
+	// With .devpilot.yaml but no board
 	project.Save(dir, &project.Config{})
 	s = Detect(dir)
 	if s.HasBoardConfig {
 		t.Error("HasBoardConfig = true for empty board, want false")
 	}
 
-	// With .devpilot.json and board set
+	// With .devpilot.yaml and board set
 	project.Save(dir, &project.Config{Board: "My Board"})
 	s = Detect(dir)
 	if !s.HasBoardConfig {
