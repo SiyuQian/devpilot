@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/siyuqian/devpilot/internal/skillmgr"
 )
 
 func TestDetectProjectTypeGo(t *testing.T) {
@@ -112,9 +114,9 @@ func TestConfigureBoardNonInteractiveSkips(t *testing.T) {
 		t.Fatalf("ConfigureBoard failed: %v", err)
 	}
 
-	// Should not have created .devpilot.json
-	if _, err := os.Stat(filepath.Join(dir, ".devpilot.json")); !os.IsNotExist(err) {
-		t.Error(".devpilot.json should not exist in non-interactive mode")
+	// Should not have created .devpilot.yaml
+	if _, err := os.Stat(filepath.Join(dir, ".devpilot.yaml")); !os.IsNotExist(err) {
+		t.Error(".devpilot.yaml should not exist in non-interactive mode")
 	}
 }
 
@@ -136,12 +138,12 @@ func TestConfigureBoardInteractiveWithListBoards(t *testing.T) {
 		t.Fatalf("ConfigureBoard failed: %v", err)
 	}
 
-	data, err := os.ReadFile(filepath.Join(dir, ".devpilot.json"))
+	data, err := os.ReadFile(filepath.Join(dir, ".devpilot.yaml"))
 	if err != nil {
 		t.Fatalf("ReadFile failed: %v", err)
 	}
 	if !strings.Contains(string(data), "Dev Board") {
-		t.Errorf(".devpilot.json does not contain board name, got: %s", string(data))
+		t.Errorf(".devpilot.yaml does not contain board name, got: %s", string(data))
 	}
 }
 
@@ -159,12 +161,68 @@ func TestConfigureBoardInteractiveFreeText(t *testing.T) {
 		t.Fatalf("ConfigureBoard failed: %v", err)
 	}
 
-	data, err := os.ReadFile(filepath.Join(dir, ".devpilot.json"))
+	data, err := os.ReadFile(filepath.Join(dir, ".devpilot.yaml"))
 	if err != nil {
 		t.Fatalf("ReadFile failed: %v", err)
 	}
 	if !strings.Contains(string(data), "My Custom Board") {
-		t.Errorf(".devpilot.json does not contain board name, got: %s", string(data))
+		t.Errorf(".devpilot.yaml does not contain board name, got: %s", string(data))
+	}
+}
+
+func TestInstallSkillsNonInteractiveSkips(t *testing.T) {
+	dir := t.TempDir()
+	opts := GenerateOpts{Dir: dir, Interactive: false}
+
+	called := false
+	selectFn := func(catalog []skillmgr.CatalogEntry) ([]string, error) {
+		called = true
+		return []string{"pm"}, nil
+	}
+
+	if err := InstallSkills(opts, selectFn, nil); err != nil {
+		t.Fatalf("InstallSkills: %v", err)
+	}
+	if called {
+		t.Error("selectFn should not be called in non-interactive mode")
+	}
+	if _, err := os.Stat(filepath.Join(dir, ".claude", "skills")); !os.IsNotExist(err) {
+		t.Error(".claude/skills should not exist when skipped")
+	}
+}
+
+func TestInstallSkillsInteractiveInstalls(t *testing.T) {
+	dir := t.TempDir()
+	opts := GenerateOpts{Dir: dir, Interactive: true}
+
+	selectFn := func(catalog []skillmgr.CatalogEntry) ([]string, error) {
+		return []string{"pm"}, nil
+	}
+	fetchFn := func(name, tag string) ([]skillmgr.SkillFile, error) {
+		return []skillmgr.SkillFile{
+			{Path: "SKILL.md", Content: []byte("---\nname: " + name + "\n---")},
+		}, nil
+	}
+
+	if err := InstallSkills(opts, selectFn, fetchFn); err != nil {
+		t.Fatalf("InstallSkills: %v", err)
+	}
+
+	if _, err := os.Stat(filepath.Join(dir, ".claude", "skills", "pm", "SKILL.md")); err != nil {
+		t.Errorf("SKILL.md not created: %v", err)
+	}
+}
+
+func TestInstallSkillsNoSelection(t *testing.T) {
+	dir := t.TempDir()
+	opts := GenerateOpts{Dir: dir, Interactive: true}
+
+	selectFn := func(catalog []skillmgr.CatalogEntry) ([]string, error) {
+		return nil, nil // user selected nothing
+	}
+
+	if err := InstallSkills(opts, selectFn, nil); err != nil {
+		t.Fatalf("InstallSkills: %v", err)
 	}
 }
 

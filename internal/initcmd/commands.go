@@ -90,7 +90,14 @@ var initCmd = &cobra.Command{
 			}
 		}
 
-		// Skills
+		// Install skills from devpilot catalog
+		if opts.Interactive {
+			if err := InstallSkills(opts, nil, nil); err != nil {
+				fmt.Fprintf(os.Stderr, "  Error installing skills: %v\n", err)
+			}
+		}
+
+		// Create custom skill
 		if !status.HasSkills {
 			if shouldGenerate(opts, "Create an initial skill? [Y/n]: ") {
 				if err := CreateSkill(opts); err != nil {

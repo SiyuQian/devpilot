@@ -247,7 +247,7 @@ devpilot/
 │   ├── gmail/               Gmail API client, email listing & AI summary
 │   ├── initcmd/             Project initialization wizard
 │   ├── openspec/            OpenSpec integration & sync command
-│   ├── project/             Project config (.devpilot.json)
+│   ├── project/             Project config (.devpilot.yaml)
 │   ├── slack/               Slack API client & message sending
 │   ├── trello/              Trello API client & push command
 │   └── taskrunner/          Runner, executor, TUI dashboard

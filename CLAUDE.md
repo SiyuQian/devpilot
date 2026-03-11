@@ -78,7 +78,7 @@ Go CLI using Cobra for subcommand routing. Adding a new service: implement the `
 ### Project Init (`devpilot init`)
 
 Interactive wizard that detects project state and generates missing pieces:
-- Detects: `CLAUDE.md`, `.devpilot.json`, Trello credentials, git hooks, skills, git repo
+- Detects: `CLAUDE.md`, `.devpilot.yaml`, Trello credentials, git hooks, skills, git repo
 - Generates: `CLAUDE.md` template, board config, pre-push hook, skill scaffolding
 - Auto-detects project type (Go/Node/Python) for build/test commands
 
