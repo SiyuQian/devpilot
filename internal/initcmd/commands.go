@@ -60,16 +60,19 @@ var initCmd = &cobra.Command{
 			}
 		}
 
-		// Task source selection + board/label configuration
-		if !status.HasBoardConfig && status.Source != "github" {
-			// Ask which source to use (interactive only; non-interactive defaults to trello)
-			sourceName := "trello"
-			if opts.Interactive {
+		// Task source selection + board/label configuration.
+		// If source is already set to "github" in config, nothing more to set up.
+		// If source is "trello" (or unset) and no board is configured yet, proceed.
+		if status.Source == "github" {
+			// Already configured as GitHub Issues — labels may already exist; skip.
+		} else if !status.HasBoardConfig {
+			// Determine source: respect explicit config value; ask only when truly unset.
+			sourceName := status.Source // "trello" or ""
+			if sourceName == "" && opts.Interactive {
 				fmt.Print("  Task source (trello/github) [trello]: ")
 				line, err := opts.Reader.ReadString('\n')
 				if err == nil {
-					input := strings.TrimSpace(strings.ToLower(line))
-					if input == "github" {
+					if input := strings.TrimSpace(strings.ToLower(line)); input == "github" {
 						sourceName = "github"
 					}
 				}

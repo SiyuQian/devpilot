@@ -82,7 +82,7 @@ cd your-project
 devpilot init   # interactive wizard; select "github" at the task source prompt
 
 # 2. Create an issue and add the "devpilot" label
-gh issue create --title "Add dark mode" --body "$(cat docs/plans/dark-mode.md)" --label devpilot
+gh issue create --title "Add dark mode" --body-file docs/plans/dark-mode.md --label devpilot
 
 # 3. Run the task runner
 devpilot run --source github
