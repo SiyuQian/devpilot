@@ -13,24 +13,12 @@ var BuiltinCatalog = []CatalogEntry{
 		Description: "Review Atlassian Confluence pages and leave inline and page-level comments",
 	},
 	{
+		Name:        "content-creator",
+		Description: "SEO-optimized blog and content writing skill",
+	},
+	{
 		Name:        "google-go-style",
 		Description: "Google Go Style Guide enforcement for writing and reviewing Go code",
-	},
-	{
-		Name:        "openspec-apply-change",
-		Description: "Implement tasks from an OpenSpec change",
-	},
-	{
-		Name:        "openspec-archive-change",
-		Description: "Archive a completed OpenSpec change after implementation",
-	},
-	{
-		Name:        "openspec-explore",
-		Description: "Explore ideas and clarify requirements before implementation",
-	},
-	{
-		Name:        "openspec-propose",
-		Description: "Propose a new change and generate all artifacts in one step",
 	},
 	{
 		Name:        "pm",
