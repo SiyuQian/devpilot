@@ -104,3 +104,27 @@ func TestDetectWorkDir(t *testing.T) {
 		t.Errorf("WorkDir = %q, want %q", s.WorkDir, dir)
 	}
 }
+
+func TestDetectSource(t *testing.T) {
+	dir := t.TempDir()
+
+	// No config file: Source should be ""
+	s := Detect(dir)
+	if s.Source != "" {
+		t.Errorf("Source = %q, want empty string when no config", s.Source)
+	}
+
+	// Config with source=github
+	project.Save(dir, &project.Config{Source: "github"})
+	s = Detect(dir)
+	if s.Source != "github" {
+		t.Errorf("Source = %q, want %q", s.Source, "github")
+	}
+
+	// Config with source=trello
+	project.Save(dir, &project.Config{Source: "trello", Board: "My Board"})
+	s = Detect(dir)
+	if s.Source != "trello" {
+		t.Errorf("Source = %q, want %q", s.Source, "trello")
+	}
+}

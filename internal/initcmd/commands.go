@@ -60,26 +60,48 @@ var initCmd = &cobra.Command{
 			}
 		}
 
-		// Board configuration
-		if !status.HasBoardConfig {
-			var listBoardsFn func() ([]Board, error)
-			if status.HasTrelloCreds {
-				creds, _ := auth.Load("trello")
-				client := trello.NewClient(creds["api_key"], creds["token"])
-				listBoardsFn = func() ([]Board, error) {
-					boards, err := client.GetBoards()
-					if err != nil {
-						return nil, err
+		// Task source selection + board/label configuration.
+		// If source is already set to "github" in config, nothing more to set up.
+		// If source is "trello" (or unset) and no board is configured yet, proceed.
+		if status.Source == "github" {
+			// Already configured as GitHub Issues — labels may already exist; skip.
+		} else if !status.HasBoardConfig {
+			// Determine source: respect explicit config value; ask only when truly unset.
+			sourceName := status.Source // "trello" or ""
+			if sourceName == "" && opts.Interactive {
+				fmt.Print("  Task source (trello/github) [trello]: ")
+				line, err := opts.Reader.ReadString('\n')
+				if err == nil {
+					if input := strings.TrimSpace(strings.ToLower(line)); input == "github" {
+						sourceName = "github"
 					}
-					result := make([]Board, len(boards))
-					for i, b := range boards {
-						result[i] = Board{Name: b.Name}
-					}
-					return result, nil
 				}
 			}
-			if err := ConfigureBoard(opts, listBoardsFn); err != nil {
-				fmt.Fprintf(os.Stderr, "  Error configuring board: %v\n", err)
+
+			if sourceName == "github" {
+				if err := ConfigureGitHubSource(opts); err != nil {
+					fmt.Fprintf(os.Stderr, "  Error configuring GitHub source: %v\n", err)
+				}
+			} else {
+				var listBoardsFn func() ([]Board, error)
+				if status.HasTrelloCreds {
+					creds, _ := auth.Load("trello")
+					client := trello.NewClient(creds["api_key"], creds["token"])
+					listBoardsFn = func() ([]Board, error) {
+						boards, err := client.GetBoards()
+						if err != nil {
+							return nil, err
+						}
+						result := make([]Board, len(boards))
+						for i, b := range boards {
+							result[i] = Board{Name: b.Name}
+						}
+						return result, nil
+					}
+				}
+				if err := ConfigureBoard(opts, listBoardsFn); err != nil {
+					fmt.Fprintf(os.Stderr, "  Error configuring board: %v\n", err)
+				}
 			}
 		}
 
@@ -123,16 +145,20 @@ func formatStatus(s *Status) []string {
 		lines = append(lines, "  ✗ CLAUDE.md not found")
 	}
 
-	if s.HasBoardConfig {
-		lines = append(lines, "  ✓ Trello board configured")
-	} else {
-		lines = append(lines, "  ✗ Trello board not configured")
-	}
-
-	if s.HasTrelloCreds {
-		lines = append(lines, "  ✓ Trello credentials")
-	} else {
-		lines = append(lines, "  ✗ Trello credentials not found")
+	switch s.Source {
+	case "github":
+		lines = append(lines, "  ✓ Task source: GitHub Issues")
+	default: // "trello" or ""
+		if s.HasBoardConfig {
+			lines = append(lines, "  ✓ Trello board configured")
+		} else {
+			lines = append(lines, "  ✗ Trello board not configured")
+		}
+		if s.HasTrelloCreds {
+			lines = append(lines, "  ✓ Trello credentials")
+		} else {
+			lines = append(lines, "  ✗ Trello credentials not found")
+		}
 	}
 
 	if s.HasSkills {
@@ -145,7 +171,15 @@ func formatStatus(s *Status) []string {
 }
 
 func allConfigured(s *Status) bool {
-	return s.HasClaudeMD && s.HasTrelloCreds && s.HasBoardConfig && s.HasSkills && s.IsGitRepo
+	if !s.HasClaudeMD || !s.HasSkills || !s.IsGitRepo {
+		return false
+	}
+	switch s.Source {
+	case "github":
+		return true // gh CLI auth is already required for PR creation; no extra creds needed
+	default: // "trello" or ""
+		return s.HasTrelloCreds && s.HasBoardConfig
+	}
 }
 
 // shouldGenerate returns true if the user confirms or we're in non-interactive mode.

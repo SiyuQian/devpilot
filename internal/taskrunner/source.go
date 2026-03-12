@@ -6,7 +6,8 @@ type Task struct {
 	Name        string
 	Description string
 	URL         string
-	Priority    int // 0=P0, 1=P1, 2=P2 (default)
+	Priority    int   // 0=P0, 1=P1, 2=P2 (default)
+	CreatedAt   int64 // Unix timestamp; used as tiebreaker within the same priority (FIFO)
 }
 
 // SourceInfo is returned by TaskSource.Init and used to populate RunnerStartedEvent.
