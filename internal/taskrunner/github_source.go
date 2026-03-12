@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os/exec"
 	"strings"
+	"time"
 )
 
 const (
@@ -35,18 +36,24 @@ type ghLabel struct {
 }
 
 type ghIssue struct {
-	Number int       `json:"number"`
-	Title  string    `json:"title"`
-	Body   string    `json:"body"`
-	URL    string    `json:"url"`
-	Labels []ghLabel `json:"labels"`
+	Number    int       `json:"number"`
+	Title     string    `json:"title"`
+	Body      string    `json:"body"`
+	URL       string    `json:"url"`
+	Labels    []ghLabel `json:"labels"`
+	CreatedAt time.Time `json:"createdAt"`
 }
 
 func (s *GitHubSource) FetchReady() ([]Task, error) {
+	// "sort:created-asc" asks the GitHub API to return issues oldest-first.
+	// Combined with the stable priority sort in SortByPriority, this gives a
+	// deterministic FIFO queue within each priority tier — without requiring
+	// any extra configuration from the user.
 	out, err := exec.Command("gh", "issue", "list",
 		"--label", ghLabelDevpilot,
 		"--state", "open",
-		"--json", "number,title,body,url,labels",
+		"--search", "sort:created-asc",
+		"--json", "number,title,body,url,labels,createdAt",
 		"--limit", "25",
 	).Output()
 	if err != nil {
@@ -72,6 +79,7 @@ func issuesToReadyTasks(issues []ghIssue) []Task {
 			Description: issue.Body,
 			URL:         issue.URL,
 			Priority:    ghPriority(issue),
+			CreatedAt:   issue.CreatedAt.Unix(),
 		})
 	}
 	return tasks

@@ -37,6 +37,34 @@ func TestFormatStatusConfigured(t *testing.T) {
 	}
 }
 
+func TestFormatStatusGitHub(t *testing.T) {
+	s := &Status{
+		HasClaudeMD: true,
+		HasSkills:   true,
+		IsGitRepo:   true,
+		Source:      "github",
+	}
+
+	lines := formatStatus(s)
+
+	foundGitHub := false
+	for _, line := range lines {
+		if containsSubstring(line, "GitHub Issues") {
+			foundGitHub = true
+		}
+	}
+	if !foundGitHub {
+		t.Error("expected GitHub Issues in status lines for github source")
+	}
+
+	// Should NOT mention Trello when source is github
+	for _, line := range lines {
+		if containsSubstring(line, "Trello") {
+			t.Errorf("unexpected Trello mention in github source status: %s", line)
+		}
+	}
+}
+
 func TestFormatStatusMissing(t *testing.T) {
 	s := &Status{
 		HasClaudeMD:    false,
@@ -74,6 +102,7 @@ func TestFormatStatusNotGitRepo(t *testing.T) {
 }
 
 func TestAllConfigured(t *testing.T) {
+	// Trello: fully configured
 	allDone := &Status{
 		HasClaudeMD:    true,
 		HasTrelloCreds: true,
@@ -82,9 +111,10 @@ func TestAllConfigured(t *testing.T) {
 		IsGitRepo:      true,
 	}
 	if !allConfigured(allDone) {
-		t.Error("allConfigured returned false for fully configured status")
+		t.Error("allConfigured returned false for fully configured trello status")
 	}
 
+	// Trello: missing board
 	partial := &Status{
 		HasClaudeMD:    true,
 		HasTrelloCreds: true,
@@ -93,7 +123,29 @@ func TestAllConfigured(t *testing.T) {
 		IsGitRepo:      true,
 	}
 	if allConfigured(partial) {
-		t.Error("allConfigured returned true for partial status")
+		t.Error("allConfigured returned true for trello status missing board")
+	}
+
+	// GitHub: fully configured (no Trello creds needed)
+	githubDone := &Status{
+		HasClaudeMD: true,
+		HasSkills:   true,
+		IsGitRepo:   true,
+		Source:      "github",
+	}
+	if !allConfigured(githubDone) {
+		t.Error("allConfigured returned false for fully configured github status")
+	}
+
+	// GitHub: missing CLAUDE.md
+	githubPartial := &Status{
+		HasClaudeMD: false,
+		HasSkills:   true,
+		IsGitRepo:   true,
+		Source:      "github",
+	}
+	if allConfigured(githubPartial) {
+		t.Error("allConfigured returned true for github status missing CLAUDE.md")
 	}
 }
 

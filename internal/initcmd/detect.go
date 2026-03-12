@@ -16,6 +16,8 @@ type Status struct {
 	HasSkills      bool
 	IsGitRepo      bool
 	WorkDir        string
+	// Source is the configured task source ("trello", "github", or "" which defaults to trello).
+	Source string
 }
 
 // Detect inspects the given directory and returns a Status with what's configured.
@@ -32,10 +34,13 @@ func Detect(dir string) *Status {
 		s.HasTrelloCreds = true
 	}
 
-	// Board config in .devpilot.yaml
+	// Board config and task source in .devpilot.yaml
 	cfg, err := project.Load(dir)
-	if err == nil && cfg.Board != "" {
-		s.HasBoardConfig = true
+	if err == nil {
+		if cfg.Board != "" {
+			s.HasBoardConfig = true
+		}
+		s.Source = cfg.Source // "" means trello (default)
 	}
 
 	// Skills: check for subdirectories containing SKILL.md

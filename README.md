@@ -4,17 +4,25 @@
 [![codecov](https://codecov.io/gh/siyuqian/devpilot/branch/main/graph/badge.svg)](https://codecov.io/gh/siyuqian/devpilot)
 [![GitHub Downloads](https://img.shields.io/github/downloads/siyuqian/devpilot/total)](https://github.com/siyuqian/devpilot/releases)
 
-**Autonomous development workflow automation for [Claude Code](https://claude.ai/code).** Write a plan in markdown, push it to Trello, and let DevPilot execute it — creating branches, writing code, opening PRs, running code review, and auto-merging.
+**Autonomous development workflow automation for [Claude Code](https://claude.ai/code).** Write a plan in markdown, track it in Trello or GitHub Issues, and let DevPilot execute it — creating branches, writing code, opening PRs, running code review, and auto-merging.
 
 ## How It Works
 
+DevPilot supports two task backends. Pick whichever fits your workflow:
+
+**Trello** (great if your team already uses it):
 ```
-Plan (markdown) → devpilot push → Trello card → devpilot run → claude -p → Branch + PR
+Plan (markdown) → devpilot push → Trello card → devpilot run --source trello → claude -p → Branch + PR
 ```
 
-1. **Write a plan** — A markdown file with a `# Title` and implementation steps
-2. **Push to Trello** — `devpilot push plan.md --board "My Board"` creates a card in the "Ready" list
-3. **Runner picks it up** — `devpilot run` polls the board, prioritizes by P0/P1/P2 labels, and executes each plan via `claude -p`
+**GitHub Issues** (zero extra accounts — uses your existing repo and `gh` auth):
+```
+GitHub Issue (label: devpilot) → devpilot run --source github → claude -p → Branch + PR
+```
+
+1. **Write a plan** — A markdown file (Trello) or GitHub Issue body with a title and implementation steps
+2. **Queue it** — `devpilot push plan.md --board "My Board"` for Trello, or create a GitHub Issue with the `devpilot` label
+3. **Runner picks it up** — `devpilot run` polls the task source, prioritizes by P0/P1/P2 labels, and executes each plan via `claude -p`
 4. **Watch it work** — A real-time TUI dashboard shows tool calls, Claude output, token stats, and progress
 5. **Ship it** — Branch created, code written, PR opened, AI code review, auto-merge
 
@@ -36,8 +44,8 @@ Plan (markdown) → devpilot push → Trello card → devpilot run → claude -p
 
 - [Claude Code](https://docs.anthropic.com/en/docs/claude-code) installed and authenticated
 - [GitHub CLI (`gh`)](https://cli.github.com/) installed and authenticated
-- A [Trello](https://trello.com/) account with an [API key and token](https://trello.com/power-ups/admin)
 - Git repository initialized in your project
+- *(Trello source only)* A [Trello](https://trello.com/) account with an [API key and token](https://trello.com/power-ups/admin)
 - *(Optional)* Google OAuth credentials for Gmail integration
 - *(Optional)* Slack OAuth credentials for Slack integration
 
@@ -66,7 +74,23 @@ sudo mv bin/devpilot /usr/local/bin/
 
 Verify: `devpilot --version`
 
-### Quick Start
+### Quick Start: GitHub Issues (recommended — no extra accounts needed)
+
+```bash
+# 1. Initialize your project (choose "github" when prompted for task source)
+cd your-project
+devpilot init   # interactive wizard; select "github" at the task source prompt
+
+# 2. Create an issue and add the "devpilot" label
+gh issue create --title "Add dark mode" --body-file docs/plans/dark-mode.md --label devpilot
+
+# 3. Run the task runner
+devpilot run --source github
+```
+
+`devpilot init` automatically creates the required labels (`devpilot`, `in-progress`, `failed`, `P0-critical`, `P1-high`, `P2-normal`) on your repository.
+
+### Quick Start: Trello
 
 ```bash
 # 1. Initialize your project
@@ -114,7 +138,8 @@ devpilot run --board "Sprint Board"
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--board` | *(required)* | Trello board name |
+| `--source` | `trello` | Task source: `trello` or `github` (overrides `.devpilot.yaml`) |
+| `--board` | *(required for trello)* | Trello board name |
 | `--interval` | `300` | Poll interval in seconds |
 | `--timeout` | `30` | Per-task timeout in minutes |
 | `--review-timeout` | `10` | Code review timeout in minutes (0 to disable) |
@@ -160,23 +185,39 @@ devpilot run --board "Sprint Board"
 
 ## Task Runner Workflow
 
-The runner uses Trello lists as a state machine:
+Tasks progress through a state machine. The backend that manages state depends on your `--source`:
 
+**Trello** uses lists:
 ```
 Ready → In Progress → Done
                     → Failed
 ```
 
-For each card:
-1. Polls "Ready" list and sorts by priority (P0 > P1 > P2; default P2)
-2. Validates the card has a description (the plan)
-3. Moves card to "In Progress"
-4. Creates branch `task/{cardID}-{slug}` from main
+**GitHub Issues** uses labels:
+```
+open + devpilot  →  open + in-progress  →  closed (Done)
+                                         →  open + failed
+```
+
+#### GitHub Issues execution order
+
+GitHub Issues have no native ordering, so DevPilot uses a two-key sort:
+
+1. **Priority first** — `P0-critical` > `P1-high` > `P2-normal` (unlabelled defaults to P2)
+2. **Creation time second** — within the same priority, older issues run first (FIFO)
+
+This is fully automatic. The runner requests `sort:created-asc` from the GitHub API and uses creation timestamp as a stable tiebreaker, so the queue behaves predictably without any extra configuration.
+
+For each task:
+1. Polls the source and sorts by priority (P0 > P1 > P2; default P2)
+2. Validates the task has a description (the plan)
+3. Marks as "In Progress"
+4. Creates branch `task/{id}-{slug}` from main
 5. Runs `claude -p` with the plan, streaming output via `stream-json`
 6. Pushes branch and creates a PR via `gh`
 7. Optionally runs automated code review via a second `claude -p` invocation
 8. Auto-merges PR (`gh pr merge --squash --auto`)
-9. Moves card to "Done" (with PR link) or "Failed" (with error details)
+9. Marks as "Done" (with PR link) or "Failed" (with error details)
 
 Per-card logs: `~/.config/devpilot/logs/{card-id}.log`
 
@@ -202,14 +243,14 @@ Keys: `q`/`Ctrl-C` quit, `Tab` switch pane, `j/k/↑/↓` scroll, `g/G` top/bott
 
 ## Architecture
 
-DevPilot turns **markdown plans into shipped code** by orchestrating three systems: a task queue (Trello), an AI coding agent (`claude -p`), and standard Git/GitHub workflows.
+DevPilot turns **markdown plans into shipped code** by orchestrating three systems: a pluggable task source (Trello or GitHub Issues), an AI coding agent (`claude -p`), and standard Git/GitHub workflows.
 
 ### Event-Driven Pipeline
 
 ```
 ┌──────────────────────────────────────────────────────────┐
 │  Runner (orchestrator)                                   │
-│  Polls Trello → manages card lifecycle → emits events    │
+│  Polls TaskSource → manages task lifecycle → emits events│
 ├──────────────────────────────────────────────────────────┤
 │  EventBridge (translator)                                │
 │  Parses claude -p stream-json → translates to events     │
@@ -219,7 +260,8 @@ DevPilot turns **markdown plans into shipped code** by orchestrating three syste
 └──────────────────────────────────────────────────────────┘
 ```
 
-- **Runner** owns the card state machine and drives the full lifecycle: branch, execute, push, PR, review, merge
+- **Runner** owns the task state machine and drives the full lifecycle: branch, execute, push, PR, review, merge
+- **TaskSource** is a Go interface (`FetchReady`, `MarkInProgress`, `MarkDone`, `MarkFailed`) implemented by both `TrelloSource` and `GitHubSource`
 - **Executor** wraps `claude -p --output-format stream-json` for real-time structured output
 - **EventBridge** translates stream-json events into typed runner events (`ToolStart`, `TextOutput`, `TokenUsage`, etc.)
 - **TUI** and **Logger** subscribe via buffered Go channels, decoupling execution from presentation
@@ -264,7 +306,7 @@ devpilot/
 - **CLI framework:** [Cobra](https://github.com/spf13/cobra)
 - **TUI:** [Bubble Tea](https://github.com/charmbracelet/bubbletea) + [Lip Gloss](https://github.com/charmbracelet/lipgloss)
 - **AI engine:** [Claude Code](https://claude.ai/code) (`claude -p` headless mode)
-- **Task queue:** [Trello API](https://developer.atlassian.com/cloud/trello/)
+- **Task source:** [Trello API](https://developer.atlassian.com/cloud/trello/) or [GitHub Issues](https://docs.github.com/en/issues) via `gh` CLI
 - **Git/CI:** GitHub CLI (`gh`) for PRs and auto-merge
 
 ## Development

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -175,6 +176,52 @@ func ConfigureBoard(opts GenerateOpts, listBoards func() ([]Board, error)) error
 	}
 
 	fmt.Printf("  Configured board: %s\n", boardName)
+	return nil
+}
+
+// ghLabel describes a GitHub label to create for DevPilot.
+type ghLabel struct {
+	name  string
+	color string
+	desc  string
+}
+
+// ghRequiredLabels are the labels DevPilot needs on a GitHub repository.
+var ghRequiredLabels = []ghLabel{
+	{"devpilot", "0075ca", "Task managed by DevPilot"},
+	{"in-progress", "e4e669", "Task is currently being executed by DevPilot"},
+	{"failed", "d93f0b", "DevPilot task execution failed"},
+	{"P0-critical", "b60205", "Highest priority — execute first"},
+	{"P1-high", "e99695", "High priority"},
+	{"P2-normal", "c5def5", "Normal priority (default)"},
+}
+
+// ConfigureGitHubSource saves source=github to .devpilot.yaml and creates the
+// required labels on the current GitHub repository via the gh CLI.
+func ConfigureGitHubSource(opts GenerateOpts) error {
+	cfg, err := project.Load(opts.Dir)
+	if err != nil {
+		cfg = &project.Config{}
+	}
+	cfg.Source = "github"
+	if err := project.Save(opts.Dir, cfg); err != nil {
+		return fmt.Errorf("saving config: %w", err)
+	}
+	fmt.Println("  Configured task source: GitHub Issues")
+
+	fmt.Println("  Creating required GitHub labels (--force skips existing)...")
+	for _, l := range ghRequiredLabels {
+		out, err := exec.Command("gh", "label", "create", l.name,
+			"--color", l.color,
+			"--description", l.desc,
+			"--force",
+		).CombinedOutput()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "  Warning: could not create label %q: %s\n", l.name, strings.TrimSpace(string(out)))
+		} else {
+			fmt.Printf("  Label created: %s\n", l.name)
+		}
+	}
 	return nil
 }
 

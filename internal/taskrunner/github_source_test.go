@@ -1,6 +1,9 @@
 package taskrunner
 
-import "testing"
+import (
+	"testing"
+	"time"
+)
 
 func TestGitHubSource_FilterReady(t *testing.T) {
 	issues := []ghIssue{
@@ -19,6 +22,23 @@ func TestGitHubSource_FilterReady(t *testing.T) {
 	}
 	if tasks[0].ID != "1" || tasks[0].Name != "Ready task" {
 		t.Errorf("unexpected task: %+v", tasks[0])
+	}
+}
+
+func TestGitHubSource_CreatedAtPropagated(t *testing.T) {
+	ts := time.Date(2024, 6, 1, 12, 0, 0, 0, time.UTC)
+	issues := []ghIssue{
+		{Number: 42, Title: "My task", Body: "do it", URL: "https://github.com/o/r/issues/42",
+			Labels:    []ghLabel{{Name: "devpilot"}},
+			CreatedAt: ts,
+		},
+	}
+	tasks := issuesToReadyTasks(issues)
+	if len(tasks) != 1 {
+		t.Fatalf("expected 1 task, got %d", len(tasks))
+	}
+	if tasks[0].CreatedAt != ts.Unix() {
+		t.Errorf("CreatedAt: got %d, want %d", tasks[0].CreatedAt, ts.Unix())
 	}
 }
 
