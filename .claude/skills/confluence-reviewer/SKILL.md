@@ -1,6 +1,7 @@
 ---
 name: confluence-reviewer
 description: Review Atlassian Confluence pages and leave comments (both inline and page-level). Use this skill when the user asks to review, give feedback on, or comment on a Confluence page. Triggers on Confluence page URLs, "review this confluence page", "comment on the doc", "give feedback on the wiki page", or any mention of reviewing Confluence content.
+license: Complete terms in LICENSE.txt
 ---
 
 # Confluence Page Reviewer

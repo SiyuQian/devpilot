@@ -1,6 +1,7 @@
 ---
 name: content-creator
 description: SEO-optimized blog and content writing skill. Use this skill whenever the user wants to write a blog post, create content for their website, improve SEO rankings, do keyword research, or plan content strategy. Triggers on any mention of blog writing, SEO content, keyword research, content marketing, "写博客", "写文章", "内容创作", "SEO优化", or when the user wants to create any form of long-form content for a website or product. Even if the user just says "write something about X for our site", use this skill.
+license: Complete terms in LICENSE.txt
 ---
 
 # Content Creator — SEO-Optimized Blog & Article Writing
