@@ -22,12 +22,3 @@ const claudeMDTemplate = `# CLAUDE.md
 [TODO: document key directories]
 `
 
-const skillMDTemplate = `---
-name: {{.SkillName}}
-description: "[TODO: describe what this skill does]"
----
-
-# {{.SkillName}}
-
-[TODO: add skill instructions]
-`
