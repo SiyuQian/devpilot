@@ -8,7 +8,7 @@ description: >
   Use this skill whenever the user wants to create a pull request, merge request, open a PR,
   submit a MR, or push changes for review. Triggers on: "create pr", "open pull request",
   "make a pr", "submit mr", "merge request", "push for review", "ready for review",
-  "/pr", "create pull request", "open mr", "创建PR", "提交合并请求".
+  "/pr", "create pull request", "open mr".
 license: Complete terms in LICENSE.txt
 ---
 
