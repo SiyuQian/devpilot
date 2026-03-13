@@ -6,6 +6,7 @@ description: >
   design decisions. Triggers on any .go file interaction, Go package design, Go naming questions, Go error
   handling patterns, Go test writing, or Go code review. Even if the user doesn't mention "style" or
   "conventions", if you're touching Go code, this skill applies.
+license: Complete terms in LICENSE.txt
 ---
 
 # Google Go Style Guide

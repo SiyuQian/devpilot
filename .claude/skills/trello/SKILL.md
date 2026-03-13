@@ -1,6 +1,7 @@
 ---
 name: devpilot:trello
 description: Interact with Trello boards, lists, and cards directly from Claude Code. Use when the user wants to view boards, search/create/move/update Trello cards, add comments, or get a board overview. Triggers on any mention of Trello, kanban boards, task cards, or project board management.
+license: Complete terms in LICENSE.txt
 ---
 
 # Trello
