@@ -58,6 +58,7 @@ var initCmd = &cobra.Command{
 					fmt.Fprintf(os.Stderr, "  Error generating CLAUDE.md: %v\n", err)
 				}
 			}
+			fmt.Println()
 		}
 
 		// Task source selection + board/label configuration.
@@ -116,15 +117,6 @@ var initCmd = &cobra.Command{
 		if opts.Interactive {
 			if err := InstallSkills(opts, nil, nil); err != nil {
 				fmt.Fprintf(os.Stderr, "  Error installing skills: %v\n", err)
-			}
-		}
-
-		// Create custom skill
-		if !status.HasSkills {
-			if shouldGenerate(opts, "Create an initial skill? [Y/n]: ") {
-				if err := CreateSkill(opts); err != nil {
-					fmt.Fprintf(os.Stderr, "  Error creating skill: %v\n", err)
-				}
 			}
 		}
 
