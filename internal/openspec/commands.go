@@ -46,16 +46,16 @@ var syncCmd = &cobra.Command{
 		}
 
 		// Resolve source
-		projectCfg, _ := project.Load(dir)
-		sourceName, _ := cmd.Flags().GetString("source")
+		projectCfg, _ := project.Load(dir)               // project config is optional
+		sourceName, _ := cmd.Flags().GetString("source") // flag registered above
 		sourceName = projectCfg.ResolveSource(sourceName)
 
-		boardName, _ := cmd.Flags().GetString("board")
+		boardName, _ := cmd.Flags().GetString("board") // flag registered above
 		if boardName == "" && projectCfg.Board != "" {
 			boardName = projectCfg.Board
 		}
 
-		listName, _ := cmd.Flags().GetString("list")
+		listName, _ := cmd.Flags().GetString("list") // flag registered above
 
 		// Build target
 		var target SyncTarget

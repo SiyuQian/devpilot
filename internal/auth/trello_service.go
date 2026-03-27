@@ -37,11 +37,11 @@ func (t *TrelloService) Login() error {
 	reader := bufio.NewReader(os.Stdin)
 
 	fmt.Print("API Key: ")
-	apiKey, _ := reader.ReadString('\n')
+	apiKey, _ := reader.ReadString('\n') // Error is acceptable; we validate the trimmed input below.
 	apiKey = strings.TrimSpace(apiKey)
 
 	fmt.Print("Token: ")
-	token, _ := reader.ReadString('\n')
+	token, _ := reader.ReadString('\n') // Error is acceptable; we validate the trimmed input below.
 	token = strings.TrimSpace(token)
 
 	if apiKey == "" || token == "" {

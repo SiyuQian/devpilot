@@ -1,6 +1,7 @@
 package skillmgr
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -29,7 +30,11 @@ func FetchLatestTag(owner, repo string) (string, error) {
 }
 
 func fetchLatestTagFromURL(url string) (string, error) {
-	resp, err := http.Get(url) //nolint:noctx
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, url, nil)
+	if err != nil {
+		return "", fmt.Errorf("creating request for latest release: %w", err)
+	}
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("fetching latest release: %w", err)
 	}
@@ -79,7 +84,11 @@ func fetchContentsRecursive(baseURL, basePath, ref, pathPrefix string) ([]SkillF
 	}
 
 	url := fmt.Sprintf("%s/contents/%s?ref=%s", baseURL, apiPath, ref)
-	resp, err := http.Get(url) //nolint:noctx
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("creating request for %s: %w", apiPath, err)
+	}
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("fetching contents at %s: %w", apiPath, err)
 	}
@@ -121,7 +130,7 @@ func fetchContentsRecursive(baseURL, basePath, ref, pathPrefix string) ([]SkillF
 		case "dir":
 			sub, err := fetchContentsRecursive(baseURL, basePath, ref, relPath)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("fetch contents for %s: %w", relPath, err)
 			}
 			files = append(files, sub...)
 		}
@@ -130,7 +139,11 @@ func fetchContentsRecursive(baseURL, basePath, ref, pathPrefix string) ([]SkillF
 }
 
 func downloadFile(url string) ([]byte, error) {
-	resp, err := http.Get(url) //nolint:noctx
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, url, nil)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, err
 	}

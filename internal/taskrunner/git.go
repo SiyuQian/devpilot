@@ -7,10 +7,12 @@ import (
 	"strings"
 )
 
+// GitOps provides git and GitHub CLI operations scoped to a working directory.
 type GitOps struct {
 	dir string
 }
 
+// NewGitOps creates a GitOps instance rooted at the given directory.
 func NewGitOps(dir string) *GitOps {
 	return &GitOps{dir: dir}
 }
@@ -103,6 +105,7 @@ func (g *GitOps) HasNewCommits(branch string) (bool, error) {
 
 var nonAlphaNum = regexp.MustCompile(`[^a-z0-9]+`)
 
+// Slugify converts a string to a lowercase, hyphen-separated slug suitable for branch names.
 func Slugify(s string) string {
 	s = strings.ToLower(s)
 	s = nonAlphaNum.ReplaceAllString(s, "-")

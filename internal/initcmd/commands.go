@@ -86,7 +86,7 @@ var initCmd = &cobra.Command{
 			} else {
 				var listBoardsFn func() ([]Board, error)
 				if status.HasTrelloCreds {
-					creds, _ := auth.Load("trello")
+					creds, _ := auth.Load("trello") // Ignore error; missing credentials detected as nil below
 					client := trello.NewClient(creds["api_key"], creds["token"])
 					listBoardsFn = func() ([]Board, error) {
 						boards, err := client.GetBoards()

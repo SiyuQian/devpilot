@@ -11,6 +11,7 @@ import (
 	"syscall"
 )
 
+// ExecuteResult holds the output and exit status of a completed command.
 type ExecuteResult struct {
 	ExitCode int
 	Stdout   string
@@ -39,6 +40,7 @@ type Executor struct {
 
 type ExecutorOption func(*Executor)
 
+// WithCommand sets the command and arguments for the executor to run.
 func WithCommand(command string, args ...string) ExecutorOption {
 	return func(e *Executor) {
 		e.command = command
@@ -46,18 +48,21 @@ func WithCommand(command string, args ...string) ExecutorOption {
 	}
 }
 
+// WithOutputHandler sets a callback invoked for each line of command output.
 func WithOutputHandler(handler OutputHandler) ExecutorOption {
 	return func(e *Executor) {
 		e.outputHandler = handler
 	}
 }
 
+// WithClaudeEventHandler sets a callback invoked for each parsed Claude stream-json event.
 func WithClaudeEventHandler(handler ClaudeEventHandler) ExecutorOption {
 	return func(e *Executor) {
 		e.claudeEventHandler = handler
 	}
 }
 
+// NewExecutor creates an Executor with the given options, defaulting to the claude CLI.
 func NewExecutor(opts ...ExecutorOption) *Executor {
 	e := &Executor{
 		command: "claude",

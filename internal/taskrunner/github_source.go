@@ -18,6 +18,7 @@ const (
 // Authentication is handled by gh (run 'gh auth login' separately).
 type GitHubSource struct{}
 
+// NewGitHubSource creates a GitHubSource that uses the gh CLI for issue management.
 func NewGitHubSource() *GitHubSource {
 	return &GitHubSource{}
 }
