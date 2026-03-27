@@ -30,11 +30,10 @@ var pushCmd = &cobra.Command{
 		fmt.Fprintln(os.Stderr, "")
 
 		filePath := args[0]
-		listName, _ := cmd.Flags().GetString("list")
-
-		sourceName, _ := cmd.Flags().GetString("source")
-		dir, _ := os.Getwd()
-		projectCfg, _ := project.Load(dir)
+		listName, _ := cmd.Flags().GetString("list")     // flag registered above
+		sourceName, _ := cmd.Flags().GetString("source") // flag registered above
+		dir, _ := os.Getwd()                             // error handled by downstream calls
+		projectCfg, _ := project.Load(dir)               // project config is optional
 		sourceName = projectCfg.ResolveSource(sourceName)
 
 		// Read the plan file
@@ -53,7 +52,7 @@ var pushCmd = &cobra.Command{
 
 		switch sourceName {
 		case "trello":
-			boardName, _ := cmd.Flags().GetString("board")
+			boardName, _ := cmd.Flags().GetString("board") // flag registered above
 
 			if boardName == "" {
 				if projectCfg.Board != "" {

@@ -57,8 +57,6 @@ func buildDescription(changeDir string) string {
 		}
 		if content := strings.TrimSpace(string(data)); content != "" {
 			parts = append(parts, content)
-		} else {
-			continue
 		}
 	}
 

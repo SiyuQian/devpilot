@@ -10,6 +10,7 @@ import (
 	"time"
 )
 
+// Config holds the settings for a task runner session.
 type Config struct {
 	BoardName     string
 	Interval      time.Duration
@@ -21,6 +22,7 @@ type Config struct {
 	UseOpenSpec   bool
 }
 
+// Runner polls a task source and executes plans via Claude Code.
 type Runner struct {
 	config       Config
 	source       TaskSource
@@ -41,6 +43,7 @@ func WithEventHandler(handler EventHandler) RunnerOption {
 	}
 }
 
+// New creates a Runner with the given config, task source, and options.
 func New(cfg Config, source TaskSource, opts ...RunnerOption) *Runner {
 	r := &Runner{
 		config: cfg,
@@ -176,7 +179,7 @@ func (r *Runner) processCard(ctx context.Context, task Task) {
 		r.failCard(task, start, fmt.Sprintf("git checkout main: %v", err))
 		return
 	}
-	r.git.Pull() // best-effort
+	_ = r.git.Pull() // best-effort; failure is non-fatal
 	if err := r.git.CreateBranch(branch); err != nil {
 		r.failCard(task, start, fmt.Sprintf("git create branch: %v", err))
 		return
@@ -306,8 +309,8 @@ func (r *Runner) processCard(ctx context.Context, task Task) {
 	r.source.MarkDone(task.ID, comment)
 	r.logger.Printf("Card %q completed in %s. PR: %s", task.Name, duration, prURL)
 
-	r.git.CheckoutMain()
-	r.git.Pull()
+	_ = r.git.CheckoutMain() // best-effort cleanup
+	_ = r.git.Pull()        // best-effort cleanup
 }
 
 func (r *Runner) buildPrompt(task Task) string {

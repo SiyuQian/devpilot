@@ -43,9 +43,9 @@ func (c *Client) get(path string, params url.Values) ([]byte, error) {
 	}
 	params.Set("key", c.apiKey)
 	params.Set("token", c.token)
-	url := fmt.Sprintf("%s%s?%s", c.baseURL, path, params.Encode())
+	reqURL := fmt.Sprintf("%s%s?%s", c.baseURL, path, params.Encode())
 
-	resp, err := c.http.Get(url)
+	resp, err := c.http.Get(reqURL)
 	if err != nil {
 		return nil, fmt.Errorf("request failed: %w", err)
 	}

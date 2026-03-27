@@ -18,6 +18,7 @@ import (
 	"github.com/siyuqian/devpilot/internal/trello"
 )
 
+// RegisterCommands adds the task runner subcommands to the given parent command.
 func RegisterCommands(parent *cobra.Command) {
 	runCmd.Flags().String("board", "", "Trello board name (required for trello source)")
 	runCmd.Flags().String("source", "", "Task source: trello or github (default from .devpilot.yaml, fallback to trello)")
@@ -50,6 +51,7 @@ var runCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
+		// Ignore error; project config is optional
 		projectCfg, _ := project.Load(dir)
 
 		if boardName == "" {
