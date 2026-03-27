@@ -1,11 +1,10 @@
 ---
 name: google-go-style
 description: >
-  Google Go Style Guide enforcement for writing and reviewing Go code. ALWAYS use this skill when working
-  in a Go project — writing new Go code, modifying existing Go files, reviewing Go PRs, or discussing Go
-  design decisions. Triggers on any .go file interaction, Go package design, Go naming questions, Go error
-  handling patterns, Go test writing, or Go code review. Even if the user doesn't mention "style" or
-  "conventions", if you're touching Go code, this skill applies.
+  ALWAYS use when working in a Go project — writing new Go code, modifying .go files, reviewing Go PRs,
+  or discussing Go design decisions. Triggers on any .go file interaction, Go package design, Go naming
+  questions, Go error handling patterns, Go test writing, or Go code review. Even if the user doesn't
+  mention "style" or "conventions", if you're touching Go code, this skill applies.
 license: Complete terms in LICENSE.txt
 ---
 
@@ -157,17 +156,28 @@ When renaming proto packages, use a `pb` suffix.
 
 ### Interfaces
 
-**Interfaces belong in the consumer package**, not the producer:
-```go
-// Good: consumer defines what it needs
-package consumer
-type Thinger interface { Thing() bool }
+**Interfaces belong in the consumer package, not the producer. This applies when writing code too — not
+just during reviews.** When you create a service that depends on a database, do NOT define the DB
+interface in the same package. The interface should live where it's consumed:
 
-// Bad: producer pre-defines interface
-package producer
-type Thinger interface { Thing() bool }
-func NewThinger() Thinger { ... }
+```go
+// ❌ BAD: interface defined alongside its implementation (producer package)
+package users
+type DB interface { FindUser(id string) (*User, error) }
+type Service struct { db DB }
+
+// ✅ GOOD: consumer defines its own interface; producer returns a concrete type
+package users
+type Service struct { db *postgres.Client }
+
+// If you need testability, define a minimal interface in the TEST file:
+package users_test
+type stubDB struct { ... }
 ```
+
+**When writing a new package with dependencies:** accept a concrete type, not an interface you just
+invented. If you need to abstract the dependency for testing, define the interface in the test file
+or in the consuming package — never next to the implementation.
 
 **Return concrete types from constructors.** Let consumers define interfaces for what they need.
 
@@ -181,7 +191,8 @@ messages. Test failures should be diagnosable without reading the test source.
 **Table-driven tests:** Use field names in struct literals. Omit zero-value fields when they're not
 relevant to the test case.
 
-**Test helpers call `t.Helper()`.** This ensures failure messages point to the right line.
+**Test helpers call `t.Helper()` — but only helper functions, never `Test` functions themselves.**
+`t.Helper()` goes in functions like `assertUser(t, got, want)`, not in `TestGetUser(t)`.
 
 **Use `t.Fatal` for setup failures**, `t.Error` for test case validation (allows other cases to run).
 
@@ -236,6 +247,20 @@ line as last value in multi-line literals.
 // Bad:
 []*Type{&Type{A: 42}, &Type{A: 43}}
 ```
+
+## Common Mistakes
+
+These are the violations agents commit most often, even when they know the rules:
+
+| Mistake | Why it happens | Fix |
+|---------|---------------|-----|
+| Define interface in same package as implementation | Feels "clean" to co-locate | Accept concrete types; define interfaces in consumer or test file |
+| `GetUser` instead of `User` or `ByID` | Habit from other languages | Drop the `Get` prefix — Go getters don't use it |
+| `UserFilter` in package `users` | Forget the package name is part of the API | Call it `Filter` — callers see `users.Filter` |
+| Store `context.Context` in a struct | Convenient for "reuse" | Pass `ctx` as the first param to every method that needs it |
+| `t.Helper()` in `TestXxx` functions | Confuse test functions with helper functions | Only call `t.Helper()` in non-`Test` helper functions |
+| `Id`, `Url`, `Http` | Muscle memory | All-caps for initialisms: `ID`, `URL`, `HTTP` |
+| `map[string]*User{}` instead of nil | Defensive instinct | Use `var m map[string]*User` unless you need a non-nil empty map |
 
 ## Review Checklist
 
