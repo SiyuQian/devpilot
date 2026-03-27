@@ -126,6 +126,7 @@ func parseSlackError(body []byte) string {
 		OK    bool   `json:"ok"`
 		Error string `json:"error"`
 	}
+	// Unmarshal error is intentionally ignored; if parsing fails we fall back to the raw body.
 	if json.Unmarshal(body, &resp) == nil && resp.Error != "" {
 		return resp.Error
 	}
