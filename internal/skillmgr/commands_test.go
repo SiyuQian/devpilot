@@ -2,6 +2,8 @@ package skillmgr
 
 import (
 	"testing"
+
+	"github.com/siyuqian/devpilot/internal/project"
 )
 
 func TestParseSkillArg(t *testing.T) {
@@ -48,6 +50,17 @@ func TestSkillAddWithoutConfig(t *testing.T) {
 	err := cmd.RunE(cmd, []string{"pm"})
 	if err != nil {
 		t.Fatalf("skill add should work without .devpilot.yaml, got: %v", err)
+	}
+
+	cfg, err := project.Load(".")
+	if err != nil {
+		t.Fatalf("Load failed: %v", err)
+	}
+	if len(cfg.Skills) == 0 {
+		t.Fatal("expected skill entry in config, got none")
+	}
+	if cfg.Skills[0].Name != "pm" {
+		t.Errorf("skill name = %q, want %q", cfg.Skills[0].Name, "pm")
 	}
 }
 
