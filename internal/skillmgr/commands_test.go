@@ -39,6 +39,9 @@ func TestParseSkillArg(t *testing.T) {
 }
 
 func TestSkillAddWithoutConfig(t *testing.T) {
+	if testing.Short() {
+		t.Skip("requires network")
+	}
 	t.Chdir(t.TempDir())
 	cmd := skillAddCmd
 	cmd.ResetFlags()

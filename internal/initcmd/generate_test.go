@@ -170,6 +170,37 @@ func TestConfigureBoardInteractiveFreeText(t *testing.T) {
 	}
 }
 
+func TestConfigureBoardPreservesExistingConfig(t *testing.T) {
+	dir := t.TempDir()
+
+	// Write a config with existing skills entry.
+	initial := []byte("skills:\n- name: pm\n  source: github.com/siyuqian/devpilot\n  version: v0.1.0\n  installedAt: 2026-01-01T00:00:00Z\n")
+	os.WriteFile(filepath.Join(dir, ".devpilot.yaml"), initial, 0644)
+
+	input := strings.NewReader("My Board\n")
+	opts := GenerateOpts{
+		Dir:         dir,
+		Interactive: true,
+		Reader:      bufio.NewReader(input),
+	}
+
+	if err := ConfigureBoard(opts, nil); err != nil {
+		t.Fatalf("ConfigureBoard failed: %v", err)
+	}
+
+	data, err := os.ReadFile(filepath.Join(dir, ".devpilot.yaml"))
+	if err != nil {
+		t.Fatalf("ReadFile failed: %v", err)
+	}
+	content := string(data)
+	if !strings.Contains(content, "My Board") {
+		t.Errorf("board name missing, got: %s", content)
+	}
+	if !strings.Contains(content, "pm") {
+		t.Errorf("existing skill entry was overwritten, got: %s", content)
+	}
+}
+
 func TestInstallSkillsNonInteractiveSkips(t *testing.T) {
 	dir := t.TempDir()
 	opts := GenerateOpts{Dir: dir, Interactive: false}
