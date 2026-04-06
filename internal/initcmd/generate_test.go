@@ -231,8 +231,8 @@ func TestInstallSkillsNonInteractiveSkips(t *testing.T) {
 	if called {
 		t.Error("selectFn should not be called in non-interactive mode")
 	}
-	if _, err := os.Stat(filepath.Join(dir, "skills")); !os.IsNotExist(err) {
-		t.Error("skills should not exist when skipped")
+	if _, err := os.Stat(filepath.Join(dir, ".claude", "skills")); !os.IsNotExist(err) {
+		t.Error(".claude/skills should not exist when skipped")
 	}
 }
 
@@ -263,7 +263,7 @@ func TestInstallSkillsInteractiveInstalls(t *testing.T) {
 		t.Fatalf("InstallSkills: %v", err)
 	}
 
-	if _, err := os.Stat(filepath.Join(dir, "skills", "pm", "SKILL.md")); err != nil {
+	if _, err := os.Stat(filepath.Join(dir, ".claude", "skills", "pm", "SKILL.md")); err != nil {
 		t.Errorf("SKILL.md not created: %v", err)
 	}
 }

@@ -15,8 +15,11 @@ const (
 	// DefaultSource is the default GitHub source for devpilot skills.
 	DefaultSource = "github.com/" + defaultOwner + "/" + defaultRepo
 
-	// SkillsDir is the directory name for product skills relative to the project root.
-	SkillsDir = "skills"
+	// CatalogDir is the directory name for skill sources in the catalog repository.
+	CatalogDir = "skills"
+
+	// InstallDir is the directory where skills are installed in a project.
+	InstallDir = ".claude/skills"
 )
 
 // SkillFile represents a single file to be written when installing a skill.
@@ -73,7 +76,7 @@ func FetchSkill(owner, repo, skillName, tag string) ([]SkillFile, error) {
 }
 
 func fetchSkillFromBase(baseURL, skillName, tag string) ([]SkillFile, error) {
-	basePath := fmt.Sprintf("%s/%s", SkillsDir, skillName)
+	basePath := fmt.Sprintf("%s/%s", CatalogDir, skillName)
 	return fetchContentsRecursive(baseURL, basePath, tag, "")
 }
 
