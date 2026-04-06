@@ -21,12 +21,9 @@ type CatalogEntry struct {
 	Description string
 }
 
-// excludedPrefixes lists skill name prefixes that are filtered out of the catalog.
-var excludedPrefixes = []string{"openspec-"}
-
-// FetchCatalog discovers available skills by listing .claude/skills/ from the
+// FetchCatalog discovers available skills by listing skills/ from the
 // GitHub repo at the given ref, fetching each skill's SKILL.md frontmatter to
-// extract name and description. Skills matching excludedPrefixes are filtered out.
+// extract name and description.
 func FetchCatalog(ctx context.Context, owner, repo, ref string) ([]CatalogEntry, error) {
 	baseURL := fmt.Sprintf("https://api.github.com/repos/%s/%s", owner, repo)
 	return fetchCatalogFromBase(ctx, baseURL, ref)
@@ -66,9 +63,9 @@ func fetchCatalogFromBase(ctx context.Context, baseURL, ref string) ([]CatalogEn
 	return catalog, nil
 }
 
-// listSkillDirs lists subdirectory names under .claude/skills/ that are not excluded.
+// listSkillDirs lists subdirectory names under skills/.
 func listSkillDirs(ctx context.Context, baseURL, ref string) ([]string, error) {
-	apiURL := fmt.Sprintf("%s/contents/.claude/skills?ref=%s", baseURL, url.QueryEscape(ref))
+	apiURL := fmt.Sprintf("%s/contents/%s?ref=%s", baseURL, SkillsDir, url.QueryEscape(ref))
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, apiURL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("creating request for skills dir: %w", err)
@@ -102,22 +99,9 @@ func listSkillDirs(ctx context.Context, baseURL, ref string) ([]string, error) {
 		if e.Type != "dir" {
 			continue
 		}
-		if isExcluded(e.Name) {
-			continue
-		}
 		dirs = append(dirs, e.Name)
 	}
 	return dirs, nil
-}
-
-// isExcluded returns true if the skill name matches any excluded prefix.
-func isExcluded(name string) bool {
-	for _, prefix := range excludedPrefixes {
-		if strings.HasPrefix(name, prefix) {
-			return true
-		}
-	}
-	return false
 }
 
 // skillFrontmatter represents the YAML frontmatter of a SKILL.md file.
@@ -130,8 +114,8 @@ type skillFrontmatter struct {
 // It reads the base64-encoded content directly from the Contents API response
 // to avoid a second HTTP request.
 func fetchSkillMeta(ctx context.Context, baseURL, skillName, ref string) (CatalogEntry, error) {
-	apiURL := fmt.Sprintf("%s/contents/.claude/skills/%s/SKILL.md?ref=%s",
-		baseURL, url.PathEscape(skillName), url.QueryEscape(ref))
+	apiURL := fmt.Sprintf("%s/contents/%s/%s/SKILL.md?ref=%s",
+		baseURL, SkillsDir, url.PathEscape(skillName), url.QueryEscape(ref))
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, apiURL, nil)
 	if err != nil {
 		return CatalogEntry{}, fmt.Errorf("creating request for %s SKILL.md: %w", skillName, err)

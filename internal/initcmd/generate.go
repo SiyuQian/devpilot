@@ -365,7 +365,7 @@ func InstallSkills(opts GenerateOpts, installOpts SkillInstallOpts) error {
 			Version:     tag,
 			InstalledAt: time.Now().UTC(),
 		})
-		fmt.Printf("  Installed .claude/skills/%s/\n", name)
+		fmt.Printf("  Installed %s/%s/\n", skillmgr.SkillsDir, name)
 	}
 
 	return project.Save(opts.Dir, cfg)

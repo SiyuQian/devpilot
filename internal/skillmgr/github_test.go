@@ -55,13 +55,13 @@ func TestFetchLatestTagRateLimit(t *testing.T) {
 func TestFetchSkill(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case "/repos/owner/repo/contents/.claude/skills/pm":
+		case "/repos/owner/repo/contents/skills/pm":
 			w.Header().Set("Content-Type", "application/json")
 			_, _ = w.Write([]byte(`[
 				{"type":"file","name":"SKILL.md","download_url":"` + "http://" + r.Host + `/file/SKILL.md"},
 				{"type":"dir","name":"references","download_url":""}
 			]`))
-		case "/repos/owner/repo/contents/.claude/skills/pm/references":
+		case "/repos/owner/repo/contents/skills/pm/references":
 			w.Header().Set("Content-Type", "application/json")
 			_, _ = w.Write([]byte(`[
 				{"type":"file","name":"guide.md","download_url":"` + "http://" + r.Host + `/file/guide.md"}
@@ -120,7 +120,7 @@ func TestInstallSkill(t *testing.T) {
 		t.Fatalf("InstallSkill: %v", err)
 	}
 
-	skillMD, err := os.ReadFile(filepath.Join(dir, ".claude", "skills", "pm", "SKILL.md"))
+	skillMD, err := os.ReadFile(filepath.Join(dir, "skills", "pm", "SKILL.md"))
 	if err != nil {
 		t.Fatalf("reading SKILL.md: %v", err)
 	}
@@ -128,7 +128,7 @@ func TestInstallSkill(t *testing.T) {
 		t.Errorf("SKILL.md = %q", string(skillMD))
 	}
 
-	guide, err := os.ReadFile(filepath.Join(dir, ".claude", "skills", "pm", "references", "guide.md"))
+	guide, err := os.ReadFile(filepath.Join(dir, "skills", "pm", "references", "guide.md"))
 	if err != nil {
 		t.Fatalf("reading guide.md: %v", err)
 	}
@@ -139,7 +139,7 @@ func TestInstallSkill(t *testing.T) {
 
 func TestInstallSkillOverwrites(t *testing.T) {
 	dir := t.TempDir()
-	skillDir := filepath.Join(dir, ".claude", "skills", "pm")
+	skillDir := filepath.Join(dir, "skills", "pm")
 	if err := os.MkdirAll(skillDir, 0755); err != nil {
 		t.Fatal(err)
 	}

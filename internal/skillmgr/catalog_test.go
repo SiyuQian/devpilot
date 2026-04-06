@@ -18,19 +18,18 @@ func skillMDBase64(content string) string {
 func TestFetchCatalog(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case "/repos/o/r/contents/.claude/skills":
+		case "/repos/o/r/contents/skills":
 			w.Header().Set("Content-Type", "application/json")
 			_, _ = fmt.Fprint(w, `[
 				{"type":"dir","name":"pm"},
 				{"type":"dir","name":"trello"},
-				{"type":"dir","name":"openspec-explore"},
 				{"type":"file","name":"README.md"}
 			]`)
-		case "/repos/o/r/contents/.claude/skills/pm/SKILL.md":
+		case "/repos/o/r/contents/skills/pm/SKILL.md":
 			w.Header().Set("Content-Type", "application/json")
 			_, _ = fmt.Fprintf(w, `{"content":"%s","encoding":"base64"}`,
 				skillMDBase64("---\nname: pm\ndescription: Product manager skill\n---\n# PM"))
-		case "/repos/o/r/contents/.claude/skills/trello/SKILL.md":
+		case "/repos/o/r/contents/skills/trello/SKILL.md":
 			w.Header().Set("Content-Type", "application/json")
 			_, _ = fmt.Fprintf(w, `{"content":"%s","encoding":"base64"}`,
 				skillMDBase64("---\nname: devpilot:trello\ndescription: Trello integration\n---\n# Trello"))
@@ -66,56 +65,20 @@ func TestFetchCatalog(t *testing.T) {
 	}
 }
 
-func TestFetchCatalogExcludesOpenspec(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch r.URL.Path {
-		case "/repos/o/r/contents/.claude/skills":
-			w.Header().Set("Content-Type", "application/json")
-			_, _ = fmt.Fprint(w, `[
-				{"type":"dir","name":"pm"},
-				{"type":"dir","name":"openspec-apply-change"},
-				{"type":"dir","name":"openspec-archive-change"},
-				{"type":"dir","name":"openspec-explore"},
-				{"type":"dir","name":"openspec-propose"}
-			]`)
-		case "/repos/o/r/contents/.claude/skills/pm/SKILL.md":
-			w.Header().Set("Content-Type", "application/json")
-			_, _ = fmt.Fprintf(w, `{"content":"%s","encoding":"base64"}`,
-				skillMDBase64("---\nname: pm\ndescription: PM skill\n---"))
-		default:
-			http.NotFound(w, r)
-		}
-	}))
-	defer srv.Close()
-
-	ctx := context.Background()
-	catalog, err := fetchCatalogFromBase(ctx, srv.URL+"/repos/o/r", "v1.0.0")
-	if err != nil {
-		t.Fatalf("FetchCatalog: %v", err)
-	}
-
-	if len(catalog) != 1 {
-		t.Fatalf("len(catalog) = %d, want 1 (openspec-* should be excluded)", len(catalog))
-	}
-	if catalog[0].Name != "pm" {
-		t.Errorf("expected pm, got %q", catalog[0].Name)
-	}
-}
-
 func TestFetchCatalogSkipsFailedSkills(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case "/repos/o/r/contents/.claude/skills":
+		case "/repos/o/r/contents/skills":
 			w.Header().Set("Content-Type", "application/json")
 			_, _ = fmt.Fprint(w, `[
 				{"type":"dir","name":"pm"},
 				{"type":"dir","name":"broken"}
 			]`)
-		case "/repos/o/r/contents/.claude/skills/pm/SKILL.md":
+		case "/repos/o/r/contents/skills/pm/SKILL.md":
 			w.Header().Set("Content-Type", "application/json")
 			_, _ = fmt.Fprintf(w, `{"content":"%s","encoding":"base64"}`,
 				skillMDBase64("---\nname: pm\ndescription: PM\n---"))
-		case "/repos/o/r/contents/.claude/skills/broken/SKILL.md":
+		case "/repos/o/r/contents/skills/broken/SKILL.md":
 			http.NotFound(w, r)
 		default:
 			http.NotFound(w, r)
@@ -137,10 +100,10 @@ func TestFetchCatalogSkipsFailedSkills(t *testing.T) {
 func TestFetchCatalogRespectsTimeout(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case "/repos/o/r/contents/.claude/skills":
+		case "/repos/o/r/contents/skills":
 			w.Header().Set("Content-Type", "application/json")
 			_, _ = fmt.Fprint(w, `[{"type":"dir","name":"slow"}]`)
-		case "/repos/o/r/contents/.claude/skills/slow/SKILL.md":
+		case "/repos/o/r/contents/skills/slow/SKILL.md":
 			time.Sleep(2 * time.Second)
 			w.Header().Set("Content-Type", "application/json")
 			_, _ = fmt.Fprintf(w, `{"content":"%s","encoding":"base64"}`,
@@ -212,23 +175,5 @@ func TestParseFrontmatter(t *testing.T) {
 				t.Errorf("description = %q, want %q", fm.Description, tt.wantFM.Description)
 			}
 		})
-	}
-}
-
-func TestIsExcluded(t *testing.T) {
-	tests := []struct {
-		name string
-		want bool
-	}{
-		{"openspec-explore", true},
-		{"openspec-apply-change", true},
-		{"pm", false},
-		{"trello", false},
-		{"my-openspec-thing", false}, // prefix match only
-	}
-	for _, tt := range tests {
-		if got := isExcluded(tt.name); got != tt.want {
-			t.Errorf("isExcluded(%q) = %v, want %v", tt.name, got, tt.want)
-		}
 	}
 }
