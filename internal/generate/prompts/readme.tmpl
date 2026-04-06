@@ -1,36 +1,62 @@
-You are writing a README.md for an open-source project. The README will be the first thing potential users and contributors see on the project's GitHub page. Write for developers evaluating whether to use this project.
+You are generating a README.md for the project in the current directory.
+You have tools (Read, Glob, Grep, Bash) to explore the project. Use them to understand the project thoroughly before writing.
 
-Analyze the project structure and package metadata below to determine:
-1. What type of project this is (CLI tool, library, framework, app, etc.)
-2. Who the target audience is
-3. What the key value proposition is
+## Exploration Strategy
 
-Then generate a README that matches the project type. For example:
-- CLI tools need clear install instructions and command examples with actual flags
-- Libraries need API usage examples with real import paths
-- Apps need setup and deployment instructions
+Follow these steps to gather context. Skip steps that don't apply.
 
-Style: direct and concise. Include actual command examples, not placeholder text. Preserve any existing badges (CI, coverage, downloads) at the top below the title. If there is an install script, document its actual flags and options based on what the script supports. Skip table of contents for short READMEs.
+1. Run `ls` to see the top-level structure. Read the package manifest (go.mod, package.json, pyproject.toml, Cargo.toml, etc.) to determine project type, name, and dependencies.
+2. Read CLAUDE.md if it exists — this is an internal developer doc with rich project context (architecture, CLI commands, conventions). Extract facts but rewrite for end users. Do NOT copy sections verbatim — the audience is different.
+3. Read Makefile or justfile for build/test/lint commands.
+4. Read install scripts (install.sh, install.ps1) to document actual installation flags and options.
+5. Read CI config (.github/workflows/*.yml or .gitlab-ci.yml) to understand supported platforms and test pipeline.
+6. Read Dockerfile or docker-compose.yml if present for deployment context.
+7. Read CONTRIBUTING.md if present — reference it but don't duplicate.
+8. Read key source files as needed to understand:
+   - CLI flags and subcommands (look for Cobra commands, argparse, clap, etc.)
+   - Configuration file formats (look for config loading code or example configs)
+   - Plugin/skill/extension systems (look for plugin directories, registries, install commands)
+   - Public API surface (for libraries)
+9. Run `git remote get-url origin` to get the repo URL for install instructions.
+10. Run `git describe --tags --abbrev=0 2>/dev/null` to get the latest version tag if any.
 
-<project-structure>
-{{.FileTree}}
-</project-structure>
-{{- if .PackageInfo}}
+## Output Format
 
-<package-metadata>
-{{.PackageInfo}}
-</package-metadata>
-{{- end}}
-{{- if .ExistingReadme}}
+Generate a complete README.md in raw markdown. Start with the `#` title line. No preamble, no commentary, no wrapping code fences around the entire output.
+
+Include these sections in order (skip sections that don't apply to this project type):
+
+1. **Title + badges** — preserve existing badges if updating an existing README
+2. **One-line description** — what this project does and who it's for
+3. **How it works** — brief architecture or workflow overview (keep it short)
+4. **Features** — bullet list of key capabilities
+5. **Prerequisites** — what must be installed first
+6. **Installation** — actual commands with real flags (read install scripts to get the actual options)
+7. **Quick start** — end-to-end workflow example from setup to first result
+8. **Project-type-specific sections** (include only what applies):
+   - CLI tools: full command reference with flags and examples, configuration file format with a commented example
+   - Libraries: API usage with real import paths and code examples
+   - Web apps: environment setup, deployment instructions
+   - Frameworks: getting started guide, plugin/extension system docs
+9. **Development** — build, test, lint commands for contributors
+10. **Tech stack** — languages, frameworks, key dependencies with links
+11. **License**
+
+## Quality Rules
+
+- Every claim must come from files you actually read — do not guess or hallucinate
+- Show actual CLI flags, real config formats, real import paths from the source code
+- No placeholder text ("your-project", "TODO", "example.com")
+- No "N/A" sections — omit sections that don't apply entirely
+- Keep each section proportional to its importance — don't pad short sections
+- For end-to-end workflow examples, show a realistic use case, not a trivial hello-world
+{{- if .ExistingReadme }}
+
+## Existing README
+
+The project already has a README. Improve upon it: keep what's accurate (especially badges, links, and verified facts), fix what's outdated based on current project state, and fill in gaps.
 
 <existing-readme>
-{{.ExistingReadme}}
+{{ .ExistingReadme }}
 </existing-readme>
-
-Improve upon the existing README: keep what's accurate, fix what's outdated based on the current project structure, and fill in gaps.
-{{- end}}
-
-Requirements:
-- Include: project title, description, features, installation, usage, and tech stack
-- Use proper markdown formatting
-- Output the raw markdown content directly, starting with the `#` title line. No preamble, no commentary, no wrapping code fences
+{{- end }}
