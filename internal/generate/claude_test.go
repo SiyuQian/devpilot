@@ -149,11 +149,67 @@ func TestBuildReadmeArgs(t *testing.T) {
 		t.Error("--model flag not found")
 	}
 
+	// Must contain --permission-mode
+	foundPerm := false
+	for i, a := range args {
+		if a == "--permission-mode" {
+			foundPerm = true
+			if args[i+1] != "default" {
+				t.Errorf("permission-mode = %q, want default", args[i+1])
+			}
+		}
+	}
+	if !foundPerm {
+		t.Error("--permission-mode flag not found")
+	}
+
 	// Without model
 	argsNoModel := buildReadmeArgs("")
 	for _, a := range argsNoModel {
 		if a == "--model" {
 			t.Error("--model should not be present when model is empty")
 		}
+	}
+}
+
+func TestCleanReadmeOutput(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{
+			"starts with heading",
+			"# My Project\n\nDescription",
+			"# My Project\n\nDescription",
+		},
+		{
+			"preamble before heading",
+			"Here is your README.\n\n# My Project\n\nDescription",
+			"# My Project\n\nDescription",
+		},
+		{
+			"multi-line preamble",
+			"I've analyzed the project.\nHere are my findings.\n\n# My Project\n\nDescription",
+			"# My Project\n\nDescription",
+		},
+		{
+			"no heading at all",
+			"Just some text without a heading",
+			"Just some text without a heading",
+		},
+		{
+			"code fences wrapping",
+			"```markdown\n# My Project\n\nDescription\n```",
+			"# My Project\n\nDescription",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := cleanReadmeOutput(tt.input)
+			if got != tt.want {
+				t.Errorf("cleanReadmeOutput() =\n%q\nwant:\n%q", got, tt.want)
+			}
+		})
 	}
 }
