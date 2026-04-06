@@ -54,7 +54,17 @@ func GenerateWithTools(ctx context.Context, prompt, model string) (string, error
 		return "", fmt.Errorf("claude failed: %w\nstderr: %s", err, stderr.String())
 	}
 
-	return cleanOutput(stdout.String()), nil
+	return cleanReadmeOutput(stdout.String()), nil
+}
+
+// cleanReadmeOutput strips preamble text before the first markdown heading.
+func cleanReadmeOutput(s string) string {
+	s = cleanOutput(s)
+	// Strip any text before the first # heading (LLM preamble)
+	if idx := strings.Index(s, "\n#"); idx >= 0 && !strings.HasPrefix(s, "#") {
+		s = strings.TrimSpace(s[idx+1:])
+	}
+	return s
 }
 
 func buildArgs(model string) []string {
