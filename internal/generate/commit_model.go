@@ -339,7 +339,7 @@ func (m CommitModel) unstageExcluded() tea.Cmd {
 			files = append(files, e.File)
 		}
 		args := append([]string{"reset", "HEAD", "--"}, files...)
-		exec.Command("git", args...).Run() // best-effort
+		_ = exec.Command("git", args...).Run() // best-effort
 		return nil
 	}
 }

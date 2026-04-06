@@ -27,7 +27,7 @@ func TestListConversations(t *testing.T) {
 				{ID: "C002", Name: "random"},
 			},
 		}
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	}))
 	defer srv.Close()
 
@@ -54,7 +54,7 @@ func TestListConversationsPaginated(t *testing.T) {
 				Channels: []Channel{{ID: "C001", Name: "general"}},
 			}
 			resp.ResponseMetadata.NextCursor = "cursor123"
-			json.NewEncoder(w).Encode(resp)
+			_ = json.NewEncoder(w).Encode(resp)
 		} else {
 			if r.URL.Query().Get("cursor") != "cursor123" {
 				t.Fatalf("expected cursor123, got %s", r.URL.Query().Get("cursor"))
@@ -63,7 +63,7 @@ func TestListConversationsPaginated(t *testing.T) {
 				OK:       true,
 				Channels: []Channel{{ID: "C002", Name: "random"}},
 			}
-			json.NewEncoder(w).Encode(resp)
+			_ = json.NewEncoder(w).Encode(resp)
 		}
 	}))
 	defer srv.Close()
@@ -81,7 +81,7 @@ func TestListConversationsPaginated(t *testing.T) {
 func TestListConversationsError(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		resp := conversationsListResponse{OK: false, Error: "invalid_auth"}
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	}))
 	defer srv.Close()
 
@@ -101,7 +101,7 @@ func TestResolveChannel(t *testing.T) {
 				{ID: "C002", Name: "random"},
 			},
 		}
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	}))
 	defer srv.Close()
 
@@ -122,7 +122,7 @@ func TestResolveChannelWithHash(t *testing.T) {
 			OK:       true,
 			Channels: []Channel{{ID: "C001", Name: "general"}},
 		}
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	}))
 	defer srv.Close()
 
@@ -143,7 +143,7 @@ func TestResolveChannelNotFound(t *testing.T) {
 			OK:       true,
 			Channels: []Channel{{ID: "C001", Name: "general"}},
 		}
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	}))
 	defer srv.Close()
 
@@ -170,7 +170,7 @@ func TestPostMessage(t *testing.T) {
 			t.Fatalf("unexpected content-type: %s", r.Header.Get("Content-Type"))
 		}
 
-		r.ParseForm()
+		_ = r.ParseForm()
 		if r.PostForm.Get("channel") != "C001" {
 			t.Fatalf("expected C001, got %s", r.PostForm.Get("channel"))
 		}
@@ -179,7 +179,7 @@ func TestPostMessage(t *testing.T) {
 		}
 
 		resp := postMessageResponse{OK: true}
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	}))
 	defer srv.Close()
 
@@ -193,7 +193,7 @@ func TestPostMessage(t *testing.T) {
 func TestPostMessageNotInChannel(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		resp := postMessageResponse{OK: false, Error: "not_in_channel"}
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	}))
 	defer srv.Close()
 
@@ -207,7 +207,7 @@ func TestPostMessageNotInChannel(t *testing.T) {
 func TestPostMessageError(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		resp := postMessageResponse{OK: false, Error: "invalid_auth"}
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	}))
 	defer srv.Close()
 
@@ -221,7 +221,7 @@ func TestPostMessageError(t *testing.T) {
 func TestHTTPError(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte(`{"ok":false,"error":"internal_error"}`))
+		_, _ = w.Write([]byte(`{"ok":false,"error":"internal_error"}`))
 	}))
 	defer srv.Close()
 

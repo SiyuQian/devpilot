@@ -108,7 +108,7 @@ func RunReadme(ctx context.Context, model string, dryRun bool) error {
 
 	fmt.Print("Save to README.md? [y/n] ")
 	var choice string
-	fmt.Scanln(&choice)
+	_, _ = fmt.Scanln(&choice)
 	if strings.ToLower(strings.TrimSpace(choice)) != "y" {
 		fmt.Println("Aborted.")
 		return nil

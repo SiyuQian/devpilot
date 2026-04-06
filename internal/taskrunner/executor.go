@@ -130,7 +130,7 @@ func (e *Executor) runStreaming(ctx context.Context, cmd *exec.Cmd) (*ExecuteRes
 	go func() {
 		select {
 		case <-ctx.Done():
-			syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
+			_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
 		case <-done:
 		}
 	}()

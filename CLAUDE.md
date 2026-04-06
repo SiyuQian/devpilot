@@ -27,9 +27,13 @@ Standard Go project layout: `cmd/devpilot/` for the CLI entry point, `internal/`
 ```bash
 make build                         # Build binary to bin/devpilot
 make test                          # Run all tests (go test ./...)
+make lint                          # Run golangci-lint (must pass before commit)
+make lint-fix                      # Auto-fix lint issues where possible
 make run ARGS="--help"             # Build and run with arguments
 make clean                         # Remove bin/
 ```
+
+**Important:** Always run `make test` and `make lint` before committing. Both must pass — CI enforces this on every PR.
 
 ### CLI Commands
 

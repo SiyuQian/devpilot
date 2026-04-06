@@ -13,7 +13,9 @@ import (
 
 func TestDetectProjectTypeGo(t *testing.T) {
 	dir := t.TempDir()
-	os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module github.com/example/myapp\n\ngo 1.21\n"), 0644)
+	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module github.com/example/myapp\n\ngo 1.21\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
 
 	pt := detectProjectType(dir)
 	if pt.Name != "github.com/example/myapp" {
@@ -29,7 +31,9 @@ func TestDetectProjectTypeGo(t *testing.T) {
 
 func TestDetectProjectTypeNode(t *testing.T) {
 	dir := t.TempDir()
-	os.WriteFile(filepath.Join(dir, "package.json"), []byte(`{"name": "my-app"}`), 0644)
+	if err := os.WriteFile(filepath.Join(dir, "package.json"), []byte(`{"name": "my-app"}`), 0644); err != nil {
+		t.Fatal(err)
+	}
 
 	pt := detectProjectType(dir)
 	if pt.Name != "my-app" {
@@ -45,7 +49,9 @@ func TestDetectProjectTypeNode(t *testing.T) {
 
 func TestDetectProjectTypePython(t *testing.T) {
 	dir := t.TempDir()
-	os.WriteFile(filepath.Join(dir, "pyproject.toml"), []byte("[project]\nname = \"myapp\"\n"), 0644)
+	if err := os.WriteFile(filepath.Join(dir, "pyproject.toml"), []byte("[project]\nname = \"myapp\"\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
 
 	pt := detectProjectType(dir)
 	if pt.BuildCmd != "python -m build" {
@@ -58,7 +64,9 @@ func TestDetectProjectTypePython(t *testing.T) {
 
 func TestDetectProjectTypePythonRequirements(t *testing.T) {
 	dir := t.TempDir()
-	os.WriteFile(filepath.Join(dir, "requirements.txt"), []byte("flask\n"), 0644)
+	if err := os.WriteFile(filepath.Join(dir, "requirements.txt"), []byte("flask\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
 
 	pt := detectProjectType(dir)
 	if pt.TestCmd != "python -m pytest" {
@@ -83,7 +91,9 @@ func TestDetectProjectTypeFallback(t *testing.T) {
 
 func TestGenerateClaudeMD(t *testing.T) {
 	dir := t.TempDir()
-	os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module github.com/example/myapp\n\ngo 1.21\n"), 0644)
+	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module github.com/example/myapp\n\ngo 1.21\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
 
 	opts := GenerateOpts{Dir: dir, Interactive: false}
 	if err := GenerateClaudeMD(opts); err != nil {
@@ -176,7 +186,9 @@ func TestConfigureBoardPreservesExistingConfig(t *testing.T) {
 
 	// Write a config with existing skills entry.
 	initial := []byte("skills:\n- name: pm\n  source: github.com/siyuqian/devpilot\n  version: v0.1.0\n  installedAt: 2026-01-01T00:00:00Z\n")
-	os.WriteFile(filepath.Join(dir, ".devpilot.yaml"), initial, 0644)
+	if err := os.WriteFile(filepath.Join(dir, ".devpilot.yaml"), initial, 0644); err != nil {
+		t.Fatal(err)
+	}
 
 	input := strings.NewReader("My Board\n")
 	opts := GenerateOpts{
@@ -271,4 +283,3 @@ func TestInstallSkillsNoSelection(t *testing.T) {
 		t.Fatalf("InstallSkills: %v", err)
 	}
 }
-

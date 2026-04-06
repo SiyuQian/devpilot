@@ -111,11 +111,11 @@ func (s *SlackService) oauthConfig() auth.OAuthConfig {
 func loadBotToken() (string, error) {
 	creds, err := auth.Load("slack")
 	if err != nil {
-		return "", fmt.Errorf("Not logged in to Slack. Run: devpilot login slack")
+		return "", fmt.Errorf("not logged in to Slack, run: devpilot login slack")
 	}
 	token, ok := creds["access_token"]
 	if !ok || token == "" {
-		return "", fmt.Errorf("Not logged in to Slack. Run: devpilot login slack")
+		return "", fmt.Errorf("not logged in to Slack, run: devpilot login slack")
 	}
 	return token, nil
 }

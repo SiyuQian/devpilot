@@ -19,7 +19,7 @@ func TestTrelloSource_FetchReady_MapsToTasks(t *testing.T) {
 
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		w.Write(data)
+		_, _ = w.Write(data)
 	}))
 	defer ts.Close()
 
