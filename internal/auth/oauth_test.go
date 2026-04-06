@@ -40,7 +40,7 @@ func TestCallbackServerValidState(t *testing.T) {
 	if err != nil {
 		t.Fatalf("startCallbackServer() error: %v", err)
 	}
-	defer srv.Close()
+	defer func() { _ = srv.Close() }()
 
 	port := callbackPort(listener)
 	url := fmt.Sprintf("http://localhost:%d/callback?code=authcode123&state=%s", port, state)
@@ -49,7 +49,7 @@ func TestCallbackServerValidState(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GET callback error: %v", err)
 	}
-	resp.Body.Close()
+	_ = resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		t.Errorf("expected 200, got %d", resp.StatusCode)
@@ -70,7 +70,7 @@ func TestCallbackServerInvalidState(t *testing.T) {
 	if err != nil {
 		t.Fatalf("startCallbackServer() error: %v", err)
 	}
-	defer srv.Close()
+	defer func() { _ = srv.Close() }()
 
 	port := callbackPort(listener)
 	url := fmt.Sprintf("http://localhost:%d/callback?code=authcode123&state=wrong-state", port)
@@ -79,7 +79,7 @@ func TestCallbackServerInvalidState(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GET callback error: %v", err)
 	}
-	resp.Body.Close()
+	_ = resp.Body.Close()
 
 	result := <-resultCh
 	if result.err == nil {
@@ -93,7 +93,7 @@ func TestCallbackServerDeniedAuth(t *testing.T) {
 	if err != nil {
 		t.Fatalf("startCallbackServer() error: %v", err)
 	}
-	defer srv.Close()
+	defer func() { _ = srv.Close() }()
 
 	port := callbackPort(listener)
 	url := fmt.Sprintf("http://localhost:%d/callback?error=access_denied", port)
@@ -102,7 +102,7 @@ func TestCallbackServerDeniedAuth(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GET callback error: %v", err)
 	}
-	resp.Body.Close()
+	_ = resp.Body.Close()
 
 	result := <-resultCh
 	if result.err != ErrAuthDenied {
@@ -116,7 +116,7 @@ func TestCallbackServerTLS(t *testing.T) {
 	if err != nil {
 		t.Fatalf("startCallbackServer(TLS) error: %v", err)
 	}
-	defer srv.Close()
+	defer func() { _ = srv.Close() }()
 
 	port := callbackPort(listener)
 	url := fmt.Sprintf("https://localhost:%d/callback?code=tlscode&state=%s", port, state)
@@ -131,7 +131,7 @@ func TestCallbackServerTLS(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GET TLS callback error: %v", err)
 	}
-	resp.Body.Close()
+	_ = resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		t.Errorf("expected 200, got %d", resp.StatusCode)
@@ -162,7 +162,7 @@ func TestExchangeCode(t *testing.T) {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
 			"access_token":  "access123",
 			"refresh_token": "refresh456",
 			"token_type":    "Bearer",
@@ -199,7 +199,7 @@ func TestExchangeCode(t *testing.T) {
 func TestExchangeCodeError(t *testing.T) {
 	tokenServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{
+		_ = json.NewEncoder(w).Encode(map[string]string{
 			"error":             "invalid_grant",
 			"error_description": "code expired",
 		})
@@ -232,7 +232,7 @@ func TestRefreshToken(t *testing.T) {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
 			"access_token": "new-access789",
 			"token_type":   "Bearer",
 			"expires_in":   3600,
@@ -262,7 +262,7 @@ func TestRefreshToken(t *testing.T) {
 func TestRefreshTokenExpired(t *testing.T) {
 	tokenServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{
+		_ = json.NewEncoder(w).Encode(map[string]string{
 			"error":             "invalid_grant",
 			"error_description": "Token has been expired or revoked",
 		})

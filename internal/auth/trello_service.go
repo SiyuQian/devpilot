@@ -87,7 +87,7 @@ func (t *TrelloService) verify(apiKey, token string) error {
 	if err != nil {
 		return fmt.Errorf("failed to connect to Trello: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("invalid credentials (HTTP %d)", resp.StatusCode)

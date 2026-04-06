@@ -20,7 +20,7 @@ func TestGetBoards(t *testing.T) {
 		if r.URL.Query().Get("key") == "" || r.URL.Query().Get("token") == "" {
 			t.Error("missing auth params")
 		}
-		json.NewEncoder(w).Encode(boards)
+		_ = json.NewEncoder(w).Encode(boards)
 	}))
 	defer server.Close()
 
@@ -40,7 +40,7 @@ func TestGetBoardLists(t *testing.T) {
 		if r.URL.Path != "/1/boards/board1/lists" {
 			t.Errorf("unexpected path: %s", r.URL.Path)
 		}
-		json.NewEncoder(w).Encode(lists)
+		_ = json.NewEncoder(w).Encode(lists)
 	}))
 	defer server.Close()
 
@@ -66,7 +66,7 @@ func TestGetListCards(t *testing.T) {
 		if r.URL.Query().Get("fields") == "" {
 			t.Error("expected fields parameter")
 		}
-		json.NewEncoder(w).Encode(cards)
+		_ = json.NewEncoder(w).Encode(cards)
 	}))
 	defer server.Close()
 
@@ -92,7 +92,7 @@ func TestMoveCard(t *testing.T) {
 			t.Errorf("unexpected path: %s", r.URL.Path)
 		}
 		w.WriteHeader(http.StatusOK)
-		fmt.Fprint(w, `{"id":"card1"}`)
+		_, _ = fmt.Fprint(w, `{"id":"card1"}`)
 	}))
 	defer server.Close()
 
@@ -112,7 +112,7 @@ func TestAddComment(t *testing.T) {
 			t.Errorf("unexpected path: %s", r.URL.Path)
 		}
 		w.WriteHeader(http.StatusOK)
-		fmt.Fprint(w, `{}`)
+		_, _ = fmt.Fprint(w, `{}`)
 	}))
 	defer server.Close()
 
@@ -126,7 +126,7 @@ func TestAddComment(t *testing.T) {
 func TestFindBoardByName(t *testing.T) {
 	boards := []Board{{ID: "b1", Name: "Sprint Board"}, {ID: "b2", Name: "Backlog"}}
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		json.NewEncoder(w).Encode(boards)
+		_ = json.NewEncoder(w).Encode(boards)
 	}))
 	defer server.Close()
 
@@ -149,7 +149,7 @@ func TestFindBoardByName(t *testing.T) {
 func TestFindListByName(t *testing.T) {
 	lists := []List{{ID: "l1", Name: "Ready"}, {ID: "l2", Name: "Done"}}
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		json.NewEncoder(w).Encode(lists)
+		_ = json.NewEncoder(w).Encode(lists)
 	}))
 	defer server.Close()
 
@@ -186,7 +186,7 @@ func TestCreateCard(t *testing.T) {
 		if r.URL.Query().Get("desc") != "card body" {
 			t.Errorf("expected desc=card body, got %s", r.URL.Query().Get("desc"))
 		}
-		fmt.Fprint(w, `{"id":"card99","name":"My Card","desc":"card body","idList":"list1","shortUrl":"https://trello.com/c/abc123"}`)
+		_, _ = fmt.Fprint(w, `{"id":"card99","name":"My Card","desc":"card body","idList":"list1","shortUrl":"https://trello.com/c/abc123"}`)
 	}))
 	defer server.Close()
 
@@ -214,7 +214,7 @@ func TestUpdateCard(t *testing.T) {
 		if r.URL.Query().Get("desc") != "updated body" {
 			t.Errorf("expected desc=updated body, got %s", r.URL.Query().Get("desc"))
 		}
-		fmt.Fprint(w, `{"id":"card1","name":"My Card","desc":"updated body"}`)
+		_, _ = fmt.Fprint(w, `{"id":"card1","name":"My Card","desc":"updated body"}`)
 	}))
 	defer server.Close()
 
@@ -231,7 +231,7 @@ func TestFindCardByName(t *testing.T) {
 		{ID: "c2", Name: "fix-bug", Desc: "other"},
 	}
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		json.NewEncoder(w).Encode(cards)
+		_ = json.NewEncoder(w).Encode(cards)
 	}))
 	defer server.Close()
 

@@ -18,7 +18,9 @@ func TestDetectHasClaudeMD(t *testing.T) {
 	}
 
 	// With CLAUDE.md
-	os.WriteFile(filepath.Join(dir, "CLAUDE.md"), []byte("# test"), 0644)
+	if err := os.WriteFile(filepath.Join(dir, "CLAUDE.md"), []byte("# test"), 0644); err != nil {
+		t.Fatal(err)
+	}
 	s = Detect(dir)
 	if !s.HasClaudeMD {
 		t.Error("HasClaudeMD = false, want true")
@@ -35,14 +37,18 @@ func TestDetectHasBoardConfig(t *testing.T) {
 	}
 
 	// With .devpilot.yaml but no board
-	project.Save(dir, &project.Config{})
+	if err := project.Save(dir, &project.Config{}); err != nil {
+		t.Fatal(err)
+	}
 	s = Detect(dir)
 	if s.HasBoardConfig {
 		t.Error("HasBoardConfig = true for empty board, want false")
 	}
 
 	// With .devpilot.yaml and board set
-	project.Save(dir, &project.Config{Board: "My Board"})
+	if err := project.Save(dir, &project.Config{Board: "My Board"}); err != nil {
+		t.Fatal(err)
+	}
 	s = Detect(dir)
 	if !s.HasBoardConfig {
 		t.Error("HasBoardConfig = false, want true")
@@ -59,21 +65,27 @@ func TestDetectHasSkills(t *testing.T) {
 	}
 
 	// With empty skills dir
-	os.MkdirAll(filepath.Join(dir, ".claude", "skills"), 0755)
+	if err := os.MkdirAll(filepath.Join(dir, ".claude", "skills"), 0755); err != nil {
+		t.Fatal(err)
+	}
 	s = Detect(dir)
 	if s.HasSkills {
 		t.Error("HasSkills = true for empty skills dir, want false")
 	}
 
 	// With a subdirectory but no SKILL.md
-	os.MkdirAll(filepath.Join(dir, ".claude", "skills", "my-skill"), 0755)
+	if err := os.MkdirAll(filepath.Join(dir, ".claude", "skills", "my-skill"), 0755); err != nil {
+		t.Fatal(err)
+	}
 	s = Detect(dir)
 	if s.HasSkills {
 		t.Error("HasSkills = true for skill dir without SKILL.md, want false")
 	}
 
 	// With a subdirectory containing SKILL.md
-	os.WriteFile(filepath.Join(dir, ".claude", "skills", "my-skill", "SKILL.md"), []byte("---\nname: test\n---"), 0644)
+	if err := os.WriteFile(filepath.Join(dir, ".claude", "skills", "my-skill", "SKILL.md"), []byte("---\nname: test\n---"), 0644); err != nil {
+		t.Fatal(err)
+	}
 	s = Detect(dir)
 	if !s.HasSkills {
 		t.Error("HasSkills = false, want true")
@@ -90,7 +102,9 @@ func TestDetectIsGitRepo(t *testing.T) {
 	}
 
 	// With .git directory
-	os.MkdirAll(filepath.Join(dir, ".git"), 0755)
+	if err := os.MkdirAll(filepath.Join(dir, ".git"), 0755); err != nil {
+		t.Fatal(err)
+	}
 	s = Detect(dir)
 	if !s.IsGitRepo {
 		t.Error("IsGitRepo = false, want true")
@@ -115,14 +129,18 @@ func TestDetectSource(t *testing.T) {
 	}
 
 	// Config with source=github
-	project.Save(dir, &project.Config{Source: "github"})
+	if err := project.Save(dir, &project.Config{Source: "github"}); err != nil {
+		t.Fatal(err)
+	}
 	s = Detect(dir)
 	if s.Source != "github" {
 		t.Errorf("Source = %q, want %q", s.Source, "github")
 	}
 
 	// Config with source=trello
-	project.Save(dir, &project.Config{Source: "trello", Board: "My Board"})
+	if err := project.Save(dir, &project.Config{Source: "trello", Board: "My Board"}); err != nil {
+		t.Fatal(err)
+	}
 	s = Detect(dir)
 	if s.Source != "trello" {
 		t.Errorf("Source = %q, want %q", s.Source, "trello")

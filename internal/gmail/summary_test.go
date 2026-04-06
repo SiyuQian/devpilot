@@ -145,7 +145,7 @@ func TestFetchEmails(t *testing.T) {
 				},
 			},
 		}
-		json.NewEncoder(w).Encode(msg)
+		_ = json.NewEncoder(w).Encode(msg)
 	}))
 	defer srv.Close()
 
@@ -194,7 +194,7 @@ func TestFetchEmailsPartialFailure(t *testing.T) {
 
 		if msgID == "msg2" {
 			w.WriteHeader(http.StatusNotFound)
-			w.Write([]byte(`{"error": "not found"}`))
+			_, _ = w.Write([]byte(`{"error": "not found"}`))
 			return
 		}
 
@@ -212,7 +212,7 @@ func TestFetchEmailsPartialFailure(t *testing.T) {
 				},
 			},
 		}
-		json.NewEncoder(w).Encode(msg)
+		_ = json.NewEncoder(w).Encode(msg)
 	}))
 	defer srv.Close()
 

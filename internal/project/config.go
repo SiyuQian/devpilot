@@ -89,4 +89,3 @@ func Save(dir string, cfg *Config) error {
 	}
 	return os.WriteFile(filepath.Join(dir, configFile), data, 0644)
 }
-

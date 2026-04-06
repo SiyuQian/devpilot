@@ -254,7 +254,7 @@ func EnsureGitignore(dir string, entries []string) error {
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	// Ensure we start on a new line
 	if existing != "" && !strings.HasSuffix(existing, "\n") {
@@ -370,4 +370,3 @@ func InstallSkills(opts GenerateOpts, installOpts SkillInstallOpts) error {
 
 	return project.Save(opts.Dir, cfg)
 }
-

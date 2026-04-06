@@ -20,7 +20,7 @@ func TestFetchCatalog(t *testing.T) {
 		switch r.URL.Path {
 		case "/repos/o/r/contents/.claude/skills":
 			w.Header().Set("Content-Type", "application/json")
-			fmt.Fprint(w, `[
+			_, _ = fmt.Fprint(w, `[
 				{"type":"dir","name":"pm"},
 				{"type":"dir","name":"trello"},
 				{"type":"dir","name":"openspec-explore"},
@@ -28,11 +28,11 @@ func TestFetchCatalog(t *testing.T) {
 			]`)
 		case "/repos/o/r/contents/.claude/skills/pm/SKILL.md":
 			w.Header().Set("Content-Type", "application/json")
-			fmt.Fprintf(w, `{"content":"%s","encoding":"base64"}`,
+			_, _ = fmt.Fprintf(w, `{"content":"%s","encoding":"base64"}`,
 				skillMDBase64("---\nname: pm\ndescription: Product manager skill\n---\n# PM"))
 		case "/repos/o/r/contents/.claude/skills/trello/SKILL.md":
 			w.Header().Set("Content-Type", "application/json")
-			fmt.Fprintf(w, `{"content":"%s","encoding":"base64"}`,
+			_, _ = fmt.Fprintf(w, `{"content":"%s","encoding":"base64"}`,
 				skillMDBase64("---\nname: devpilot:trello\ndescription: Trello integration\n---\n# Trello"))
 		default:
 			http.NotFound(w, r)
@@ -71,7 +71,7 @@ func TestFetchCatalogExcludesOpenspec(t *testing.T) {
 		switch r.URL.Path {
 		case "/repos/o/r/contents/.claude/skills":
 			w.Header().Set("Content-Type", "application/json")
-			fmt.Fprint(w, `[
+			_, _ = fmt.Fprint(w, `[
 				{"type":"dir","name":"pm"},
 				{"type":"dir","name":"openspec-apply-change"},
 				{"type":"dir","name":"openspec-archive-change"},
@@ -80,7 +80,7 @@ func TestFetchCatalogExcludesOpenspec(t *testing.T) {
 			]`)
 		case "/repos/o/r/contents/.claude/skills/pm/SKILL.md":
 			w.Header().Set("Content-Type", "application/json")
-			fmt.Fprintf(w, `{"content":"%s","encoding":"base64"}`,
+			_, _ = fmt.Fprintf(w, `{"content":"%s","encoding":"base64"}`,
 				skillMDBase64("---\nname: pm\ndescription: PM skill\n---"))
 		default:
 			http.NotFound(w, r)
@@ -107,13 +107,13 @@ func TestFetchCatalogSkipsFailedSkills(t *testing.T) {
 		switch r.URL.Path {
 		case "/repos/o/r/contents/.claude/skills":
 			w.Header().Set("Content-Type", "application/json")
-			fmt.Fprint(w, `[
+			_, _ = fmt.Fprint(w, `[
 				{"type":"dir","name":"pm"},
 				{"type":"dir","name":"broken"}
 			]`)
 		case "/repos/o/r/contents/.claude/skills/pm/SKILL.md":
 			w.Header().Set("Content-Type", "application/json")
-			fmt.Fprintf(w, `{"content":"%s","encoding":"base64"}`,
+			_, _ = fmt.Fprintf(w, `{"content":"%s","encoding":"base64"}`,
 				skillMDBase64("---\nname: pm\ndescription: PM\n---"))
 		case "/repos/o/r/contents/.claude/skills/broken/SKILL.md":
 			http.NotFound(w, r)
@@ -139,11 +139,11 @@ func TestFetchCatalogRespectsTimeout(t *testing.T) {
 		switch r.URL.Path {
 		case "/repos/o/r/contents/.claude/skills":
 			w.Header().Set("Content-Type", "application/json")
-			fmt.Fprint(w, `[{"type":"dir","name":"slow"}]`)
+			_, _ = fmt.Fprint(w, `[{"type":"dir","name":"slow"}]`)
 		case "/repos/o/r/contents/.claude/skills/slow/SKILL.md":
 			time.Sleep(2 * time.Second)
 			w.Header().Set("Content-Type", "application/json")
-			fmt.Fprintf(w, `{"content":"%s","encoding":"base64"}`,
+			_, _ = fmt.Fprintf(w, `{"content":"%s","encoding":"base64"}`,
 				skillMDBase64("---\nname: slow\ndescription: Slow\n---"))
 		default:
 			http.NotFound(w, r)

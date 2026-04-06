@@ -21,4 +21,3 @@ const claudeMDTemplate = `# CLAUDE.md
 
 [TODO: document key directories]
 `
-

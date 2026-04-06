@@ -38,7 +38,7 @@ func fetchLatestTagFromURL(url string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("fetching latest release: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode == http.StatusNotFound {
 		return "", fmt.Errorf("no releases found")
@@ -92,7 +92,7 @@ func fetchContentsRecursive(baseURL, basePath, ref, pathPrefix string) ([]SkillF
 	if err != nil {
 		return nil, fmt.Errorf("fetching contents at %s: %w", apiPath, err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode == http.StatusNotFound {
 		return nil, fmt.Errorf("skill %q not found at ref %s", basePath, ref)
@@ -147,7 +147,7 @@ func downloadFile(url string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("HTTP %d", resp.StatusCode)
 	}

@@ -127,7 +127,7 @@ func (c *Client) doRequest(method, path string, params url.Values) ([]byte, erro
 	if err != nil {
 		return nil, fmt.Errorf("request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -154,7 +154,7 @@ func (c *Client) doRequest(method, path string, params url.Values) ([]byte, erro
 		if err2 != nil {
 			return nil, fmt.Errorf("retry request failed: %w", err2)
 		}
-		defer resp2.Body.Close()
+		defer func() { _ = resp2.Body.Close() }()
 		body, err = io.ReadAll(resp2.Body)
 		if err != nil {
 			return nil, fmt.Errorf("read retry body failed: %w", err)
@@ -194,7 +194,7 @@ func (c *Client) doPost(path string, payload any) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {

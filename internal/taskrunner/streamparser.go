@@ -173,11 +173,7 @@ func parseSystemMsg(data []byte) (ClaudeEvent, error) {
 	if raw.Tools == nil {
 		raw.Tools = []string{}
 	}
-	return ClaudeSystemMsg{
-		SessionID: raw.SessionID,
-		Model:     raw.Model,
-		Tools:     raw.Tools,
-	}, nil
+	return ClaudeSystemMsg(raw), nil
 }
 
 func parseAssistantMsg(data []byte) (ClaudeEvent, error) {

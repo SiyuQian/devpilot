@@ -26,7 +26,7 @@ func resolveModel(cmd *cobra.Command, command string) string {
 	if m, _ := cmd.Flags().GetString("model"); m != "" { // Ignore error; flag registered with default
 		return m
 	}
-	dir, _ := os.Getwd()   // Ignore error; empty dir falls back to default model
+	dir, _ := os.Getwd()        // Ignore error; empty dir falls back to default model
 	cfg, _ := project.Load(dir) // Ignore error; missing config falls back to default model
 	return cfg.ModelFor(command)
 }
@@ -38,7 +38,7 @@ var commitCmd = &cobra.Command{
 	Args:  cobra.NoArgs,
 	Run: func(cmd *cobra.Command, args []string) {
 		model := resolveModel(cmd, "commit")
-		msg, _ := cmd.Flags().GetString("message")       // Ignore error; flag registered above with default
+		msg, _ := cmd.Flags().GetString("message")  // Ignore error; flag registered above with default
 		dryRun, _ := cmd.Flags().GetBool("dry-run") // Ignore error; flag registered above with default
 
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)

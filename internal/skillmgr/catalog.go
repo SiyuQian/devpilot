@@ -77,7 +77,7 @@ func listSkillDirs(ctx context.Context, baseURL, ref string) ([]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("listing skills dir: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode == http.StatusNotFound {
 		return nil, fmt.Errorf("skills directory not found at ref %s", ref)
@@ -140,7 +140,7 @@ func fetchSkillMeta(ctx context.Context, baseURL, skillName, ref string) (Catalo
 	if err != nil {
 		return CatalogEntry{}, fmt.Errorf("fetching %s SKILL.md: %w", skillName, err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return CatalogEntry{}, fmt.Errorf("SKILL.md not found for %s (HTTP %d)", skillName, resp.StatusCode)

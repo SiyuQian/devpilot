@@ -74,7 +74,9 @@ func TestSaveFilePermissions(t *testing.T) {
 func TestLoadConfigWithModels(t *testing.T) {
 	dir := t.TempDir()
 	data := "board: myboard\nmodels:\n  commit: claude-haiku-4-5\n  default: claude-sonnet-4-6\n"
-	os.WriteFile(filepath.Join(dir, ".devpilot.yaml"), []byte(data), 0644)
+	if err := os.WriteFile(filepath.Join(dir, ".devpilot.yaml"), []byte(data), 0644); err != nil {
+		t.Fatal(err)
+	}
 
 	cfg, err := Load(dir)
 	if err != nil {

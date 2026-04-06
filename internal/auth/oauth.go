@@ -127,7 +127,7 @@ func startCallbackServer(state string, useTLS bool, port int) (net.Listener, *ht
 	mux.HandleFunc("/callback", func(w http.ResponseWriter, r *http.Request) {
 		if errParam := r.URL.Query().Get("error"); errParam != "" {
 			w.Header().Set("Content-Type", "text/html")
-			fmt.Fprintf(w, "<html><body><h2>Authorization denied.</h2><p>You can close this window.</p></body></html>")
+			_, _ = fmt.Fprintf(w, "<html><body><h2>Authorization denied.</h2><p>You can close this window.</p></body></html>")
 			resultCh <- callbackResult{err: ErrAuthDenied}
 			return
 		}
@@ -147,7 +147,7 @@ func startCallbackServer(state string, useTLS bool, port int) (net.Listener, *ht
 		}
 
 		w.Header().Set("Content-Type", "text/html")
-		fmt.Fprintf(w, "<html><body><h2>Authorization successful!</h2><p>You can close this window.</p></body></html>")
+		_, _ = fmt.Fprintf(w, "<html><body><h2>Authorization successful!</h2><p>You can close this window.</p></body></html>")
 		resultCh <- callbackResult{code: code}
 	})
 
@@ -175,7 +175,7 @@ func startCallbackServer(state string, useTLS bool, port int) (net.Listener, *ht
 	if useTLS {
 		cert, err := generateSelfSignedCert()
 		if err != nil {
-			listener.Close()
+			_ = listener.Close()
 			return nil, nil, nil, fmt.Errorf("failed to generate TLS certificate: %w", err)
 		}
 		tlsConfig := &tls.Config{Certificates: []tls.Certificate{cert}}
@@ -226,7 +226,7 @@ func exchangeCode(cfg OAuthConfig, code, redirectURI string) (*OAuthToken, error
 	if err != nil {
 		return nil, fmt.Errorf("token exchange request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -290,7 +290,7 @@ func RefreshToken(cfg OAuthConfig, refreshToken string) (*OAuthToken, error) {
 	if err != nil {
 		return nil, fmt.Errorf("token refresh request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {

@@ -22,7 +22,7 @@ func RegisterCommands(parent *cobra.Command) {
 	listCmd.Flags().Int("limit", 20, "Maximum number of messages to return")
 
 	bulkMarkReadCmd.Flags().String("query", "", "Gmail search query (e.g. 'category:promotions')")
-	bulkMarkReadCmd.MarkFlagRequired("query")
+	_ = bulkMarkReadCmd.MarkFlagRequired("query")
 
 	summaryCmd.Flags().String("channel", "", "Send summary to a Slack channel")
 	summaryCmd.Flags().String("dm", "", "Send summary as a DM to a Slack user ID")
@@ -40,7 +40,7 @@ func RegisterCommands(parent *cobra.Command) {
 func requireLogin() (*Client, error) {
 	token, err := auth.LoadOAuthToken("gmail")
 	if err != nil {
-		return nil, fmt.Errorf("Not logged in to Gmail. Run: devpilot login gmail")
+		return nil, fmt.Errorf("not logged in to Gmail, run: devpilot login gmail")
 	}
 	return NewClientFromToken(token), nil
 }
@@ -84,7 +84,7 @@ var listCmd = &cobra.Command{
 		}
 
 		w := tabwriter.NewWriter(os.Stdout, 0, 0, 3, ' ', 0)
-		fmt.Fprintln(w, "ID\tFROM\tSUBJECT\tDATE")
+		_, _ = fmt.Fprintln(w, "ID\tFROM\tSUBJECT\tDATE")
 		for _, ref := range refs {
 			msg, err := client.GetMessage(ref.ID)
 			if err != nil {
@@ -105,9 +105,9 @@ var listCmd = &cobra.Command{
 				date = date[:20]
 			}
 
-			fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", ref.ID, from, subject, date)
+			_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", ref.ID, from, subject, date)
 		}
-		w.Flush()
+		_ = w.Flush()
 	},
 }
 

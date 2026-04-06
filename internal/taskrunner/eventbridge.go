@@ -29,7 +29,7 @@ func (b *eventBridge) Handle(ce ClaudeEvent) {
 			switch bl := block.(type) {
 			case TextBlock:
 				if bl.Text != "" {
-					b.emit(TextOutputEvent{Text: bl.Text})
+					b.emit(TextOutputEvent(bl))
 				}
 			case ToolUseBlock:
 				b.inflightTools[bl.ID] = bl.Name

@@ -17,7 +17,7 @@ func TestTrelloVerify_Success(t *testing.T) {
 			w.WriteHeader(401)
 			return
 		}
-		w.Write([]byte(`{"id":"123","fullName":"Test User"}`))
+		_, _ = w.Write([]byte(`{"id":"123","fullName":"Test User"}`))
 	}))
 	defer server.Close()
 

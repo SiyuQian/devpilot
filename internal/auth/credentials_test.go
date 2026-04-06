@@ -48,7 +48,9 @@ func TestRemove(t *testing.T) {
 	defer func() { configDir = origFunc }()
 
 	creds := ServiceCredentials{"api_key": "k", "token": "t"}
-	Save("trello", creds)
+	if err := Save("trello", creds); err != nil {
+		t.Fatalf("Save failed: %v", err)
+	}
 
 	if err := Remove("trello"); err != nil {
 		t.Fatalf("Remove failed: %v", err)
@@ -71,7 +73,9 @@ func TestListServices(t *testing.T) {
 		t.Fatalf("expected 0 services, got %d", len(services))
 	}
 
-	Save("trello", ServiceCredentials{"api_key": "k", "token": "t"})
+	if err := Save("trello", ServiceCredentials{"api_key": "k", "token": "t"}); err != nil {
+		t.Fatalf("Save failed: %v", err)
+	}
 	services = ListServices()
 	if len(services) != 1 || services[0] != "trello" {
 		t.Fatalf("expected [trello], got %v", services)
