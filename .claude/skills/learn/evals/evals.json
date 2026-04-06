@@ -1,0 +1,47 @@
+{
+  "skill_name": "learn",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Summarize this article for me: https://www.technologyreview.com/2025/01/08/1109188/whats-next-for-ai-in-2025/",
+      "expected_output": "A standalone HTML file with reader-mode styling, containing an executive summary, 5-10 key points about AI trends in 2025, and any relevant charts/images preserved or described. Output in English.",
+      "files": [],
+      "expectations": [
+        "Output includes at least one .html file",
+        "The HTML file is self-contained with no external CSS or JS dependencies",
+        "The HTML contains an executive summary or core thesis section",
+        "The HTML contains at least 5 distinct key points or bullet items",
+        "The output text is in English",
+        "The HTML includes a source link back to the original URL"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "帮我总结一下这篇文章 https://36kr.com/p/2089043818498049",
+      "expected_output": "A standalone HTML file in Chinese with reader-mode styling, containing a 核心摘要, 5-10 要点, and any charts preserved or described.",
+      "files": [],
+      "expectations": [
+        "Output includes at least one .html file",
+        "The HTML file is self-contained with no external CSS or JS dependencies",
+        "The HTML contains a summary section (摘要 or similar)",
+        "The HTML contains at least 5 distinct key points or bullet items",
+        "The main body text is in Chinese",
+        "The HTML includes a source link back to the original URL"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Can you summarize this PDF and give me the key takeaways? Output in English. File: /Users/siyu/Works/github.com/siyuqian/agent-skills/skills/article-digest/evals/test-files/sample.pdf",
+      "expected_output": "A standalone HTML file summarizing the PDF content with key points extracted, any charts/figures described in text since they come from a PDF. Output in English.",
+      "files": ["/Users/siyu/Works/github.com/siyuqian/agent-skills/skills/article-digest/evals/test-files/sample.pdf"],
+      "expectations": [
+        "Output includes at least one .html file",
+        "The HTML file is self-contained with no external CSS or JS dependencies",
+        "The HTML contains an executive summary or core thesis section",
+        "The HTML contains at least 5 distinct key points or bullet items",
+        "The output text is in English",
+        "The HTML references the source PDF filename"
+      ]
+    }
+  ]
+}
