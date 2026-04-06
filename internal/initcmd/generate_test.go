@@ -263,7 +263,7 @@ func TestInstallSkillsInteractiveInstalls(t *testing.T) {
 		t.Fatalf("InstallSkills: %v", err)
 	}
 
-	if _, err := os.Stat(filepath.Join(dir, "skills", "pm", "SKILL.md")); err != nil {
+	if _, err := os.Stat(filepath.Join(dir, ".claude", "skills", "pm", "SKILL.md")); err != nil {
 		t.Errorf("SKILL.md not created: %v", err)
 	}
 }
