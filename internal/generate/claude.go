@@ -26,6 +26,37 @@ func Generate(ctx context.Context, prompt, model string) (string, error) {
 	return cleanOutput(stdout.String()), nil
 }
 
+// readmeAllowedTools defines the read-only tools for README generation.
+const readmeAllowedTools = "Read,Glob,Grep,Bash(find:*,ls:*,head:*,cat:*,wc:*,git log:*,git remote:*,git describe:*)"
+
+func buildReadmeArgs(model string) []string {
+	args := []string{
+		"-p", "--print",
+		"--allowedTools", readmeAllowedTools,
+	}
+	if model != "" {
+		args = append(args, "--model", model)
+	}
+	return args
+}
+
+// GenerateWithTools calls `claude -p` with tools enabled for autonomous exploration.
+func GenerateWithTools(ctx context.Context, prompt, model string) (string, error) {
+	args := buildReadmeArgs(model)
+	args = append(args, prompt)
+
+	cmd := exec.CommandContext(ctx, "claude", args...)
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	if err := cmd.Run(); err != nil {
+		return "", fmt.Errorf("claude failed: %w\nstderr: %s", err, stderr.String())
+	}
+
+	return cleanOutput(stdout.String()), nil
+}
+
 func buildArgs(model string) []string {
 	args := []string{"--print"}
 	if model != "" {
