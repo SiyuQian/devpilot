@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/siyuqian/devpilot/internal/project"
 	"github.com/siyuqian/devpilot/internal/skillmgr"
 )
 
@@ -188,16 +189,15 @@ func TestConfigureBoardPreservesExistingConfig(t *testing.T) {
 		t.Fatalf("ConfigureBoard failed: %v", err)
 	}
 
-	data, err := os.ReadFile(filepath.Join(dir, ".devpilot.yaml"))
+	cfg, err := project.Load(dir)
 	if err != nil {
-		t.Fatalf("ReadFile failed: %v", err)
+		t.Fatalf("Load failed: %v", err)
 	}
-	content := string(data)
-	if !strings.Contains(content, "My Board") {
-		t.Errorf("board name missing, got: %s", content)
+	if cfg.Board != "My Board" {
+		t.Errorf("Board = %q, want %q", cfg.Board, "My Board")
 	}
-	if !strings.Contains(content, "pm") {
-		t.Errorf("existing skill entry was overwritten, got: %s", content)
+	if len(cfg.Skills) != 1 || cfg.Skills[0].Name != "pm" {
+		t.Errorf("existing skill entry was overwritten, skills = %v", cfg.Skills)
 	}
 }
 
