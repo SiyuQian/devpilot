@@ -1,12 +1,19 @@
 package skillmgr
 
 import (
+	"context"
+	"encoding/base64"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"sort"
 	"testing"
+	"time"
 )
+
+func skillMDBase64(content string) string {
+	return base64.StdEncoding.EncodeToString([]byte(content))
+}
 
 func TestFetchCatalog(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -21,21 +28,20 @@ func TestFetchCatalog(t *testing.T) {
 			]`)
 		case "/repos/o/r/contents/.claude/skills/pm/SKILL.md":
 			w.Header().Set("Content-Type", "application/json")
-			fmt.Fprintf(w, `{"download_url":"http://%s/raw/pm"}`, r.Host)
+			fmt.Fprintf(w, `{"content":"%s","encoding":"base64"}`,
+				skillMDBase64("---\nname: pm\ndescription: Product manager skill\n---\n# PM"))
 		case "/repos/o/r/contents/.claude/skills/trello/SKILL.md":
 			w.Header().Set("Content-Type", "application/json")
-			fmt.Fprintf(w, `{"download_url":"http://%s/raw/trello"}`, r.Host)
-		case "/raw/pm":
-			fmt.Fprint(w, "---\nname: pm\ndescription: Product manager skill\n---\n# PM")
-		case "/raw/trello":
-			fmt.Fprint(w, "---\nname: devpilot:trello\ndescription: Trello integration\n---\n# Trello")
+			fmt.Fprintf(w, `{"content":"%s","encoding":"base64"}`,
+				skillMDBase64("---\nname: devpilot:trello\ndescription: Trello integration\n---\n# Trello"))
 		default:
 			http.NotFound(w, r)
 		}
 	}))
 	defer srv.Close()
 
-	catalog, err := fetchCatalogFromBase(srv.URL+"/repos/o/r", "v1.0.0")
+	ctx := context.Background()
+	catalog, err := fetchCatalogFromBase(ctx, srv.URL+"/repos/o/r", "v1.0.0")
 	if err != nil {
 		t.Fatalf("FetchCatalog: %v", err)
 	}
@@ -68,16 +74,16 @@ func TestFetchCatalogExcludesOpenspec(t *testing.T) {
 			]`)
 		case "/repos/o/r/contents/.claude/skills/pm/SKILL.md":
 			w.Header().Set("Content-Type", "application/json")
-			fmt.Fprintf(w, `{"download_url":"http://%s/raw/pm"}`, r.Host)
-		case "/raw/pm":
-			fmt.Fprint(w, "---\nname: pm\ndescription: PM skill\n---")
+			fmt.Fprintf(w, `{"content":"%s","encoding":"base64"}`,
+				skillMDBase64("---\nname: pm\ndescription: PM skill\n---"))
 		default:
 			http.NotFound(w, r)
 		}
 	}))
 	defer srv.Close()
 
-	catalog, err := fetchCatalogFromBase(srv.URL+"/repos/o/r", "v1.0.0")
+	ctx := context.Background()
+	catalog, err := fetchCatalogFromBase(ctx, srv.URL+"/repos/o/r", "v1.0.0")
 	if err != nil {
 		t.Fatalf("FetchCatalog: %v", err)
 	}
@@ -101,9 +107,8 @@ func TestFetchCatalogSkipsFailedSkills(t *testing.T) {
 			]`)
 		case "/repos/o/r/contents/.claude/skills/pm/SKILL.md":
 			w.Header().Set("Content-Type", "application/json")
-			fmt.Fprintf(w, `{"download_url":"http://%s/raw/pm"}`, r.Host)
-		case "/raw/pm":
-			fmt.Fprint(w, "---\nname: pm\ndescription: PM\n---")
+			fmt.Fprintf(w, `{"content":"%s","encoding":"base64"}`,
+				skillMDBase64("---\nname: pm\ndescription: PM\n---"))
 		case "/repos/o/r/contents/.claude/skills/broken/SKILL.md":
 			http.NotFound(w, r)
 		default:
@@ -112,13 +117,44 @@ func TestFetchCatalogSkipsFailedSkills(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	catalog, err := fetchCatalogFromBase(srv.URL+"/repos/o/r", "v1.0.0")
+	ctx := context.Background()
+	catalog, err := fetchCatalogFromBase(ctx, srv.URL+"/repos/o/r", "v1.0.0")
 	if err != nil {
 		t.Fatalf("FetchCatalog: %v", err)
 	}
 
 	if len(catalog) != 1 {
 		t.Fatalf("len(catalog) = %d, want 1 (broken should be skipped)", len(catalog))
+	}
+}
+
+func TestFetchCatalogRespectsTimeout(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/repos/o/r/contents/.claude/skills":
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprint(w, `[{"type":"dir","name":"slow"}]`)
+		case "/repos/o/r/contents/.claude/skills/slow/SKILL.md":
+			time.Sleep(2 * time.Second)
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprintf(w, `{"content":"%s","encoding":"base64"}`,
+				skillMDBase64("---\nname: slow\ndescription: Slow\n---"))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer srv.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+
+	catalog, err := fetchCatalogFromBase(ctx, srv.URL+"/repos/o/r", "v1.0.0")
+	if err != nil {
+		t.Fatalf("unexpected top-level error: %v", err)
+	}
+	// The slow skill should be skipped due to timeout
+	if len(catalog) != 0 {
+		t.Errorf("expected empty catalog due to timeout, got %d entries", len(catalog))
 	}
 }
 

@@ -206,12 +206,14 @@ func TestInstallSkillsNonInteractiveSkips(t *testing.T) {
 	opts := GenerateOpts{Dir: dir, Interactive: false}
 
 	called := false
-	selectFn := func(catalog []skillmgr.CatalogEntry) ([]string, error) {
-		called = true
-		return []string{"pm"}, nil
+	installOpts := SkillInstallOpts{
+		SelectFn: func(catalog []skillmgr.CatalogEntry) ([]string, error) {
+			called = true
+			return []string{"pm"}, nil
+		},
 	}
 
-	if err := InstallSkills(opts, selectFn, nil, nil); err != nil {
+	if err := InstallSkills(opts, installOpts); err != nil {
 		t.Fatalf("InstallSkills: %v", err)
 	}
 	if called {
@@ -233,16 +235,19 @@ func TestInstallSkillsInteractiveInstalls(t *testing.T) {
 	dir := t.TempDir()
 	opts := GenerateOpts{Dir: dir, Interactive: true}
 
-	selectFn := func(catalog []skillmgr.CatalogEntry) ([]string, error) {
-		return []string{"pm"}, nil
-	}
-	fetchFn := func(name, tag string) ([]skillmgr.SkillFile, error) {
-		return []skillmgr.SkillFile{
-			{Path: "SKILL.md", Content: []byte("---\nname: " + name + "\n---")},
-		}, nil
+	installOpts := SkillInstallOpts{
+		SelectFn: func(catalog []skillmgr.CatalogEntry) ([]string, error) {
+			return []string{"pm"}, nil
+		},
+		FetchCatalogFn: stubCatalogFn,
+		FetchSkillFn: func(name, tag string) ([]skillmgr.SkillFile, error) {
+			return []skillmgr.SkillFile{
+				{Path: "SKILL.md", Content: []byte("---\nname: " + name + "\n---")},
+			}, nil
+		},
 	}
 
-	if err := InstallSkills(opts, selectFn, fetchFn, stubCatalogFn); err != nil {
+	if err := InstallSkills(opts, installOpts); err != nil {
 		t.Fatalf("InstallSkills: %v", err)
 	}
 
@@ -255,11 +260,14 @@ func TestInstallSkillsNoSelection(t *testing.T) {
 	dir := t.TempDir()
 	opts := GenerateOpts{Dir: dir, Interactive: true}
 
-	selectFn := func(catalog []skillmgr.CatalogEntry) ([]string, error) {
-		return nil, nil // user selected nothing
+	installOpts := SkillInstallOpts{
+		SelectFn: func(catalog []skillmgr.CatalogEntry) ([]string, error) {
+			return nil, nil // user selected nothing
+		},
+		FetchCatalogFn: stubCatalogFn,
 	}
 
-	if err := InstallSkills(opts, selectFn, nil, stubCatalogFn); err != nil {
+	if err := InstallSkills(opts, installOpts); err != nil {
 		t.Fatalf("InstallSkills: %v", err)
 	}
 }

@@ -3,14 +3,21 @@ package skillmgr
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
+	"net/url"
 	"strings"
 	"sync"
+	"time"
 
 	"gopkg.in/yaml.v3"
 )
+
+// catalogTimeout is the maximum duration for the entire catalog fetch operation.
+const catalogTimeout = 30 * time.Second
 
 // CatalogEntry describes a skill available from the default source.
 type CatalogEntry struct {
@@ -26,11 +33,13 @@ var excludedPrefixes = []string{"openspec-"}
 // extract name and description. Skills matching excludedPrefixes are filtered out.
 func FetchCatalog(owner, repo, ref string) ([]CatalogEntry, error) {
 	baseURL := fmt.Sprintf("https://api.github.com/repos/%s/%s", owner, repo)
-	return fetchCatalogFromBase(baseURL, ref)
+	ctx, cancel := context.WithTimeout(context.Background(), catalogTimeout)
+	defer cancel()
+	return fetchCatalogFromBase(ctx, baseURL, ref)
 }
 
-func fetchCatalogFromBase(baseURL, ref string) ([]CatalogEntry, error) {
-	dirs, err := listSkillDirs(baseURL, ref)
+func fetchCatalogFromBase(ctx context.Context, baseURL, ref string) ([]CatalogEntry, error) {
+	dirs, err := listSkillDirs(ctx, baseURL, ref)
 	if err != nil {
 		return nil, err
 	}
@@ -46,7 +55,7 @@ func fetchCatalogFromBase(baseURL, ref string) ([]CatalogEntry, error) {
 		wg.Add(1)
 		go func(idx int, skillName string) {
 			defer wg.Done()
-			entry, ferr := fetchSkillMeta(baseURL, skillName, ref)
+			entry, ferr := fetchSkillMeta(ctx, baseURL, skillName, ref)
 			results[idx] = result{entry: entry, err: ferr}
 		}(i, name)
 	}
@@ -55,7 +64,8 @@ func fetchCatalogFromBase(baseURL, ref string) ([]CatalogEntry, error) {
 	var catalog []CatalogEntry
 	for _, r := range results {
 		if r.err != nil {
-			continue // skip skills whose SKILL.md can't be fetched
+			log.Printf("Warning: skipping skill: %v", r.err)
+			continue
 		}
 		catalog = append(catalog, r.entry)
 	}
@@ -63,9 +73,9 @@ func fetchCatalogFromBase(baseURL, ref string) ([]CatalogEntry, error) {
 }
 
 // listSkillDirs lists subdirectory names under .claude/skills/ that are not excluded.
-func listSkillDirs(baseURL, ref string) ([]string, error) {
-	url := fmt.Sprintf("%s/contents/.claude/skills?ref=%s", baseURL, ref)
-	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, url, nil)
+func listSkillDirs(ctx context.Context, baseURL, ref string) ([]string, error) {
+	apiURL := fmt.Sprintf("%s/contents/.claude/skills?ref=%s", baseURL, url.QueryEscape(ref))
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, apiURL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("creating request for skills dir: %w", err)
 	}
@@ -123,9 +133,12 @@ type skillFrontmatter struct {
 }
 
 // fetchSkillMeta fetches SKILL.md for a single skill and parses its frontmatter.
-func fetchSkillMeta(baseURL, skillName, ref string) (CatalogEntry, error) {
-	url := fmt.Sprintf("%s/contents/.claude/skills/%s/SKILL.md?ref=%s", baseURL, skillName, ref)
-	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, url, nil)
+// It reads the base64-encoded content directly from the Contents API response
+// to avoid a second HTTP request.
+func fetchSkillMeta(ctx context.Context, baseURL, skillName, ref string) (CatalogEntry, error) {
+	apiURL := fmt.Sprintf("%s/contents/.claude/skills/%s/SKILL.md?ref=%s",
+		baseURL, url.PathEscape(skillName), url.QueryEscape(ref))
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, apiURL, nil)
 	if err != nil {
 		return CatalogEntry{}, err
 	}
@@ -140,15 +153,20 @@ func fetchSkillMeta(baseURL, skillName, ref string) (CatalogEntry, error) {
 	}
 
 	var file struct {
-		DownloadURL string `json:"download_url"`
+		Content  string `json:"content"`
+		Encoding string `json:"encoding"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&file); err != nil {
 		return CatalogEntry{}, fmt.Errorf("decoding SKILL.md metadata for %s: %w", skillName, err)
 	}
 
-	content, err := downloadFile(file.DownloadURL)
+	if file.Encoding != "base64" {
+		return CatalogEntry{}, fmt.Errorf("unexpected encoding %q for %s SKILL.md", file.Encoding, skillName)
+	}
+
+	content, err := base64.StdEncoding.DecodeString(file.Content)
 	if err != nil {
-		return CatalogEntry{}, fmt.Errorf("downloading SKILL.md for %s: %w", skillName, err)
+		return CatalogEntry{}, fmt.Errorf("decoding base64 content for %s: %w", skillName, err)
 	}
 
 	fm, err := parseFrontmatter(content)
