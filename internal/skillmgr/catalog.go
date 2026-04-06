@@ -65,7 +65,7 @@ func fetchCatalogFromBase(ctx context.Context, baseURL, ref string) ([]CatalogEn
 
 // listSkillDirs lists subdirectory names under skills/.
 func listSkillDirs(ctx context.Context, baseURL, ref string) ([]string, error) {
-	apiURL := fmt.Sprintf("%s/contents/skills?ref=%s", baseURL, url.QueryEscape(ref))
+	apiURL := fmt.Sprintf("%s/contents/%s?ref=%s", baseURL, SkillsDir, url.QueryEscape(ref))
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, apiURL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("creating request for skills dir: %w", err)
@@ -114,8 +114,8 @@ type skillFrontmatter struct {
 // It reads the base64-encoded content directly from the Contents API response
 // to avoid a second HTTP request.
 func fetchSkillMeta(ctx context.Context, baseURL, skillName, ref string) (CatalogEntry, error) {
-	apiURL := fmt.Sprintf("%s/contents/skills/%s/SKILL.md?ref=%s",
-		baseURL, url.PathEscape(skillName), url.QueryEscape(ref))
+	apiURL := fmt.Sprintf("%s/contents/%s/%s/SKILL.md?ref=%s",
+		baseURL, SkillsDir, url.PathEscape(skillName), url.QueryEscape(ref))
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, apiURL, nil)
 	if err != nil {
 		return CatalogEntry{}, fmt.Errorf("creating request for %s SKILL.md: %w", skillName, err)

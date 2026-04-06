@@ -6,6 +6,7 @@ import (
 
 	"github.com/siyuqian/devpilot/internal/auth"
 	"github.com/siyuqian/devpilot/internal/project"
+	"github.com/siyuqian/devpilot/internal/skillmgr"
 )
 
 // Status holds the detection results for a project directory.
@@ -44,7 +45,7 @@ func Detect(dir string) *Status {
 	}
 
 	// Skills: check for subdirectories containing SKILL.md
-	skillsDir := filepath.Join(dir, "skills")
+	skillsDir := filepath.Join(dir, skillmgr.SkillsDir)
 	if entries, err := os.ReadDir(skillsDir); err == nil {
 		for _, e := range entries {
 			if e.IsDir() {

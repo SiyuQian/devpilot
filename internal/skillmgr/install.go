@@ -9,7 +9,7 @@ import (
 // InstallSkill writes skill files into skills/<skillName>/ under destDir.
 // Existing files are silently overwritten.
 func InstallSkill(destDir, skillName string, files []SkillFile) error {
-	skillDir := filepath.Join(destDir, "skills", skillName)
+	skillDir := filepath.Join(destDir, SkillsDir, skillName)
 
 	for _, f := range files {
 		target := filepath.Join(skillDir, filepath.FromSlash(f.Path))
