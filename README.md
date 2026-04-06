@@ -52,6 +52,11 @@ DevPilot polls your task source, prioritizes by labels (P0/P1/P2), and executes 
 curl -sSL https://raw.githubusercontent.com/siyuqian/devpilot/main/install.sh | sh
 ```
 
+Optionally specify a version or directory:
+```bash
+curl -sSL https://raw.githubusercontent.com/siyuqian/devpilot/main/install.sh | sh -s -- --version v0.12.0 --dir ~/.local/bin
+```
+
 **From source (Go 1.25+):**
 ```bash
 git clone https://github.com/siyuqian/devpilot.git
