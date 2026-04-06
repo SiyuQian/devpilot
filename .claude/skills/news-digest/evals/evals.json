@@ -1,0 +1,42 @@
+{
+  "skill_name": "news-digest",
+  "evals": [
+    {
+      "id": 0,
+      "prompt": "Give me today's news digest",
+      "expected_output": "A structured English news digest covering International, AI, Technology, and Economics categories with 5-8 stories each, sourced from reputable outlets",
+      "files": [],
+      "assertions": [
+        {"name": "has_all_default_categories", "description": "Output contains all 4 default categories"},
+        {"name": "min_stories_per_category", "description": "At least 3 stories per category section"},
+        {"name": "has_source_attribution", "description": "Stories cite sources in parentheses"},
+        {"name": "has_date_header", "description": "Digest starts with a date/title header line"},
+        {"name": "professional_tone", "description": "No editorializing language"}
+      ]
+    },
+    {
+      "id": 1,
+      "prompt": "今天有什么新闻？",
+      "expected_output": "A structured Chinese news digest covering default categories with stories from both international and Chinese sources",
+      "files": [],
+      "assertions": [
+        {"name": "output_in_chinese", "description": "The digest body is written in Chinese"},
+        {"name": "has_chinese_header", "description": "Contains 新闻简报 header"},
+        {"name": "has_source_attribution", "description": "Each story cites a source"},
+        {"name": "has_categories", "description": "Output is organized into category sections"}
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "What happened this week in AI and economics?",
+      "expected_output": "A structured English news digest covering only AI and Economics categories for the past week",
+      "files": [],
+      "assertions": [
+        {"name": "only_requested_categories", "description": "Only AI and Economics categories appear"},
+        {"name": "weekly_timeframe", "description": "Header indicates a weekly range"},
+        {"name": "has_source_attribution", "description": "Stories cite sources"},
+        {"name": "min_stories_per_category", "description": "At least 3 stories per category"}
+      ]
+    }
+  ]
+}
