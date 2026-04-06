@@ -101,6 +101,53 @@ func TestBuildReadmePrompt(t *testing.T) {
 	}
 }
 
+func TestBuildReadmeArgs(t *testing.T) {
+	args := buildReadmeArgs("claude-haiku-4-5")
+	// Must contain -p and --print
+	if args[0] != "-p" {
+		t.Errorf("first arg should be -p, got %q", args[0])
+	}
+
+	// Must contain --allowedTools
+	foundAllowed := false
+	for i, a := range args {
+		if a == "--allowedTools" {
+			foundAllowed = true
+			if !strings.Contains(args[i+1], "Read") {
+				t.Errorf("allowedTools should contain Read, got %q", args[i+1])
+			}
+			if !strings.Contains(args[i+1], "Glob") {
+				t.Errorf("allowedTools should contain Glob, got %q", args[i+1])
+			}
+		}
+	}
+	if !foundAllowed {
+		t.Error("--allowedTools flag not found")
+	}
+
+	// Must contain --model
+	foundModel := false
+	for i, a := range args {
+		if a == "--model" {
+			foundModel = true
+			if args[i+1] != "claude-haiku-4-5" {
+				t.Errorf("model arg = %q, want claude-haiku-4-5", args[i+1])
+			}
+		}
+	}
+	if !foundModel {
+		t.Error("--model flag not found")
+	}
+
+	// Without model
+	argsNoModel := buildReadmeArgs("")
+	for _, a := range argsNoModel {
+		if a == "--model" {
+			t.Error("--model should not be present when model is empty")
+		}
+	}
+}
+
 func TestCollectFileTree(t *testing.T) {
 	tree, err := collectFileTree(".")
 	if err != nil {
