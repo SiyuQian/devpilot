@@ -3,6 +3,7 @@ package initcmd
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -308,7 +309,9 @@ func InstallSkills(opts GenerateOpts, installOpts SkillInstallOpts) error {
 				return nil, "", fmt.Errorf("resolving latest tag: %w", err)
 			}
 			fmt.Printf("  Discovering available skills...\n")
-			catalog, err := skillmgr.FetchCatalog("siyuqian", "devpilot", tag)
+			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			defer cancel()
+			catalog, err := skillmgr.FetchCatalog(ctx, "siyuqian", "devpilot", tag)
 			if err != nil {
 				return nil, "", fmt.Errorf("fetching skill catalog: %w", err)
 			}

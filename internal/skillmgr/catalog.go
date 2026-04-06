@@ -11,13 +11,9 @@ import (
 	"net/url"
 	"strings"
 	"sync"
-	"time"
 
 	"gopkg.in/yaml.v3"
 )
-
-// catalogTimeout is the maximum duration for the entire catalog fetch operation.
-const catalogTimeout = 30 * time.Second
 
 // CatalogEntry describes a skill available from the default source.
 type CatalogEntry struct {
@@ -31,10 +27,8 @@ var excludedPrefixes = []string{"openspec-"}
 // FetchCatalog discovers available skills by listing .claude/skills/ from the
 // GitHub repo at the given ref, fetching each skill's SKILL.md frontmatter to
 // extract name and description. Skills matching excludedPrefixes are filtered out.
-func FetchCatalog(owner, repo, ref string) ([]CatalogEntry, error) {
+func FetchCatalog(ctx context.Context, owner, repo, ref string) ([]CatalogEntry, error) {
 	baseURL := fmt.Sprintf("https://api.github.com/repos/%s/%s", owner, repo)
-	ctx, cancel := context.WithTimeout(context.Background(), catalogTimeout)
-	defer cancel()
 	return fetchCatalogFromBase(ctx, baseURL, ref)
 }
 
@@ -140,11 +134,11 @@ func fetchSkillMeta(ctx context.Context, baseURL, skillName, ref string) (Catalo
 		baseURL, url.PathEscape(skillName), url.QueryEscape(ref))
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, apiURL, nil)
 	if err != nil {
-		return CatalogEntry{}, err
+		return CatalogEntry{}, fmt.Errorf("creating request for %s SKILL.md: %w", skillName, err)
 	}
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return CatalogEntry{}, err
+		return CatalogEntry{}, fmt.Errorf("fetching %s SKILL.md: %w", skillName, err)
 	}
 	defer resp.Body.Close()
 

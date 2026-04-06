@@ -52,11 +52,17 @@ func TestFetchCatalog(t *testing.T) {
 
 	sort.Slice(catalog, func(i, j int) bool { return catalog[i].Name < catalog[j].Name })
 
-	if catalog[0].Name != "pm" || catalog[0].Description != "Product manager skill" {
-		t.Errorf("catalog[0] = %+v", catalog[0])
+	if got, want := catalog[0].Name, "pm"; got != want {
+		t.Errorf("catalog[0].Name = %q, want %q", got, want)
 	}
-	if catalog[1].Name != "trello" || catalog[1].Description != "Trello integration" {
-		t.Errorf("catalog[1] = %+v", catalog[1])
+	if got, want := catalog[0].Description, "Product manager skill"; got != want {
+		t.Errorf("catalog[0].Description = %q, want %q", got, want)
+	}
+	if got, want := catalog[1].Name, "trello"; got != want {
+		t.Errorf("catalog[1].Name = %q, want %q", got, want)
+	}
+	if got, want := catalog[1].Description, "Trello integration"; got != want {
+		t.Errorf("catalog[1].Description = %q, want %q", got, want)
 	}
 }
 
