@@ -86,18 +86,28 @@ func TestBuildCommitPromptNoContext(t *testing.T) {
 }
 
 func TestBuildReadmePrompt(t *testing.T) {
-	prompt, err := buildReadmePrompt("src/\n  main.go\n  util.go", "module example.com/foo", "# Old Readme")
+	prompt, err := buildReadmePrompt("# Old Readme\nSome content")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(prompt, "main.go") {
-		t.Error("prompt should contain file tree")
-	}
-	if !strings.Contains(prompt, "module example.com/foo") {
-		t.Error("prompt should contain package info")
-	}
 	if !strings.Contains(prompt, "Old Readme") {
 		t.Error("prompt should contain existing readme")
+	}
+	if !strings.Contains(prompt, "Exploration Strategy") {
+		t.Error("prompt should contain exploration strategy section")
+	}
+}
+
+func TestBuildReadmePromptEmpty(t *testing.T) {
+	prompt, err := buildReadmePrompt("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(prompt, "existing-readme") {
+		t.Error("prompt should not contain existing-readme section when empty")
+	}
+	if !strings.Contains(prompt, "Exploration Strategy") {
+		t.Error("prompt should contain exploration strategy section")
 	}
 }
 
@@ -145,15 +155,5 @@ func TestBuildReadmeArgs(t *testing.T) {
 		if a == "--model" {
 			t.Error("--model should not be present when model is empty")
 		}
-	}
-}
-
-func TestCollectFileTree(t *testing.T) {
-	tree, err := collectFileTree(".")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if tree == "" {
-		t.Error("file tree should not be empty")
 	}
 }
