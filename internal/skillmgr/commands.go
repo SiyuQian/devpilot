@@ -99,10 +99,10 @@ var skillListCmd = &cobra.Command{
 		}
 
 		w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-		fmt.Fprintln(w, "NAME\tSOURCE\tVERSION\tINSTALLED")
+		_, _ = fmt.Fprintln(w, "NAME\tSOURCE\tVERSION\tINSTALLED")
 		for _, s := range cfg.Skills {
 			installed := s.InstalledAt.Format("2006-01-02")
-			fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", s.Name, s.Source, s.Version, installed)
+			_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", s.Name, s.Source, s.Version, installed)
 		}
 		return w.Flush()
 	},

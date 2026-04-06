@@ -160,7 +160,7 @@ func (c *Client) PostMessage(channelID, text string) error {
 	}
 	if !resp.OK {
 		if resp.Error == "not_in_channel" || resp.Error == "channel_not_found" {
-			return fmt.Errorf("Bot is not a member of the channel. Run: /invite @devpilot in the channel.")
+			return fmt.Errorf("bot is not a member of the channel, run: /invite @devpilot in the channel")
 		}
 		return fmt.Errorf("chat.postMessage failed: %s", resp.Error)
 	}
@@ -184,7 +184,7 @@ func (c *Client) doGet(path string, params url.Values) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -211,7 +211,7 @@ func (c *Client) doPost(path string, params url.Values) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {

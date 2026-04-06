@@ -28,7 +28,7 @@ func TestListMessages(t *testing.T) {
 				{ID: "msg2", ThreadID: "thread2"},
 			},
 		}
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	}))
 	defer srv.Close()
 
@@ -47,7 +47,7 @@ func TestListMessages(t *testing.T) {
 
 func TestListMessagesEmpty(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		json.NewEncoder(w).Encode(MessageListResponse{})
+		_ = json.NewEncoder(w).Encode(MessageListResponse{})
 	}))
 	defer srv.Close()
 
@@ -83,7 +83,7 @@ func TestGetMessage(t *testing.T) {
 				},
 			},
 		}
-		json.NewEncoder(w).Encode(msg)
+		_ = json.NewEncoder(w).Encode(msg)
 	}))
 	defer srv.Close()
 
@@ -119,7 +119,9 @@ func TestBatchModify(t *testing.T) {
 			t.Fatalf("expected application/json, got %s", r.Header.Get("Content-Type"))
 		}
 		var body map[string]any
-		json.NewDecoder(r.Body).Decode(&body)
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Fatalf("decode request body: %v", err)
+		}
 		ids := body["ids"].([]any)
 		if len(ids) != 2 {
 			t.Fatalf("expected 2 ids, got %d", len(ids))
@@ -129,7 +131,7 @@ func TestBatchModify(t *testing.T) {
 			t.Fatalf("expected UNREAD label, got %s", labels[0])
 		}
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("{}"))
+		_, _ = w.Write([]byte("{}"))
 	}))
 	defer srv.Close()
 
@@ -241,7 +243,7 @@ func TestServiceName(t *testing.T) {
 func TestHTTPError(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
-		w.Write([]byte(`{"error": {"message": "Not Found"}}`))
+		_, _ = w.Write([]byte(`{"error": {"message": "Not Found"}}`))
 	}))
 	defer srv.Close()
 

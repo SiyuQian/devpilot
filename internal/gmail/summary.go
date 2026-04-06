@@ -108,7 +108,7 @@ func BuildPrompt(emails []EmailSummary) string {
 func RunClaude(prompt string) (string, error) {
 	claudePath, err := exec.LookPath("claude")
 	if err != nil {
-		return "", fmt.Errorf("Claude Code CLI is required but not found on PATH. Install it from https://claude.ai/code")
+		return "", fmt.Errorf("claude code CLI is required but not found on PATH, install from https://claude.ai/code")
 	}
 
 	cmd := exec.Command(claudePath, "-p", prompt)

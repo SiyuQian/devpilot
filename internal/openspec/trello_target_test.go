@@ -17,7 +17,7 @@ func TestTrelloTarget_FindByName(t *testing.T) {
 	}
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		json.NewEncoder(w).Encode(cards)
+		_ = json.NewEncoder(w).Encode(cards)
 	}))
 	defer server.Close()
 
@@ -50,7 +50,7 @@ func TestTrelloTarget_Create(t *testing.T) {
 		gotPath = r.URL.Path
 		gotName = r.URL.Query().Get("name")
 		gotDesc = r.URL.Query().Get("desc")
-		fmt.Fprint(w, `{"id":"card99","name":"add-auth","desc":"the plan","idList":"list1"}`)
+		_, _ = fmt.Fprint(w, `{"id":"card99","name":"add-auth","desc":"the plan","idList":"list1"}`)
 	}))
 	defer server.Close()
 
@@ -81,7 +81,7 @@ func TestTrelloTarget_Update(t *testing.T) {
 		gotMethod = r.Method
 		gotPath = r.URL.Path
 		gotDesc = r.URL.Query().Get("desc")
-		fmt.Fprint(w, `{"id":"card1","name":"add-auth","desc":"updated"}`)
+		_, _ = fmt.Fprint(w, `{"id":"card1","name":"add-auth","desc":"updated"}`)
 	}))
 	defer server.Close()
 

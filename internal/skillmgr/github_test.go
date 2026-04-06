@@ -140,8 +140,12 @@ func TestInstallSkill(t *testing.T) {
 func TestInstallSkillOverwrites(t *testing.T) {
 	dir := t.TempDir()
 	skillDir := filepath.Join(dir, ".claude", "skills", "pm")
-	os.MkdirAll(skillDir, 0755)
-	os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte("old content"), 0644)
+	if err := os.MkdirAll(skillDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte("old content"), 0644); err != nil {
+		t.Fatal(err)
+	}
 
 	files := []SkillFile{
 		{Path: "SKILL.md", Content: []byte("new content")},

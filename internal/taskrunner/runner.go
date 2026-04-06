@@ -159,7 +159,9 @@ func (r *Runner) processCard(ctx context.Context, task Task) {
 
 	if task.Description == "" {
 		r.logger.Printf("Card has empty description, marking as failed")
-		r.source.MarkFailed(task.ID, "❌ Task failed\nError: Empty plan — card description is empty")
+		if err := r.source.MarkFailed(task.ID, "❌ Task failed\nError: Empty plan — card description is empty"); err != nil {
+			r.logger.Printf("Failed to mark card as failed: %v", err)
+		}
 		return
 	}
 
@@ -206,7 +208,9 @@ func (r *Runner) processCard(ctx context.Context, task Task) {
 			errMsg = truncate(result.Stderr, 500)
 		}
 		r.failCard(task, start, errMsg)
-		r.git.CheckoutMain()
+		if err := r.git.CheckoutMain(); err != nil {
+			r.logger.Printf("Failed to checkout main: %v", err)
+		}
 		return
 	}
 
@@ -214,19 +218,25 @@ func (r *Runner) processCard(ctx context.Context, task Task) {
 	hasCommits, err := r.git.HasNewCommits(branch)
 	if err != nil {
 		r.failCard(task, start, fmt.Sprintf("check commits: %v", err))
-		r.git.CheckoutMain()
+		if err := r.git.CheckoutMain(); err != nil {
+			r.logger.Printf("Failed to checkout main: %v", err)
+		}
 		return
 	}
 	if !hasCommits {
 		r.failCard(task, start, "claude produced no commits on task branch")
-		r.git.CheckoutMain()
+		if err := r.git.CheckoutMain(); err != nil {
+			r.logger.Printf("Failed to checkout main: %v", err)
+		}
 		return
 	}
 
 	// Push and create PR
 	if err := r.git.Push(branch); err != nil {
 		r.failCard(task, start, fmt.Sprintf("git push: %v", err))
-		r.git.CheckoutMain()
+		if err := r.git.CheckoutMain(); err != nil {
+			r.logger.Printf("Failed to checkout main: %v", err)
+		}
 		return
 	}
 
@@ -234,7 +244,9 @@ func (r *Runner) processCard(ctx context.Context, task Task) {
 	prURL, err := r.git.CreatePR(task.Name, prBody)
 	if err != nil {
 		r.failCard(task, start, fmt.Sprintf("create PR: %v", err))
-		r.git.CheckoutMain()
+		if err := r.git.CheckoutMain(); err != nil {
+			r.logger.Printf("Failed to checkout main: %v", err)
+		}
 		return
 	}
 
@@ -285,7 +297,7 @@ func (r *Runner) processCard(ctx context.Context, task Task) {
 				if err := r.git.Push(branch); err != nil {
 					r.logger.Printf("Failed to push fix: %v", err)
 					r.failCard(task, start, fmt.Sprintf("push fix: %v", err))
-					r.git.CheckoutMain()
+					_ = r.git.CheckoutMain()
 					return
 				}
 			}
@@ -293,7 +305,7 @@ func (r *Runner) processCard(ctx context.Context, task Task) {
 
 		if !approved {
 			r.failCard(task, start, fmt.Sprintf("code review failed after %d attempts", MaxReviewRetries+1))
-			r.git.CheckoutMain()
+			_ = r.git.CheckoutMain()
 			return
 		}
 	}
@@ -306,11 +318,13 @@ func (r *Runner) processCard(ctx context.Context, task Task) {
 	duration := time.Since(start).Round(time.Second)
 	r.emit(CardDoneEvent{CardID: task.ID, CardName: task.Name, PRURL: prURL, Duration: duration})
 	comment := fmt.Sprintf("✅ Task completed by devpilot runner\nDuration: %s\nPR: %s", duration, prURL)
-	r.source.MarkDone(task.ID, comment)
+	if err := r.source.MarkDone(task.ID, comment); err != nil {
+		r.logger.Printf("Failed to mark card as done: %v", err)
+	}
 	r.logger.Printf("Card %q completed in %s. PR: %s", task.Name, duration, prURL)
 
 	_ = r.git.CheckoutMain() // best-effort cleanup
-	_ = r.git.Pull()        // best-effort cleanup
+	_ = r.git.Pull()         // best-effort cleanup
 }
 
 func (r *Runner) buildPrompt(task Task) string {
@@ -348,7 +362,9 @@ func (r *Runner) failCard(task Task, start time.Time, errMsg string) {
 	r.emit(CardFailedEvent{CardID: task.ID, CardName: task.Name, ErrMsg: errMsg, Duration: duration})
 	logPath := filepath.Join(r.config.WorkDir, ".devpilot", "logs", task.ID+".log")
 	comment := fmt.Sprintf("❌ Task failed\nDuration: %s\nError: %s\nSee full log: %s", duration, errMsg, logPath)
-	r.source.MarkFailed(task.ID, comment)
+	if err := r.source.MarkFailed(task.ID, comment); err != nil {
+		r.logger.Printf("Failed to mark card as failed: %v", err)
+	}
 	r.logger.Printf("Card %q failed: %s", task.Name, errMsg)
 }
 

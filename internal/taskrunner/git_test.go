@@ -48,7 +48,9 @@ func TestCheckoutMain(t *testing.T) {
 	dir := setupGitRepo(t)
 	git := NewGitOps(dir)
 
-	git.CreateBranch("task/test")
+	if err := git.CreateBranch("task/test"); err != nil {
+		t.Fatal(err)
+	}
 
 	err := git.CheckoutMain()
 	if err != nil {
@@ -121,7 +123,9 @@ func TestIsClean(t *testing.T) {
 	}
 
 	// Create an untracked file — should return false
-	os.WriteFile(filepath.Join(dir, "dirty.txt"), []byte("hello"), 0644)
+	if err := os.WriteFile(filepath.Join(dir, "dirty.txt"), []byte("hello"), 0644); err != nil {
+		t.Fatal(err)
+	}
 	clean, err = git.IsClean()
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
