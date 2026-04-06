@@ -1,6 +1,6 @@
 ---
-name: devpilot:pm
-description: Product manager skill for market research and feature discovery. Use when the user wants to research market needs, analyze competitors, discover user pain points, or prioritize features for a product. Triggers on /pm, "market research", "find features", "what should we build", "产品调研", "市场需求".
+name: devpilot-product-research
+description: Use when the user wants to research market needs, analyze competitors, discover user pain points, or prioritize features for a product. Triggers on "market research", "find features", "what should we build", "competitor analysis", "user pain points", "产品调研", "市场需求", "竞品分析".
 license: Complete terms in LICENSE.txt
 ---
 
@@ -46,9 +46,9 @@ Before launching agents, check if today's research already exists:
 
 #### Step 2: Launch agents (cache miss only)
 
-Launch **3 agents in parallel** using the Task tool with `subagent_type: "general-purpose"`. Each agent uses WebSearch extensively.
+Launch **3 agents in parallel** using the Task tool with `subagent_type: "general-purpose"`. Each agent uses WebSearch extensively. For additional search query templates by industry, see `references/search-patterns.md`.
 
-**IMPORTANT**: Launch all 3 agents in a single message to maximize parallelism.
+Launch all 3 agents in a single message to maximize parallelism.
 
 **IMPORTANT**: If Phase 1.5 produced any rejected or deferred ideas, append the following block to each agent's prompt (before the 800-word constraint line):
 
@@ -62,10 +62,10 @@ The following ideas were DEFERRED (not right now). Only mention them if you find
 
 If there are no rejected or deferred ideas, omit this block entirely.
 
-**CRITICAL**: Each agent prompt MUST end with this constraint:
+Each agent prompt should end with this constraint:
 > Keep your response under 800 words. Return ONLY a structured summary — no preamble, no methodology explanation. Focus on actionable findings with specific data points.
 
-**CRITICAL**: After ALL agents return, you MUST immediately proceed to Step 3 (cache write) and then Phase 3 (Synthesis) in the SAME response. Do NOT stop or wait for user input between Phase 2 and Phase 4.
+After all agents return, proceed directly to Step 3 (cache write) and then Phase 3 (Synthesis) in the same response — don't stop to wait for user input between research and synthesis, because the user wants to see the complete picture, not raw agent output.
 
 #### Step 3: Write research cache (cache miss only)
 
@@ -99,7 +99,7 @@ Target users: {target_users}
 
 Do the following:
 1. Use WebSearch to find 5-8 competing products. Search for:
-   - "{product_type} alternatives 2026"
+   - "{product_type} alternatives {current_year}"
    - "{product_type} best tools"
    - "{product_type} comparison"
 2. For each competitor, search for their features and pricing:
@@ -149,7 +149,7 @@ Target users: {target_users}
 
 Do the following:
 1. Use WebSearch to find trends. Search for:
-   - "{product_type} trends 2026"
+   - "{product_type} trends {current_year}"
    - "{product_type} emerging technology"
    - "{product_type} market growth"
    - "{product_type} future"
@@ -165,9 +165,7 @@ Return a structured trend analysis. Focus on actionable insights, not hype.
 Keep your response under 800 words. Return ONLY a structured summary — no preamble, no methodology explanation. Focus on actionable findings with specific data points.
 ```
 
-### Phase 3: Synthesis (MUST happen in the same response as Phase 2 results)
-
-**CRITICAL**: Do NOT stop after agents return. Immediately synthesize and present findings in a single response. Never wait for user input between Phase 2 and Phase 4.
+### Phase 3: Synthesis
 
 After all 3 agents return, synthesize their findings:
 
@@ -220,43 +218,25 @@ Then engage in discussion:
 
 ### Phase 4.5: Record Review Decisions
 
-After the user has made their decisions on which features to pursue, record rejected and deferred ideas:
+After the user decides which features to pursue, ask once: "Which features are you rejecting, and which do you want to defer?" — don't ask about each feature individually.
 
-1. **Ask for each recommended feature** — Use AskUserQuestion to ask the user's decision for each feature that they did NOT choose to pursue:
-   - Options: "Reject permanently" / "Defer for later" / "Already accepted"
-   - For rejected/deferred: ask reason with options: "scope" / "direction" / "timing" / "duplicate" / "other"
-   - If "other", ask for a brief explanation
+For each rejected or deferred idea, write `docs/rejected/{YYYY-MM-DD}-{idea-slug}.md`:
 
-2. **Write rejection files** — For each rejected or deferred idea, use the Write tool to create `docs/rejected/{YYYY-MM-DD}-{idea-slug}.md`:
+```markdown
+---
+status: {rejected|deferred}
+idea: "{Feature Name}"
+date: {YYYY-MM-DD}
+score: {total_score}
+reason: "{brief reason}"
+---
 
-   ```markdown
-   ---
-   status: {rejected|deferred}
-   idea: "{Feature Name}"
-   date: {YYYY-MM-DD}
-   score: {total_score}
-   reason: "{reason}"
-   ---
+## Original Evidence Summary
 
-   ## Reason
+{2-3 bullet points from Phase 3 synthesis}
+```
 
-   {User's explanation or generated summary based on reason category}
-
-   ## Original Evidence Summary
-
-   {2-3 bullet points from the Phase 3 synthesis for this feature}
-   ```
-
-   The `{idea-slug}` should be the feature name in lowercase-kebab-case (e.g., "Real-time Collaboration" → "real-time-collaboration").
-
-3. **Commit** — Stage and commit all new rejection files:
-
-   ```
-   git add docs/rejected/
-   git commit -m "docs: record rejected/deferred ideas from PM research"
-   ```
-
-4. **Confirm** — Tell the user which ideas were recorded and where the files are saved.
+Then stage and commit: `git add docs/rejected/ && git commit -m "docs: record rejected/deferred ideas from product research"`
 
 ## Key Rules
 
