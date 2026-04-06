@@ -1,39 +1,184 @@
 package skillmgr
 
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"strings"
+	"sync"
+
+	"gopkg.in/yaml.v3"
+)
+
 // CatalogEntry describes a skill available from the default source.
 type CatalogEntry struct {
 	Name        string
 	Description string
 }
 
-// BuiltinCatalog lists all skills shipped with devpilot.
-var BuiltinCatalog = []CatalogEntry{
-	{
-		Name:        "confluence-reviewer",
-		Description: "Review Atlassian Confluence pages and leave inline and page-level comments",
-	},
-	{
-		Name:        "content-creator",
-		Description: "SEO-optimized blog and content writing skill",
-	},
-	{
-		Name:        "google-go-style",
-		Description: "Google Go Style Guide enforcement for writing and reviewing Go code",
-	},
-	{
-		Name:        "pm",
-		Description: "Product manager skill for market research and feature discovery",
-	},
-	{
-		Name:        "task-executor",
-		Description: "Executes a task plan autonomously (used by devpilot run)",
-	},
-	{
-		Name:        "task-refiner",
-		Description: "Improve Trello card task plans for the devpilot runner",
-	},
-	{
-		Name:        "trello",
-		Description: "Interact with Trello boards, lists, and cards directly from Claude Code",
-	},
+// excludedPrefixes lists skill name prefixes that are filtered out of the catalog.
+var excludedPrefixes = []string{"openspec-"}
+
+// FetchCatalog discovers available skills by listing .claude/skills/ from the
+// GitHub repo at the given ref, fetching each skill's SKILL.md frontmatter to
+// extract name and description. Skills matching excludedPrefixes are filtered out.
+func FetchCatalog(owner, repo, ref string) ([]CatalogEntry, error) {
+	baseURL := fmt.Sprintf("https://api.github.com/repos/%s/%s", owner, repo)
+	return fetchCatalogFromBase(baseURL, ref)
+}
+
+func fetchCatalogFromBase(baseURL, ref string) ([]CatalogEntry, error) {
+	dirs, err := listSkillDirs(baseURL, ref)
+	if err != nil {
+		return nil, err
+	}
+
+	type result struct {
+		entry CatalogEntry
+		err   error
+	}
+
+	results := make([]result, len(dirs))
+	var wg sync.WaitGroup
+	for i, name := range dirs {
+		wg.Add(1)
+		go func(idx int, skillName string) {
+			defer wg.Done()
+			entry, ferr := fetchSkillMeta(baseURL, skillName, ref)
+			results[idx] = result{entry: entry, err: ferr}
+		}(i, name)
+	}
+	wg.Wait()
+
+	var catalog []CatalogEntry
+	for _, r := range results {
+		if r.err != nil {
+			continue // skip skills whose SKILL.md can't be fetched
+		}
+		catalog = append(catalog, r.entry)
+	}
+	return catalog, nil
+}
+
+// listSkillDirs lists subdirectory names under .claude/skills/ that are not excluded.
+func listSkillDirs(baseURL, ref string) ([]string, error) {
+	url := fmt.Sprintf("%s/contents/.claude/skills?ref=%s", baseURL, ref)
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("creating request for skills dir: %w", err)
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("listing skills dir: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, fmt.Errorf("skills directory not found at ref %s", ref)
+	}
+	if resp.StatusCode == http.StatusForbidden || resp.StatusCode == http.StatusTooManyRequests {
+		return nil, fmt.Errorf("GitHub API rate limit exceeded; try again later")
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("GitHub API returned %d for skills listing", resp.StatusCode)
+	}
+
+	var entries []struct {
+		Type string `json:"type"`
+		Name string `json:"name"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&entries); err != nil {
+		return nil, fmt.Errorf("decoding skills directory: %w", err)
+	}
+
+	var dirs []string
+	for _, e := range entries {
+		if e.Type != "dir" {
+			continue
+		}
+		if isExcluded(e.Name) {
+			continue
+		}
+		dirs = append(dirs, e.Name)
+	}
+	return dirs, nil
+}
+
+// isExcluded returns true if the skill name matches any excluded prefix.
+func isExcluded(name string) bool {
+	for _, prefix := range excludedPrefixes {
+		if strings.HasPrefix(name, prefix) {
+			return true
+		}
+	}
+	return false
+}
+
+// skillFrontmatter represents the YAML frontmatter of a SKILL.md file.
+type skillFrontmatter struct {
+	Name        string `yaml:"name"`
+	Description string `yaml:"description"`
+}
+
+// fetchSkillMeta fetches SKILL.md for a single skill and parses its frontmatter.
+func fetchSkillMeta(baseURL, skillName, ref string) (CatalogEntry, error) {
+	url := fmt.Sprintf("%s/contents/.claude/skills/%s/SKILL.md?ref=%s", baseURL, skillName, ref)
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, url, nil)
+	if err != nil {
+		return CatalogEntry{}, err
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return CatalogEntry{}, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return CatalogEntry{}, fmt.Errorf("SKILL.md not found for %s (HTTP %d)", skillName, resp.StatusCode)
+	}
+
+	var file struct {
+		DownloadURL string `json:"download_url"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&file); err != nil {
+		return CatalogEntry{}, fmt.Errorf("decoding SKILL.md metadata for %s: %w", skillName, err)
+	}
+
+	content, err := downloadFile(file.DownloadURL)
+	if err != nil {
+		return CatalogEntry{}, fmt.Errorf("downloading SKILL.md for %s: %w", skillName, err)
+	}
+
+	fm, err := parseFrontmatter(content)
+	if err != nil {
+		return CatalogEntry{}, fmt.Errorf("parsing frontmatter for %s: %w", skillName, err)
+	}
+
+	return CatalogEntry{Name: skillName, Description: fm.Description}, nil
+}
+
+// parseFrontmatter extracts YAML frontmatter from a SKILL.md file.
+func parseFrontmatter(content []byte) (skillFrontmatter, error) {
+	const sep = "---"
+	s := string(content)
+
+	start := strings.Index(s, sep)
+	if start == -1 {
+		return skillFrontmatter{}, fmt.Errorf("no frontmatter found")
+	}
+	afterStart := start + len(sep)
+	end := strings.Index(s[afterStart:], sep)
+	if end == -1 {
+		return skillFrontmatter{}, fmt.Errorf("unterminated frontmatter")
+	}
+
+	fmBytes := []byte(s[afterStart : afterStart+end])
+	var fm skillFrontmatter
+	if err := yaml.NewDecoder(bytes.NewReader(fmBytes)).Decode(&fm); err != nil {
+		return skillFrontmatter{}, fmt.Errorf("decoding YAML: %w", err)
+	}
+	fm.Description = strings.TrimSpace(fm.Description)
+	return fm, nil
 }

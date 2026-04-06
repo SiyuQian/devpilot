@@ -211,7 +211,7 @@ func TestInstallSkillsNonInteractiveSkips(t *testing.T) {
 		return []string{"pm"}, nil
 	}
 
-	if err := InstallSkills(opts, selectFn, nil); err != nil {
+	if err := InstallSkills(opts, selectFn, nil, nil); err != nil {
 		t.Fatalf("InstallSkills: %v", err)
 	}
 	if called {
@@ -220,6 +220,13 @@ func TestInstallSkillsNonInteractiveSkips(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(dir, ".claude", "skills")); !os.IsNotExist(err) {
 		t.Error(".claude/skills should not exist when skipped")
 	}
+}
+
+func stubCatalogFn() ([]skillmgr.CatalogEntry, string, error) {
+	return []skillmgr.CatalogEntry{
+		{Name: "pm", Description: "Product manager skill"},
+		{Name: "trello", Description: "Trello integration"},
+	}, "v0.1.0", nil
 }
 
 func TestInstallSkillsInteractiveInstalls(t *testing.T) {
@@ -235,7 +242,7 @@ func TestInstallSkillsInteractiveInstalls(t *testing.T) {
 		}, nil
 	}
 
-	if err := InstallSkills(opts, selectFn, fetchFn); err != nil {
+	if err := InstallSkills(opts, selectFn, fetchFn, stubCatalogFn); err != nil {
 		t.Fatalf("InstallSkills: %v", err)
 	}
 
@@ -252,7 +259,7 @@ func TestInstallSkillsNoSelection(t *testing.T) {
 		return nil, nil // user selected nothing
 	}
 
-	if err := InstallSkills(opts, selectFn, nil); err != nil {
+	if err := InstallSkills(opts, selectFn, nil, stubCatalogFn); err != nil {
 		t.Fatalf("InstallSkills: %v", err)
 	}
 }

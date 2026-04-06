@@ -280,10 +280,13 @@ type SkillSelector func(catalog []skillmgr.CatalogEntry) ([]string, error)
 // SkillFetcher is a function that fetches skill files for a given name and tag.
 type SkillFetcher func(name, tag string) ([]skillmgr.SkillFile, error)
 
+// CatalogFetcher is a function that returns the available skill catalog.
+type CatalogFetcher func() ([]skillmgr.CatalogEntry, string, error)
+
 // InstallSkills presents a multi-select checklist of devpilot's built-in skills
 // and installs the selected ones. Skipped in non-interactive mode.
-// selectFn and fetchFn may be nil; defaults are used in that case.
-func InstallSkills(opts GenerateOpts, selectFn SkillSelector, fetchFn SkillFetcher) error {
+// selectFn, fetchFn, and catalogFn may be nil; defaults are used in that case.
+func InstallSkills(opts GenerateOpts, selectFn SkillSelector, fetchFn SkillFetcher, catalogFn CatalogFetcher) error {
 	if !opts.Interactive {
 		return nil
 	}
@@ -292,7 +295,32 @@ func InstallSkills(opts GenerateOpts, selectFn SkillSelector, fetchFn SkillFetch
 		selectFn = skillmgr.SelectSkillsFromCatalog
 	}
 
-	selected, err := selectFn(skillmgr.BuiltinCatalog)
+	if catalogFn == nil {
+		catalogFn = func() ([]skillmgr.CatalogEntry, string, error) {
+			fmt.Printf("  Resolving latest devpilot version...\n")
+			tag, err := skillmgr.FetchLatestTag("siyuqian", "devpilot")
+			if err != nil {
+				return nil, "", fmt.Errorf("resolving latest tag: %w", err)
+			}
+			fmt.Printf("  Discovering available skills...\n")
+			catalog, err := skillmgr.FetchCatalog("siyuqian", "devpilot", tag)
+			if err != nil {
+				return nil, "", fmt.Errorf("fetching skill catalog: %w", err)
+			}
+			return catalog, tag, nil
+		}
+	}
+
+	catalog, tag, err := catalogFn()
+	if err != nil {
+		return err
+	}
+	if len(catalog) == 0 {
+		fmt.Println("  No skills found in catalog.")
+		return nil
+	}
+
+	selected, err := selectFn(catalog)
 	if err != nil {
 		return fmt.Errorf("skill selection: %w", err)
 	}
@@ -300,13 +328,7 @@ func InstallSkills(opts GenerateOpts, selectFn SkillSelector, fetchFn SkillFetch
 		return nil
 	}
 
-	var tag string
 	if fetchFn == nil {
-		fmt.Printf("  Resolving latest devpilot version...\n")
-		tag, err = skillmgr.FetchLatestTag("siyuqian", "devpilot")
-		if err != nil {
-			return fmt.Errorf("resolving latest tag: %w", err)
-		}
 		fetchFn = func(name, t string) ([]skillmgr.SkillFile, error) {
 			return skillmgr.FetchSkill("siyuqian", "devpilot", name, t)
 		}

@@ -115,7 +115,7 @@ var initCmd = &cobra.Command{
 
 		// Install skills from devpilot catalog
 		if opts.Interactive {
-			if err := InstallSkills(opts, nil, nil); err != nil {
+			if err := InstallSkills(opts, nil, nil, nil); err != nil {
 				fmt.Fprintf(os.Stderr, "  Error installing skills: %v\n", err)
 			}
 		}
