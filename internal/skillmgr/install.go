@@ -6,10 +6,10 @@ import (
 	"path/filepath"
 )
 
-// InstallSkill writes skill files into .claude/skills/<skillName>/ under destDir.
+// InstallSkill writes skill files into skills/<skillName>/ under destDir.
 // Existing files are silently overwritten.
 func InstallSkill(destDir, skillName string, files []SkillFile) error {
-	skillDir := filepath.Join(destDir, ".claude", "skills", skillName)
+	skillDir := filepath.Join(destDir, "skills", skillName)
 
 	for _, f := range files {
 		target := filepath.Join(skillDir, filepath.FromSlash(f.Path))

@@ -1,5 +1,5 @@
 ---
-name: news-digest
+name: devpilot-news-digest
 description: >
   Fetch and summarize current news into a structured briefing across categories like
   International, AI, Technology, and Economics. Supports English and Chinese.

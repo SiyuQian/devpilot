@@ -18,7 +18,7 @@ const (
 
 // SkillFile represents a single file to be written when installing a skill.
 type SkillFile struct {
-	// Path is relative to .claude/skills/<skillName>/
+	// Path is relative to skills/<skillName>/
 	Path    string
 	Content []byte
 }
@@ -63,14 +63,14 @@ func fetchLatestTagFromURL(url string) (string, error) {
 }
 
 // FetchSkill fetches all files for the named skill from the GitHub repo at the given tag.
-// It returns a flat list of SkillFile with paths relative to .claude/skills/<skillName>/.
+// It returns a flat list of SkillFile with paths relative to skills/<skillName>/.
 func FetchSkill(owner, repo, skillName, tag string) ([]SkillFile, error) {
 	baseURL := fmt.Sprintf("https://api.github.com/repos/%s/%s", owner, repo)
 	return fetchSkillFromBase(baseURL, skillName, tag)
 }
 
 func fetchSkillFromBase(baseURL, skillName, tag string) ([]SkillFile, error) {
-	basePath := fmt.Sprintf(".claude/skills/%s", skillName)
+	basePath := fmt.Sprintf("skills/%s", skillName)
 	return fetchContentsRecursive(baseURL, basePath, tag, "")
 }
 

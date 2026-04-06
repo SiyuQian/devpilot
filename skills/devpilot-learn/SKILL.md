@@ -1,5 +1,5 @@
 ---
-name: learn
+name: devpilot-learn
 description: >
   Summarize any single article, document, or web page into a standalone HTML digest
   file with reader-mode styling. MUST use this skill — not raw summarization — whenever

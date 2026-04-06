@@ -1,5 +1,5 @@
 ---
-name: google-go-style
+name: devpilot-google-go-style
 description: >
   ALWAYS use when working in a Go project — writing new Go code, modifying .go files, reviewing Go PRs,
   or discussing Go design decisions. Triggers on any .go file interaction, Go package design, Go naming

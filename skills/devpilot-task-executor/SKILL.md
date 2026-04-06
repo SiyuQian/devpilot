@@ -1,5 +1,5 @@
 ---
-name: devpilot:task-executor
+name: devpilot-task-executor
 description: Executes a task plan autonomously. Used by the devpilot runner to process Trello cards. Follows execution plans step-by-step using TDD and verification skills.
 license: Complete terms in LICENSE.txt
 ---

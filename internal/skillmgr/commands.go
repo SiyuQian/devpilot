@@ -73,7 +73,7 @@ var skillAddCmd = &cobra.Command{
 			return fmt.Errorf("saving config: %w", err)
 		}
 
-		fmt.Printf("Installed skill %q (%s) into .claude/skills/%s/\n", name, version, name)
+		fmt.Printf("Installed skill %q (%s) into skills/%s/\n", name, version, name)
 		return nil
 	},
 }

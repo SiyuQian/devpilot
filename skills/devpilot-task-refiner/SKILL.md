@@ -1,5 +1,5 @@
 ---
-name: devpilot:task-refiner
+name: devpilot-task-refiner
 description: Improve Trello card task plans for the devpilot runner. Use when user wants to refine, improve, or expand a Trello task/card plan. Triggers on /refine-task, "refine task", "improve card", "改进任务".
 license: Complete terms in LICENSE.txt
 ---

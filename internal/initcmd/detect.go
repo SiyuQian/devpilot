@@ -44,7 +44,7 @@ func Detect(dir string) *Status {
 	}
 
 	// Skills: check for subdirectories containing SKILL.md
-	skillsDir := filepath.Join(dir, ".claude", "skills")
+	skillsDir := filepath.Join(dir, "skills")
 	if entries, err := os.ReadDir(skillsDir); err == nil {
 		for _, e := range entries {
 			if e.IsDir() {

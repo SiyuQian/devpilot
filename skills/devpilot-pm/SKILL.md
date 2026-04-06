@@ -1,5 +1,5 @@
 ---
-name: devpilot:pm
+name: devpilot-pm
 description: Product manager skill for market research and feature discovery. Use when the user wants to research market needs, analyze competitors, discover user pain points, or prioritize features for a product. Triggers on /pm, "market research", "find features", "what should we build", "产品调研", "市场需求".
 license: Complete terms in LICENSE.txt
 ---

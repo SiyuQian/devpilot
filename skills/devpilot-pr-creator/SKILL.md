@@ -1,5 +1,5 @@
 ---
-name: pr-creator
+name: devpilot-pr-creator
 description: >
   Use when the user wants to create or update a pull request or merge request,
   open a PR/MR, push changes for review, update a PR description, or mark a draft
