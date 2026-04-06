@@ -211,7 +211,9 @@ func editPlanInTerminal(plan CommitPlan) (CommitPlan, error) {
 	if _, err := tmpFile.WriteString(content); err != nil {
 		return plan, err
 	}
-	_ = tmpFile.Close()
+	if err := tmpFile.Close(); err != nil {
+		return plan, err
+	}
 
 	cmd := exec.Command(editor, tmpFile.Name())
 	cmd.Stdin = os.Stdin

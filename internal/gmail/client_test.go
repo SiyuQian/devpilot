@@ -119,7 +119,9 @@ func TestBatchModify(t *testing.T) {
 			t.Fatalf("expected application/json, got %s", r.Header.Get("Content-Type"))
 		}
 		var body map[string]any
-		_ = json.NewDecoder(r.Body).Decode(&body)
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Fatalf("decode request body: %v", err)
+		}
 		ids := body["ids"].([]any)
 		if len(ids) != 2 {
 			t.Fatalf("expected 2 ids, got %d", len(ids))

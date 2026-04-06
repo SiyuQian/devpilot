@@ -208,7 +208,9 @@ func (r *Runner) processCard(ctx context.Context, task Task) {
 			errMsg = truncate(result.Stderr, 500)
 		}
 		r.failCard(task, start, errMsg)
-		_ = r.git.CheckoutMain()
+		if err := r.git.CheckoutMain(); err != nil {
+			r.logger.Printf("Failed to checkout main: %v", err)
+		}
 		return
 	}
 
@@ -216,19 +218,25 @@ func (r *Runner) processCard(ctx context.Context, task Task) {
 	hasCommits, err := r.git.HasNewCommits(branch)
 	if err != nil {
 		r.failCard(task, start, fmt.Sprintf("check commits: %v", err))
-		_ = r.git.CheckoutMain()
+		if err := r.git.CheckoutMain(); err != nil {
+			r.logger.Printf("Failed to checkout main: %v", err)
+		}
 		return
 	}
 	if !hasCommits {
 		r.failCard(task, start, "claude produced no commits on task branch")
-		_ = r.git.CheckoutMain()
+		if err := r.git.CheckoutMain(); err != nil {
+			r.logger.Printf("Failed to checkout main: %v", err)
+		}
 		return
 	}
 
 	// Push and create PR
 	if err := r.git.Push(branch); err != nil {
 		r.failCard(task, start, fmt.Sprintf("git push: %v", err))
-		_ = r.git.CheckoutMain()
+		if err := r.git.CheckoutMain(); err != nil {
+			r.logger.Printf("Failed to checkout main: %v", err)
+		}
 		return
 	}
 
@@ -236,7 +244,9 @@ func (r *Runner) processCard(ctx context.Context, task Task) {
 	prURL, err := r.git.CreatePR(task.Name, prBody)
 	if err != nil {
 		r.failCard(task, start, fmt.Sprintf("create PR: %v", err))
-		_ = r.git.CheckoutMain()
+		if err := r.git.CheckoutMain(); err != nil {
+			r.logger.Printf("Failed to checkout main: %v", err)
+		}
 		return
 	}
 

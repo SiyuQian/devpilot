@@ -170,7 +170,9 @@ func TestPostMessage(t *testing.T) {
 			t.Fatalf("unexpected content-type: %s", r.Header.Get("Content-Type"))
 		}
 
-		_ = r.ParseForm()
+		if err := r.ParseForm(); err != nil {
+			t.Fatalf("parse form: %v", err)
+		}
 		if r.PostForm.Get("channel") != "C001" {
 			t.Fatalf("expected C001, got %s", r.PostForm.Get("channel"))
 		}
