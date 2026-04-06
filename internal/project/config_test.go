@@ -36,32 +36,6 @@ func TestLoadMissingFile(t *testing.T) {
 	}
 }
 
-func TestExistsTrue(t *testing.T) {
-	dir := t.TempDir()
-
-	if err := Save(dir, &Config{Board: "test"}); err != nil {
-		t.Fatalf("Save failed: %v", err)
-	}
-
-	if !Exists(dir) {
-		t.Error("Exists returned false, want true")
-	}
-}
-
-func TestExistsFalse(t *testing.T) {
-	dir := t.TempDir()
-
-	if Exists(dir) {
-		t.Error("Exists returned true for missing file, want false")
-	}
-}
-
-func TestExistsMissingDir(t *testing.T) {
-	if Exists("/nonexistent/path/that/does/not/exist") {
-		t.Error("Exists returned true for missing dir, want false")
-	}
-}
-
 func TestSaveCreatesIntermediateDirectories(t *testing.T) {
 	dir := t.TempDir()
 	nested := filepath.Join(dir, "a", "b", "c")

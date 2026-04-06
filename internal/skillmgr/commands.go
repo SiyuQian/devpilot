@@ -33,10 +33,6 @@ var skillAddCmd = &cobra.Command{
 			return err
 		}
 
-		if !project.Exists(dir) {
-			return fmt.Errorf("no .devpilot.yaml found; run 'devpilot init' first")
-		}
-
 		name, version, err := parseSkillArg(args[0])
 		if err != nil {
 			return err
@@ -90,10 +86,6 @@ var skillListCmd = &cobra.Command{
 		dir, err := os.Getwd()
 		if err != nil {
 			return err
-		}
-
-		if !project.Exists(dir) {
-			return fmt.Errorf("no .devpilot.yaml found; run 'devpilot init' first")
 		}
 
 		cfg, err := project.Load(dir)

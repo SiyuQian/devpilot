@@ -1,8 +1,9 @@
 package skillmgr
 
 import (
-	"strings"
 	"testing"
+
+	"github.com/siyuqian/devpilot/internal/project"
 )
 
 func TestParseSkillArg(t *testing.T) {
@@ -39,27 +40,35 @@ func TestParseSkillArg(t *testing.T) {
 	}
 }
 
-func TestSkillAddRequiresConfig(t *testing.T) {
-	t.TempDir() // isolate but don't create config
+func TestSkillAddWithoutConfig(t *testing.T) {
+	if testing.Short() {
+		t.Skip("requires network")
+	}
+	t.Chdir(t.TempDir())
 	cmd := skillAddCmd
 	cmd.ResetFlags()
 	err := cmd.RunE(cmd, []string{"pm"})
-	if err == nil {
-		t.Fatal("expected error when no .devpilot.yaml, got nil")
+	if err != nil {
+		t.Fatalf("skill add should work without .devpilot.yaml, got: %v", err)
 	}
-	if !strings.Contains(err.Error(), "devpilot init") {
-		t.Errorf("error should mention 'devpilot init', got: %v", err)
+
+	cfg, err := project.Load(".")
+	if err != nil {
+		t.Fatalf("Load failed: %v", err)
+	}
+	if len(cfg.Skills) == 0 {
+		t.Fatal("expected skill entry in config, got none")
+	}
+	if cfg.Skills[0].Name != "pm" {
+		t.Errorf("skill name = %q, want %q", cfg.Skills[0].Name, "pm")
 	}
 }
 
-func TestSkillListRequiresConfig(t *testing.T) {
-	t.TempDir()
+func TestSkillListWithoutConfig(t *testing.T) {
+	t.Chdir(t.TempDir())
 	cmd := skillListCmd
 	err := cmd.RunE(cmd, []string{})
-	if err == nil {
-		t.Fatal("expected error when no .devpilot.yaml, got nil")
-	}
-	if !strings.Contains(err.Error(), "devpilot init") {
-		t.Errorf("error should mention 'devpilot init', got: %v", err)
+	if err != nil {
+		t.Fatalf("skill list should work without .devpilot.yaml, got: %v", err)
 	}
 }
