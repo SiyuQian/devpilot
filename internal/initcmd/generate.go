@@ -3,6 +3,7 @@ package initcmd
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -274,25 +275,60 @@ func EnsureGitignore(dir string, entries []string) error {
 	return nil
 }
 
-// SkillSelector is a function that presents a skill catalog and returns selected names.
-type SkillSelector func(catalog []skillmgr.CatalogEntry) ([]string, error)
+// SkillInstallOpts holds injectable functions for InstallSkills.
+// All fields are optional; nil values use production defaults.
+type SkillInstallOpts struct {
+	// SelectFn presents a skill catalog and returns the names the user selected.
+	SelectFn func(catalog []skillmgr.CatalogEntry) ([]string, error)
 
-// SkillFetcher is a function that fetches skill files for a given name and tag.
-type SkillFetcher func(name, tag string) ([]skillmgr.SkillFile, error)
+	// FetchCatalogFn returns the available skill catalog and the resolved tag.
+	FetchCatalogFn func() (catalog []skillmgr.CatalogEntry, tag string, err error)
+
+	// FetchSkillFn fetches skill files for a given name and tag.
+	FetchSkillFn func(name, tag string) ([]skillmgr.SkillFile, error)
+}
 
 // InstallSkills presents a multi-select checklist of devpilot's built-in skills
 // and installs the selected ones. Skipped in non-interactive mode.
-// selectFn and fetchFn may be nil; defaults are used in that case.
-func InstallSkills(opts GenerateOpts, selectFn SkillSelector, fetchFn SkillFetcher) error {
+func InstallSkills(opts GenerateOpts, installOpts SkillInstallOpts) error {
 	if !opts.Interactive {
 		return nil
 	}
 
+	selectFn := installOpts.SelectFn
 	if selectFn == nil {
 		selectFn = skillmgr.SelectSkillsFromCatalog
 	}
 
-	selected, err := selectFn(skillmgr.BuiltinCatalog)
+	fetchCatalogFn := installOpts.FetchCatalogFn
+	if fetchCatalogFn == nil {
+		fetchCatalogFn = func() ([]skillmgr.CatalogEntry, string, error) {
+			fmt.Printf("  Resolving latest devpilot version...\n")
+			tag, err := skillmgr.FetchLatestTag("siyuqian", "devpilot")
+			if err != nil {
+				return nil, "", fmt.Errorf("resolving latest tag: %w", err)
+			}
+			fmt.Printf("  Discovering available skills...\n")
+			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			defer cancel()
+			catalog, err := skillmgr.FetchCatalog(ctx, "siyuqian", "devpilot", tag)
+			if err != nil {
+				return nil, "", fmt.Errorf("fetching skill catalog: %w", err)
+			}
+			return catalog, tag, nil
+		}
+	}
+
+	catalog, tag, err := fetchCatalogFn()
+	if err != nil {
+		return err
+	}
+	if len(catalog) == 0 {
+		fmt.Println("  No skills found in catalog.")
+		return nil
+	}
+
+	selected, err := selectFn(catalog)
 	if err != nil {
 		return fmt.Errorf("skill selection: %w", err)
 	}
@@ -300,14 +336,9 @@ func InstallSkills(opts GenerateOpts, selectFn SkillSelector, fetchFn SkillFetch
 		return nil
 	}
 
-	var tag string
-	if fetchFn == nil {
-		fmt.Printf("  Resolving latest devpilot version...\n")
-		tag, err = skillmgr.FetchLatestTag("siyuqian", "devpilot")
-		if err != nil {
-			return fmt.Errorf("resolving latest tag: %w", err)
-		}
-		fetchFn = func(name, t string) ([]skillmgr.SkillFile, error) {
+	fetchSkillFn := installOpts.FetchSkillFn
+	if fetchSkillFn == nil {
+		fetchSkillFn = func(name, t string) ([]skillmgr.SkillFile, error) {
 			return skillmgr.FetchSkill("siyuqian", "devpilot", name, t)
 		}
 	}
@@ -319,7 +350,7 @@ func InstallSkills(opts GenerateOpts, selectFn SkillSelector, fetchFn SkillFetch
 
 	for _, name := range selected {
 		fmt.Printf("  Installing skill %q at %s...\n", name, tag)
-		files, err := fetchFn(name, tag)
+		files, err := fetchSkillFn(name, tag)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "  Warning: failed to fetch skill %q: %v\n", name, err)
 			continue
