@@ -17,7 +17,8 @@ Standard Go project layout: `cmd/devpilot/` for the CLI entry point, `internal/`
 - Shared project-level config lives in `internal/project/`
 
 **Other top-level directories:**
-- `.claude/skills/` — Built-in Claude Code skills (each skill is a dir with `SKILL.md`)
+- `skills/` — Distributable product skills (each `devpilot-<name>/` dir with `SKILL.md`)
+- `.claude/skills/` — Project-local OpenSpec workflow skills (not distributed)
 - `.github/workflows/` — CI/CD (test + release pipelines)
 - `docs/plans/` — Design and implementation plan documents
 - `docs/rejected/` — Rejected/deferred idea records (read by PM skill to avoid re-recommending)
@@ -134,6 +135,8 @@ The runner uses an event-driven architecture:
 ### Skills
 
 Skills are defined by a `SKILL.md` file (YAML frontmatter + markdown body) with optional `references/` and `scripts/` directories. They use progressive disclosure: frontmatter metadata is always in context, body loads on invocation, references load on demand.
+
+Product skills live in `skills/` at the project root with a `devpilot-` prefix (e.g., `skills/devpilot-learn/`). OpenSpec workflow skills remain in `.claude/skills/` as project-local tooling.
 
 ## Key Conventions
 

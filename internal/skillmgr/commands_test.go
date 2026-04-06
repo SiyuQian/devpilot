@@ -1,6 +1,7 @@
 package skillmgr
 
 import (
+	"os"
 	"testing"
 
 	"github.com/siyuqian/devpilot/internal/project"
@@ -44,10 +45,13 @@ func TestSkillAddWithoutConfig(t *testing.T) {
 	if testing.Short() {
 		t.Skip("requires network")
 	}
+	if os.Getenv("DEVPILOT_INTEGRATION") == "" {
+		t.Skip("set DEVPILOT_INTEGRATION=1 to run live GitHub tests")
+	}
 	t.Chdir(t.TempDir())
 	cmd := skillAddCmd
 	cmd.ResetFlags()
-	err := cmd.RunE(cmd, []string{"pm"})
+	err := cmd.RunE(cmd, []string{"devpilot-pm"})
 	if err != nil {
 		t.Fatalf("skill add should work without .devpilot.yaml, got: %v", err)
 	}
@@ -59,8 +63,8 @@ func TestSkillAddWithoutConfig(t *testing.T) {
 	if len(cfg.Skills) == 0 {
 		t.Fatal("expected skill entry in config, got none")
 	}
-	if cfg.Skills[0].Name != "pm" {
-		t.Errorf("skill name = %q, want %q", cfg.Skills[0].Name, "pm")
+	if cfg.Skills[0].Name != "devpilot-pm" {
+		t.Errorf("skill name = %q, want %q", cfg.Skills[0].Name, "devpilot-pm")
 	}
 }
 

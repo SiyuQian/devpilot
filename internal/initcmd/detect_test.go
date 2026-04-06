@@ -65,7 +65,7 @@ func TestDetectHasSkills(t *testing.T) {
 	}
 
 	// With empty skills dir
-	if err := os.MkdirAll(filepath.Join(dir, ".claude", "skills"), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Join(dir, "skills"), 0755); err != nil {
 		t.Fatal(err)
 	}
 	s = Detect(dir)
@@ -74,7 +74,7 @@ func TestDetectHasSkills(t *testing.T) {
 	}
 
 	// With a subdirectory but no SKILL.md
-	if err := os.MkdirAll(filepath.Join(dir, ".claude", "skills", "my-skill"), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Join(dir, "skills", "my-skill"), 0755); err != nil {
 		t.Fatal(err)
 	}
 	s = Detect(dir)
@@ -83,7 +83,7 @@ func TestDetectHasSkills(t *testing.T) {
 	}
 
 	// With a subdirectory containing SKILL.md
-	if err := os.WriteFile(filepath.Join(dir, ".claude", "skills", "my-skill", "SKILL.md"), []byte("---\nname: test\n---"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "skills", "my-skill", "SKILL.md"), []byte("---\nname: test\n---"), 0644); err != nil {
 		t.Fatal(err)
 	}
 	s = Detect(dir)
