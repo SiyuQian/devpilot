@@ -5,7 +5,7 @@ Templates for WebSearch queries used by the 3 research agents. Replace `{type}` 
 ## General (works for any product)
 
 ### Competitor Analysis
-- `"{type} alternatives 2026"`
+- `"{type} alternatives {current_year}"`
 - `"{type} best tools comparison"`
 - `"{type} vs {type}"`
 - `"best {type} for {target_user}"`
@@ -21,7 +21,7 @@ Templates for WebSearch queries used by the 3 research agents. Replace `{type}` 
 - `site:news.ycombinator.com "{type}"`
 
 ### Trends
-- `"{type} trends 2026"`
+- `"{type} trends {current_year}"`
 - `"{type} emerging technology"`
 - `"{type} market size growth"`
 - `"{type} future predictions"`
