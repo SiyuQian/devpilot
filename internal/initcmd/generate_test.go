@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/siyuqian/devpilot/internal/project"
 	"github.com/siyuqian/devpilot/internal/skillmgr"
 )
 
@@ -167,6 +168,36 @@ func TestConfigureBoardInteractiveFreeText(t *testing.T) {
 	}
 	if !strings.Contains(string(data), "My Custom Board") {
 		t.Errorf(".devpilot.yaml does not contain board name, got: %s", string(data))
+	}
+}
+
+func TestConfigureBoardPreservesExistingConfig(t *testing.T) {
+	dir := t.TempDir()
+
+	// Write a config with existing skills entry.
+	initial := []byte("skills:\n- name: pm\n  source: github.com/siyuqian/devpilot\n  version: v0.1.0\n  installedAt: 2026-01-01T00:00:00Z\n")
+	os.WriteFile(filepath.Join(dir, ".devpilot.yaml"), initial, 0644)
+
+	input := strings.NewReader("My Board\n")
+	opts := GenerateOpts{
+		Dir:         dir,
+		Interactive: true,
+		Reader:      bufio.NewReader(input),
+	}
+
+	if err := ConfigureBoard(opts, nil); err != nil {
+		t.Fatalf("ConfigureBoard failed: %v", err)
+	}
+
+	cfg, err := project.Load(dir)
+	if err != nil {
+		t.Fatalf("Load failed: %v", err)
+	}
+	if cfg.Board != "My Board" {
+		t.Errorf("Board = %q, want %q", cfg.Board, "My Board")
+	}
+	if len(cfg.Skills) != 1 || cfg.Skills[0].Name != "pm" {
+		t.Errorf("existing skill entry was overwritten, skills = %v", cfg.Skills)
 	}
 }
 
