@@ -1,7 +1,6 @@
 package skillmgr
 
 import (
-	"strings"
 	"testing"
 )
 
@@ -39,27 +38,21 @@ func TestParseSkillArg(t *testing.T) {
 	}
 }
 
-func TestSkillAddRequiresConfig(t *testing.T) {
-	t.TempDir() // isolate but don't create config
+func TestSkillAddWithoutConfig(t *testing.T) {
+	t.Chdir(t.TempDir())
 	cmd := skillAddCmd
 	cmd.ResetFlags()
 	err := cmd.RunE(cmd, []string{"pm"})
-	if err == nil {
-		t.Fatal("expected error when no .devpilot.yaml, got nil")
-	}
-	if !strings.Contains(err.Error(), "devpilot init") {
-		t.Errorf("error should mention 'devpilot init', got: %v", err)
+	if err != nil {
+		t.Fatalf("skill add should work without .devpilot.yaml, got: %v", err)
 	}
 }
 
-func TestSkillListRequiresConfig(t *testing.T) {
-	t.TempDir()
+func TestSkillListWithoutConfig(t *testing.T) {
+	t.Chdir(t.TempDir())
 	cmd := skillListCmd
 	err := cmd.RunE(cmd, []string{})
-	if err == nil {
-		t.Fatal("expected error when no .devpilot.yaml, got nil")
-	}
-	if !strings.Contains(err.Error(), "devpilot init") {
-		t.Errorf("error should mention 'devpilot init', got: %v", err)
+	if err != nil {
+		t.Fatalf("skill list should work without .devpilot.yaml, got: %v", err)
 	}
 }
