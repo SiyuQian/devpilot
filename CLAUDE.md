@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**DevPilot** is a Go CLI tool and collection of skills for automating development workflows with Claude Code. The core workflow: write a plan, push it to Trello, and let an autonomous runner execute it via `claude -p`, creating branches and PRs automatically.
+**DevPilot** is a Go CLI tool and collection of skills for automating development workflows with Claude Code. The core workflow: write a plan, queue it in Trello or GitHub Issues, and let an autonomous runner execute it via `claude -p`, creating branches and PRs automatically.
 
 ## Repository Structure
 
@@ -36,6 +36,12 @@ make clean                         # Remove bin/
 
 **Important:** Always run `make test` and `make lint` before committing. Both must pass — CI enforces this on every PR.
 
+Run a single test:
+```bash
+go test ./internal/skillmgr/ -run TestInstallSkill   # Single test by name
+go test ./internal/taskrunner/ -v                     # Single package, verbose
+```
+
 ### CLI Commands
 
 ```bash
@@ -64,6 +70,13 @@ devpilot gmail summary                                     # Dry run: summarize 
 devpilot gmail summary --channel daily-digest              # Send summary to a Slack channel (marks as read)
 devpilot gmail summary --dm U0123ABCDE                     # Send summary as a DM (marks as read)
 devpilot gmail summary --no-mark-read=false                # Explicitly mark emails as read without sending
+
+devpilot skill add <name>                                  # Install a skill from the catalog
+devpilot skill add <name>@v0.12.0                          # Install at specific version
+devpilot skill list                                        # List installed skills
+
+devpilot commit                                            # Generate commit message from staged changes
+devpilot readme                                            # Generate or improve README.md
 ```
 
 ### Skill Helper Scripts (Python 3)
@@ -89,7 +102,7 @@ Interactive wizard that detects project state and generates missing pieces:
 
 ### Task Runner (`devpilot run`)
 
-Cards move through Trello as a state machine: **Ready** -> **In Progress** -> **Done** / **Failed**.
+Tasks move through a state machine. Trello uses lists (**Ready** → **In Progress** → **Done** / **Failed**); GitHub Issues use labels (`devpilot` → `in-progress` → closed or `failed`).
 
 1. Polls "Ready" list for cards
 2. Sorts cards by priority (P0 > P1 > P2 labels; default P2)
@@ -136,7 +149,9 @@ The runner uses an event-driven architecture:
 
 Skills are defined by a `SKILL.md` file (YAML frontmatter + markdown body) with optional `references/` and `scripts/` directories. They use progressive disclosure: frontmatter metadata is always in context, body loads on invocation, references load on demand.
 
-Product skills live in `skills/` at the project root with a `devpilot-` prefix (e.g., `skills/devpilot-learn/`). OpenSpec workflow skills remain in `.claude/skills/` as project-local tooling.
+**Directory distinction:**
+- `skills/` at the project root — Catalog source code for distributable skills (prefixed `devpilot-<name>/`). This is what gets fetched by `devpilot skill add`.
+- `.claude/skills/` — Where skills are installed in a project (so Claude Code discovers them). Also where project-local OpenSpec workflow skills live.
 
 ## Key Conventions
 
