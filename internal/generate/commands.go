@@ -60,7 +60,7 @@ var readmeCmd = &cobra.Command{
 		model := resolveModel(cmd, "readme")
 		dryRun, _ := cmd.Flags().GetBool("dry-run") // Ignore error; flag registered above with default
 
-		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 		defer cancel()
 
 		if err := RunReadme(ctx, model, dryRun); err != nil {

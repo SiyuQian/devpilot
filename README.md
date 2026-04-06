@@ -1,8 +1,8 @@
 # DevPilot
 
-[![Test](https://github.com/siyuqian/devpilot/actions/workflows/test.yml/badge.svg)](https://github.com/siyuqian/devpilot/actions/workflows/test.yml)
-[![codecov](https://codecov.io/gh/siyuqian/devpilot/branch/main/graph/badge.svg)](https://codecov.io/gh/siyuqian/devpilot)
-[![GitHub Downloads](https://img.shields.io/github/downloads/siyuqian/devpilot/total)](https://github.com/siyuqian/devpilot/releases)
+[![Test](https://github.com/SiyuQian/devpilot/actions/workflows/test.yml/badge.svg)](https://github.com/SiyuQian/devpilot/actions/workflows/test.yml)
+[![codecov](https://codecov.io/gh/SiyuQian/devpilot/branch/main/graph/badge.svg)](https://codecov.io/gh/SiyuQian/devpilot)
+[![GitHub Downloads](https://img.shields.io/github/downloads/SiyuQian/devpilot/total)](https://github.com/SiyuQian/devpilot/releases)
 
 **Autonomous development workflow automation for [Claude Code](https://claude.ai/code).** Write a plan in markdown, track it in Trello or GitHub Issues, and let DevPilot execute it — creating branches, writing code, opening PRs, running code review, and auto-merging.
 
@@ -17,7 +17,7 @@ Create Issue with devpilot label → devpilot run --source github → claude -p 
 
 **Trello** (great if your team already uses it):
 ```
-Push plan to Trello → devpilot run --board "My Board" → claude -p → Branch + PR
+Create Trello card → devpilot run --board "My Board" → claude -p → Branch + PR
 ```
 
 DevPilot polls your task source, prioritizes by labels (P0/P1/P2), and executes each task via `claude -p`. A real-time TUI dashboard shows tool calls, Claude's output, token usage, and progress. When done, it auto-merges the PR.
@@ -49,17 +49,17 @@ DevPilot polls your task source, prioritizes by labels (P0/P1/P2), and executes 
 
 **From release:**
 ```bash
-curl -sSL https://raw.githubusercontent.com/siyuqian/devpilot/main/install.sh | sh
+curl -sSL https://raw.githubusercontent.com/SiyuQian/devpilot/main/install.sh | sh
 ```
 
 Optionally specify a version or directory:
 ```bash
-curl -sSL https://raw.githubusercontent.com/siyuqian/devpilot/main/install.sh | sh -s -- --version v0.12.0 --dir ~/.local/bin
+curl -sSL https://raw.githubusercontent.com/SiyuQian/devpilot/main/install.sh | sh -s -- --version v0.12.2 --dir ~/.local/bin
 ```
 
 **From source (Go 1.25+):**
 ```bash
-git clone https://github.com/siyuqian/devpilot.git
+git clone https://github.com/SiyuQian/devpilot.git
 cd devpilot
 make build
 sudo mv bin/devpilot /usr/local/bin/
@@ -91,8 +91,8 @@ devpilot init
 # Authenticate
 devpilot login trello
 
-# Push a plan to Trello
-devpilot push docs/plans/my-feature.md --board "Sprint Board"
+# Create a Trello card manually with your plan text in the description
+# (or use the Trello API / Trello UI directly)
 
 # Run the runner
 devpilot run --board "Sprint Board"
@@ -105,8 +105,8 @@ devpilot run --board "Sprint Board"
 | Command | Description |
 |---------|-------------|
 | `devpilot init` | Project setup wizard (detects stack, generates config) |
+| `devpilot init -y` | Accept all defaults without prompting |
 | `devpilot run` | Execute tasks from Trello or GitHub Issues |
-| `devpilot push <file> --board "Board"` | Create Trello card from markdown plan |
 | `devpilot sync` | Sync OpenSpec changes to task backend |
 
 ### Service Commands
@@ -117,23 +117,35 @@ devpilot run --board "Sprint Board"
 | `devpilot logout <service>` | Remove stored credentials |
 | `devpilot status` | Show auth status for all services |
 
-### Email Commands
+### Gmail Commands
 
 | Command | Description |
 |---------|-------------|
-| `devpilot gmail summary` | AI digest of unread emails |
-| `devpilot gmail list` | List emails with filters |
+| `devpilot gmail list` | List emails with optional filters |
 | `devpilot gmail read <id>` | Display full email |
-| `devpilot gmail mark-read <id>...` | Mark as read |
+| `devpilot gmail mark-read <id...>` | Mark as read |
 | `devpilot gmail bulk-mark-read` | Bulk mark by query |
+| `devpilot gmail summary` | AI digest of unread emails (or send to Slack) |
+
+### Skill Commands
+
+| Command | Description |
+|---------|-------------|
+| `devpilot skill add <name[@version]>` | Install a skill from the devpilot catalog |
+| `devpilot skill list` | List installed skills |
+
+### Generation Commands
+
+| Command | Description |
+|---------|-------------|
+| `devpilot commit` | Generate conventional commit message from staged changes |
+| `devpilot readme` | Generate or improve README.md |
 
 ### Other Commands
 
 | Command | Description |
 |---------|-------------|
 | `devpilot slack send --channel "#channel"` | Send Slack message |
-| `devpilot commit` | Generate commit message from staged changes |
-| `devpilot readme` | Generate or improve README.md |
 
 ### `devpilot run` Flags
 
@@ -148,12 +160,56 @@ devpilot run --board "Sprint Board"
 | `--dry-run` | `false` | Print actions without executing |
 | `--no-tui` | `false` | Disable TUI dashboard |
 
-### `devpilot push` Flags
+### `devpilot gmail list` Flags
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--board` | *(required)* | Trello board name |
-| `--list` | `Ready` | Target list name |
+| `--unread` | `false` | Show only unread messages |
+| `--after` | — | Show messages after date (YYYY-MM-DD) |
+| `--limit` | `20` | Maximum messages to return |
+
+### `devpilot gmail summary` Flags
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--channel` | — | Send summary to Slack channel |
+| `--dm` | — | Send summary as DM to Slack user ID |
+| `--no-mark-read` | `false` | Preview mode (don't mark emails as read) |
+
+### `devpilot sync` Flags
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--source` | *(from config)* | `trello` or `github` |
+| `--board` | *(from config)* | Trello board name (required for Trello) |
+| `--list` | `Ready` | Target list name (Trello only) |
+
+### `devpilot commit` Flags
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `-m, --message` | — | Additional context for AI |
+| `--model` | *(from config)* | Override Claude model |
+| `--dry-run` | `false` | Generate message without committing |
+
+### `devpilot readme` Flags
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--model` | *(from config)* | Override Claude model |
+| `--dry-run` | `false` | Generate without writing file |
+
+## Configuration
+
+DevPilot stores project config in `.devpilot.yaml`. Initialize with `devpilot init`:
+
+```yaml
+board: "My Board"          # Default Trello board (or set via env/flag)
+source: github             # Task source: "trello" or "github"
+models:
+  readme: claude-haiku-4-5 # Override model for specific commands
+  commit: claude-opus-4-6
+```
 
 ## Task Execution
 
@@ -222,6 +278,13 @@ make clean      # Remove build artifacts
 ```
 
 Tests and lint must pass before committing. CI enforces this.
+
+### Testing a Single Package
+
+```bash
+go test ./internal/skillmgr/ -run TestInstallSkill   # Single test by name
+go test ./internal/taskrunner/ -v                     # Single package, verbose
+```
 
 ## Tech Stack
 
