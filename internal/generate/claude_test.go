@@ -154,8 +154,8 @@ func TestBuildReadmeArgs(t *testing.T) {
 	for i, a := range args {
 		if a == "--permission-mode" {
 			foundPerm = true
-			if args[i+1] != "default" {
-				t.Errorf("permission-mode = %q, want default", args[i+1])
+			if args[i+1] != "auto" {
+				t.Errorf("permission-mode = %q, want auto", args[i+1])
 			}
 		}
 	}
