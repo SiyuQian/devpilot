@@ -1,4 +1,6 @@
 board: developer-kit
+models:
+    readme: claude-haiku-4-5
 skills:
     - name: confluence-reviewer
       source: github.com/siyuqian/devpilot

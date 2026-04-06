@@ -1,16 +1,36 @@
-Generate a professional README.md for this project.
+You are writing a README.md for an open-source project. The README will be the first thing potential users and contributors see on the project's GitHub page. Write for developers evaluating whether to use this project.
 
-Project structure:
+Analyze the project structure and package metadata below to determine:
+1. What type of project this is (CLI tool, library, framework, app, etc.)
+2. Who the target audience is
+3. What the key value proposition is
+
+Then generate a README that matches the project type. For example:
+- CLI tools need clear install instructions and command examples with actual flags
+- Libraries need API usage examples with real import paths
+- Apps need setup and deployment instructions
+
+Style: direct and concise. Include actual command examples, not placeholder text. Skip badges and table of contents for short READMEs.
+
+<project-structure>
 {{.FileTree}}
-{{if .PackageInfo}}
-Package metadata:
+</project-structure>
+{{- if .PackageInfo}}
+
+<package-metadata>
 {{.PackageInfo}}
-{{end}}{{if .ExistingReadme}}
-Existing README (improve upon it):
+</package-metadata>
+{{- end}}
+{{- if .ExistingReadme}}
+
+<existing-readme>
 {{.ExistingReadme}}
-{{end}}
+</existing-readme>
+
+Improve upon the existing README: keep what's accurate, fix what's outdated based on the current project structure, and fill in gaps.
+{{- end}}
+
 Requirements:
-- Include: project title, description, features, installation, usage, tech stack
-- Be concise and practical
+- Include: project title, description, features, installation, usage, and tech stack
 - Use proper markdown formatting
-- Output ONLY the README content, no wrapping code fences
+- Output the raw markdown content directly, starting with the `#` title line. No preamble, no commentary, no wrapping code fences
