@@ -33,6 +33,7 @@ func buildReadmeArgs(model string) []string {
 	args := []string{
 		"-p", "--print",
 		"--allowedTools", readmeAllowedTools,
+		"--permission-mode", "default",
 	}
 	if model != "" {
 		args = append(args, "--model", model)
