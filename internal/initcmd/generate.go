@@ -177,7 +177,7 @@ func ConfigureBoard(opts GenerateOpts, listBoards func() ([]Board, error)) error
 	}
 	cfg.Board = boardName
 	if err := project.Save(opts.Dir, cfg); err != nil {
-		return err
+		return fmt.Errorf("saving config: %w", err)
 	}
 
 	fmt.Printf("  Configured board: %s\n", boardName)
