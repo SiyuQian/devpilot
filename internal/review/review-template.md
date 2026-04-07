@@ -10,8 +10,8 @@ Structure your review output exactly as follows:
 
 [Exactly one of: APPROVE or REQUEST_CHANGES]
 
-[If APPROVE: brief confirmation that no blocking issues were found]
-[If REQUEST_CHANGES: list the blocking issues that must be addressed]
+[APPROVE if no CRITICAL findings — even if there are WARNINGs or SUGGESTIONs]
+[REQUEST_CHANGES only if there are CRITICAL findings — list them here]
 
 ## Findings
 
