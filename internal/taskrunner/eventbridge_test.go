@@ -3,6 +3,8 @@ package taskrunner
 import (
 	"sync"
 	"testing"
+
+	"github.com/siyuqian/devpilot/internal/executor"
 )
 
 func TestEventBridge_ToolUseEmitsToolStart(t *testing.T) {
@@ -15,9 +17,9 @@ func TestEventBridge_ToolUseEmitsToolStart(t *testing.T) {
 		events = append(events, e)
 	})
 
-	bridge.Handle(ClaudeAssistantMsg{
-		Content: []ContentBlock{
-			ToolUseBlock{ID: "t1", Name: "Read", Input: map[string]any{"file_path": "/tmp/main.go"}},
+	bridge.Handle(executor.ClaudeAssistantMsg{
+		Content: []executor.ContentBlock{
+			executor.ToolUseBlock{ID: "t1", Name: "Read", Input: map[string]any{"file_path": "/tmp/main.go"}},
 		},
 		InputTokens: 100, OutputTokens: 20,
 	})
@@ -59,9 +61,9 @@ func TestEventBridge_TextEmitsTextOutput(t *testing.T) {
 		events = append(events, e)
 	})
 
-	bridge.Handle(ClaudeAssistantMsg{
-		Content: []ContentBlock{
-			TextBlock{Text: "Let me check the file."},
+	bridge.Handle(executor.ClaudeAssistantMsg{
+		Content: []executor.ContentBlock{
+			executor.TextBlock{Text: "Let me check the file."},
 		},
 	})
 
@@ -93,15 +95,15 @@ func TestEventBridge_ToolResultEmitsToolResult(t *testing.T) {
 	})
 
 	// Register a tool start first
-	bridge.Handle(ClaudeAssistantMsg{
-		Content: []ContentBlock{
-			ToolUseBlock{ID: "t1", Name: "Bash", Input: map[string]any{"command": "go test"}},
+	bridge.Handle(executor.ClaudeAssistantMsg{
+		Content: []executor.ContentBlock{
+			executor.ToolUseBlock{ID: "t1", Name: "Bash", Input: map[string]any{"command": "go test"}},
 		},
 	})
 
 	// Then send the result
-	bridge.Handle(ClaudeUserMsg{
-		ToolResults: []ToolResult{
+	bridge.Handle(executor.ClaudeUserMsg{
+		ToolResults: []executor.ToolResult{
 			{ToolUseID: "t1", DurationMs: 3400},
 		},
 	})
@@ -136,7 +138,7 @@ func TestEventBridge_ResultEmitsFinalStats(t *testing.T) {
 		events = append(events, e)
 	})
 
-	bridge.Handle(ClaudeResultMsg{
+	bridge.Handle(executor.ClaudeResultMsg{
 		Turns: 7, DurationMs: 5000, InputTokens: 12000, OutputTokens: 3000,
 	})
 
@@ -170,7 +172,7 @@ func TestEventBridge_RawOutputEmitsTextOutput(t *testing.T) {
 		events = append(events, e)
 	})
 
-	bridge.Handle(RawOutputMsg{Text: "some plain text"})
+	bridge.Handle(executor.RawOutputMsg{Text: "some plain text"})
 
 	mu.Lock()
 	defer mu.Unlock()
@@ -199,10 +201,10 @@ func TestEventBridge_EmptyTextIgnored(t *testing.T) {
 		events = append(events, e)
 	})
 
-	bridge.Handle(ClaudeAssistantMsg{
-		Content: []ContentBlock{TextBlock{Text: ""}},
+	bridge.Handle(executor.ClaudeAssistantMsg{
+		Content: []executor.ContentBlock{executor.TextBlock{Text: ""}},
 	})
-	bridge.Handle(RawOutputMsg{Text: ""})
+	bridge.Handle(executor.RawOutputMsg{Text: ""})
 
 	mu.Lock()
 	defer mu.Unlock()

@@ -8,6 +8,8 @@ import (
 	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/siyuqian/devpilot/internal/executor"
 )
 
 // Config holds the settings for a task runner session.
@@ -26,7 +28,7 @@ type Config struct {
 type Runner struct {
 	config       Config
 	source       TaskSource
-	executor     *Executor
+	executor     *executor.Executor
 	reviewer     *Reviewer
 	git          *GitOps
 	logger       *log.Logger
@@ -62,12 +64,12 @@ func New(cfg Config, source TaskSource, opts ...RunnerOption) *Runner {
 	}
 
 	// When event handler is set, enable streaming output on executor
-	var execOpts []ExecutorOption
+	var execOpts []executor.ExecutorOption
 	if r.eventHandler != nil {
 		bridge := newEventBridge(r.eventHandler)
-		execOpts = append(execOpts, WithClaudeEventHandler(bridge.Handle))
+		execOpts = append(execOpts, executor.WithClaudeEventHandler(bridge.Handle))
 	}
-	r.executor = NewExecutor(execOpts...)
+	r.executor = executor.NewExecutor(execOpts...)
 
 	if cfg.ReviewTimeout > 0 {
 		r.reviewer = NewReviewer()
@@ -368,7 +370,7 @@ func (r *Runner) failCard(task Task, start time.Time, errMsg string) {
 	r.logger.Printf("Card %q failed: %s", task.Name, errMsg)
 }
 
-func (r *Runner) saveLog(cardID string, result *ExecuteResult) {
+func (r *Runner) saveLog(cardID string, result *executor.ExecuteResult) {
 	if result == nil {
 		return
 	}
