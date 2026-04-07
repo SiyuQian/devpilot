@@ -38,3 +38,7 @@ skills:
       source: github.com/siyuqian/devpilot
       version: v0.13.0
       installedAt: 2026-04-07T05:25:44.0942Z
+    - name: devpilot-prompt-review
+      source: github.com/siyuqian/devpilot
+      version: v0.13.0
+      installedAt: 2026-04-07T08:29:08.274076Z

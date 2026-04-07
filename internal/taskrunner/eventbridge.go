@@ -1,6 +1,9 @@
 package taskrunner
 
-import "github.com/charmbracelet/x/ansi"
+import (
+	"github.com/charmbracelet/x/ansi"
+	"github.com/siyuqian/devpilot/internal/executor"
+)
 
 // eventBridge converts ClaudeEvents from the stream parser into runner Events.
 // It tracks in-flight tool use IDs to map results back to tool names.
@@ -16,9 +19,9 @@ func newEventBridge(emit EventHandler) *eventBridge {
 	}
 }
 
-func (b *eventBridge) Handle(ce ClaudeEvent) {
+func (b *eventBridge) Handle(ce executor.ClaudeEvent) {
 	switch msg := ce.(type) {
-	case ClaudeAssistantMsg:
+	case executor.ClaudeAssistantMsg:
 		if msg.InputTokens > 0 || msg.OutputTokens > 0 {
 			b.emit(StatsUpdateEvent{
 				InputTokens:  msg.InputTokens,
@@ -27,16 +30,16 @@ func (b *eventBridge) Handle(ce ClaudeEvent) {
 		}
 		for _, block := range msg.Content {
 			switch bl := block.(type) {
-			case TextBlock:
+			case executor.TextBlock:
 				if bl.Text != "" {
 					b.emit(TextOutputEvent(bl))
 				}
-			case ToolUseBlock:
+			case executor.ToolUseBlock:
 				b.inflightTools[bl.ID] = bl.Name
 				b.emit(ToolStartEvent{ToolName: bl.Name, Input: bl.Input})
 			}
 		}
-	case ClaudeUserMsg:
+	case executor.ClaudeUserMsg:
 		for _, tr := range msg.ToolResults {
 			toolName := b.inflightTools[tr.ToolUseID]
 			delete(b.inflightTools, tr.ToolUseID)
@@ -46,13 +49,13 @@ func (b *eventBridge) Handle(ce ClaudeEvent) {
 				Truncated:  tr.Truncated,
 			})
 		}
-	case ClaudeResultMsg:
+	case executor.ClaudeResultMsg:
 		b.emit(StatsUpdateEvent{
 			InputTokens:  msg.InputTokens,
 			OutputTokens: msg.OutputTokens,
 			Turns:        msg.Turns,
 		})
-	case RawOutputMsg:
+	case executor.RawOutputMsg:
 		if msg.Text != "" {
 			b.emit(TextOutputEvent{Text: ansi.Strip(msg.Text)})
 		}

@@ -9,6 +9,7 @@ import (
 	"github.com/siyuqian/devpilot/internal/gmail"
 	"github.com/siyuqian/devpilot/internal/initcmd"
 	"github.com/siyuqian/devpilot/internal/openspec"
+	"github.com/siyuqian/devpilot/internal/review"
 	"github.com/siyuqian/devpilot/internal/skillmgr"
 	"github.com/siyuqian/devpilot/internal/slack"
 	"github.com/siyuqian/devpilot/internal/taskrunner"
@@ -35,6 +36,7 @@ func main() {
 	slack.RegisterCommands(rootCmd)
 	taskrunner.RegisterCommands(rootCmd)
 	generate.RegisterCommands(rootCmd)
+	review.RegisterCommands(rootCmd)
 	openspec.RegisterCommands(rootCmd)
 
 	if err := rootCmd.Execute(); err != nil {
