@@ -1,5 +1,5 @@
 ---
-name: prompt-review
+name: devpilot-prompt-review
 description: Review and improve prompts for Claude (system prompts, CLAUDE.md files, SKILL.md files, API prompts, or any LLM instruction text). Use this skill whenever the user wants to review a prompt, improve prompt quality, check prompt best practices, audit instructions for Claude, optimize a system prompt, or asks "is this prompt good?". Also trigger when the user shares a prompt and asks for feedback, or when they mention prompt engineering, prompt optimization, or prompt hygiene. Even if they just paste a prompt and say "thoughts?" — use this skill.
 ---
 
