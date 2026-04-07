@@ -1,0 +1,250 @@
+---
+name: devpilot-product-research
+description: Use when the user wants to research market needs, analyze competitors, discover user pain points, or prioritize features for a product. Triggers on "market research", "find features", "what should we build", "competitor analysis", "user pain points", "产品调研", "市场需求", "竞品分析".
+license: Complete terms in LICENSE.txt
+---
+
+# Product Discovery & Market Research
+
+A product manager skill that discovers market needs through parallel deep research. It runs 3 specialized agents concurrently — competitor analysis, user pain point mining, and trend tracking — then synthesizes findings into 5-10 prioritized feature recommendations. Research results are cached daily to `docs/research/` to avoid redundant agent calls.
+
+## Process
+
+### Phase 1: Scope Clarification
+
+Before launching research, ask the user **one question at a time** to establish:
+
+1. **Product direction** — What are you building? (If not provided as argument)
+2. **Target users** — Who is this for?
+
+Keep it to 1-2 questions max. Extract search keywords from the answers for the agents.
+
+### Phase 1.5: Load Previously Rejected Ideas
+
+Before launching research, check for previously rejected or deferred ideas:
+
+1. Use the Glob tool to scan `docs/rejected/*.md` (skip `README.md`)
+2. Read each file's YAML frontmatter to extract: `idea`, `status`, `reason`
+3. Build two lists:
+   - **Rejected list**: Ideas with `status: rejected` — these MUST be excluded from recommendations
+   - **Deferred list**: Ideas with `status: deferred` — these may only be re-suggested if there is strong new evidence of changed market conditions
+
+If no files exist in `docs/rejected/`, skip this phase and proceed to Phase 2.
+
+Store these lists for use in Phase 2 agent prompts.
+
+### Phase 2: Parallel Deep Research (with caching)
+
+#### Step 1: Check research cache
+
+Before launching agents, check if today's research already exists:
+
+1. Derive a `{topic-slug}` from the product description in lowercase kebab-case (e.g. "CLI developer tools" → `cli-developer-tools`)
+2. Use Glob to check for `docs/research/{YYYY-MM-DD}-{topic-slug}.md` (using today's date)
+3. **Cache hit**: Read the cached file and skip directly to Phase 3. Do NOT launch any agents.
+4. **Cache miss**: Continue to Step 2 below.
+
+#### Step 2: Launch agents (cache miss only)
+
+Launch **3 agents in parallel** using the Task tool with `subagent_type: "general-purpose"`. Each agent uses WebSearch extensively. For additional search query templates by industry, see `references/search-patterns.md`.
+
+Launch all 3 agents in a single message to maximize parallelism.
+
+**IMPORTANT**: If Phase 1.5 produced any rejected or deferred ideas, append the following block to each agent's prompt (before the 800-word constraint line):
+
+```
+IMPORTANT: The following ideas have been previously evaluated and REJECTED by our team. Do NOT recommend features similar to these:
+{for each rejected idea: "- {idea_name} (reason: {reason})"}
+
+The following ideas were DEFERRED (not right now). Only mention them if you find strong evidence that market conditions have significantly changed since {date}:
+{for each deferred idea: "- {idea_name} (deferred on: {date}, reason: {reason})"}
+```
+
+If there are no rejected or deferred ideas, omit this block entirely.
+
+Each agent prompt should end with this constraint:
+> Keep your response under 800 words. Return ONLY a structured summary — no preamble, no methodology explanation. Focus on actionable findings with specific data points.
+
+After all agents return, proceed directly to Step 3 (cache write) and then Phase 3 (Synthesis) in the same response — don't stop to wait for user input between research and synthesis, because the user wants to see the complete picture, not raw agent output.
+
+#### Step 3: Write research cache (cache miss only)
+
+After all 3 agents return, write their combined output to `docs/research/{YYYY-MM-DD}-{topic-slug}.md`:
+
+```markdown
+---
+topic: "{product_description}"
+target_users: "{target_users}"
+date: YYYY-MM-DD
+---
+## Competitor Analysis
+{agent 1 output}
+
+## User Pain Points
+{agent 2 output}
+
+## Market Trends
+{agent 3 output}
+```
+
+Create the `docs/research/` directory if it doesn't exist. Then proceed to Phase 3.
+
+#### Agent 1: Competitor Analyst
+
+Prompt template:
+```
+You are a competitor analyst. Research the competitive landscape for: {product_description}
+
+Target users: {target_users}
+
+Do the following:
+1. Use WebSearch to find 5-8 competing products. Search for:
+   - "{product_type} alternatives {current_year}"
+   - "{product_type} best tools"
+   - "{product_type} comparison"
+2. For each competitor, search for their features and pricing:
+   - "{competitor_name} features pricing"
+   - "{competitor_name} review"
+3. Compile a competitor analysis table with columns:
+   - Name | Core Features | Pricing | Strengths | Weaknesses | Popularity
+
+Return ONLY the structured analysis. Be specific with facts and data.
+
+Keep your response under 800 words. Return ONLY a structured summary — no preamble, no methodology explanation. Focus on actionable findings with specific data points.
+```
+
+#### Agent 2: User Pain Analyst
+
+Prompt template:
+```
+You are a user pain point researcher. Find real user complaints and unmet needs for: {product_description}
+
+Target users: {target_users}
+
+Do the following:
+1. Use WebSearch to find user discussions. Search for:
+   - "{product_type} pain points reddit"
+   - "{product_type} frustrating"
+   - "{product_type} missing features"
+   - "{product_type} wish list forum"
+   - "{product_type} complaints"
+2. For each pain point found, note:
+   - What the pain point is
+   - How frequently it's mentioned (high/medium/low)
+   - Source (Reddit, forum, review site, etc.)
+   - Whether any existing product has solved it
+
+Return a structured list of pain points ranked by frequency. Be specific — quote real user feedback when possible.
+
+Keep your response under 800 words. Return ONLY a structured summary — no preamble, no methodology explanation. Focus on actionable findings with specific data points.
+```
+
+#### Agent 3: Trend Analyst
+
+Prompt template:
+```
+You are a technology and market trend analyst. Research industry trends for: {product_description}
+
+Target users: {target_users}
+
+Do the following:
+1. Use WebSearch to find trends. Search for:
+   - "{product_type} trends {current_year}"
+   - "{product_type} emerging technology"
+   - "{product_type} market growth"
+   - "{product_type} future"
+   - "{related_technology} adoption rate"
+2. For each trend, note:
+   - Trend direction
+   - Maturity stage (early/growing/mature)
+   - Related technologies
+   - Potential opportunity for a new product
+
+Return a structured trend analysis. Focus on actionable insights, not hype.
+
+Keep your response under 800 words. Return ONLY a structured summary — no preamble, no methodology explanation. Focus on actionable findings with specific data points.
+```
+
+### Phase 3: Synthesis
+
+After all 3 agents return, synthesize their findings:
+
+1. **Cross-validate** — Needs mentioned across multiple agents get higher weight:
+   - Appears in competitor gaps AND user pain points → strong signal
+   - Appears in user pain points AND aligns with trends → strong signal
+   - Appears in all three → highest priority
+
+2. **Score each potential feature** on 4 dimensions:
+   - **Market demand** (0-3): How many users want this?
+   - **Competitive gap** (0-3): How poorly do competitors serve this?
+   - **Trend alignment** (0-3): Does this match where the market is going?
+   - **Feasibility** (0-3): How realistic is this to build?
+
+3. **Select top 5-10 features** by total score.
+
+### Phase 4: Collaborative Decision
+
+Present findings to the user in this format:
+
+```markdown
+## Market Research Results: {product_description}
+
+### Key Findings
+
+**Competitive Landscape**: {1-2 sentence summary}
+**User Pain Points**: {1-2 sentence summary}
+**Market Trends**: {1-2 sentence summary}
+
+### Recommended Features
+
+#### 1. {Feature Name} — Priority: HIGH
+- **What**: {feature description}
+- **Why**: {market evidence from agents}
+- **Competitors**: {who does/doesn't have this}
+- **Score**: Demand {x}/3 | Gap {x}/3 | Trend {x}/3 | Feasibility {x}/3 = {total}/12
+
+#### 2. {Feature Name} — Priority: {HIGH/MEDIUM}
+...
+
+... (5-10 features total, ranked by score)
+
+### What should we build first?
+```
+
+Then engage in discussion:
+- Answer follow-up questions about any finding
+- Adjust recommendations if user provides additional context
+- Help narrow down to a final decision
+
+### Phase 4.5: Record Review Decisions
+
+After the user decides which features to pursue, ask once: "Which features are you rejecting, and which do you want to defer?" — don't ask about each feature individually.
+
+For each rejected or deferred idea, write `docs/rejected/{YYYY-MM-DD}-{idea-slug}.md`:
+
+```markdown
+---
+status: {rejected|deferred}
+idea: "{Feature Name}"
+date: {YYYY-MM-DD}
+score: {total_score}
+reason: "{brief reason}"
+---
+
+## Original Evidence Summary
+
+{2-3 bullet points from Phase 3 synthesis}
+```
+
+Then stage and commit: `git add docs/rejected/ && git commit -m "docs: record rejected/deferred ideas from product research"`
+
+## Key Rules
+
+- **Always launch 3 agents in parallel** — never sequentially
+- **One question at a time** in Phase 1 — don't overwhelm
+- **5-10 features** — broad enough for ideation, scored and ranked
+- **Cache research daily** — Write to `docs/research/`, reuse same-day same-topic results
+- **Evidence-based** — every recommendation must cite specific findings
+- **No implementation** — this skill discovers WHAT to build, not HOW
+- **Check rejected ideas first** — Always run Phase 1.5 before research; never skip it
+- **Record every decision** — Every idea that isn't accepted must be recorded in Phase 4.5 as rejected or deferred

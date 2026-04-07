@@ -34,3 +34,7 @@ skills:
       source: github.com/siyuqian/devpilot
       version: v0.12.2
       installedAt: 2026-04-06T10:33:24.823913Z
+    - name: devpilot-product-research
+      source: github.com/siyuqian/devpilot
+      version: v0.13.0
+      installedAt: 2026-04-07T05:25:44.0942Z
