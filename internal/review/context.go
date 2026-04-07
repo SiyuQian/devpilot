@@ -2,10 +2,10 @@ package review
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 )
 
@@ -39,24 +39,25 @@ type ConventionFile struct {
 
 // GatherContext collects project conventions from the target repository.
 // It first checks if the local working directory matches the PR's repo,
-// then falls back to fetching via GitHub API.
-func GatherContext(pr *PRInfo) *ProjectContext {
-	ctx := &ProjectContext{}
+// then falls back to fetching via GitHub API. The context is used to
+// timeout external commands (gh, git) so the CLI doesn't hang.
+func GatherContext(ctx context.Context, pr *PRInfo) *ProjectContext {
+	pctx := &ProjectContext{}
 
 	// Check if cwd is a local checkout of the same repo
-	if isLocalCheckout(pr) {
-		ctx.Conventions = gatherFromLocal()
-		return ctx
+	if isLocalCheckout(ctx, pr) {
+		pctx.Conventions = gatherFromLocal()
+		return pctx
 	}
 
 	// Fall back to GitHub API
-	ctx.Conventions = gatherFromGitHub(pr)
-	return ctx
+	pctx.Conventions = gatherFromGitHub(ctx, pr)
+	return pctx
 }
 
 // isLocalCheckout checks if the cwd is a git repo matching the PR's owner/repo.
-func isLocalCheckout(pr *PRInfo) bool {
-	cmd := exec.Command("git", "remote", "get-url", "origin")
+func isLocalCheckout(ctx context.Context, pr *PRInfo) bool {
+	cmd := exec.CommandContext(ctx, "git", "remote", "get-url", "origin")
 	out, err := cmd.Output()
 	if err != nil {
 		return false
@@ -85,16 +86,16 @@ func gatherFromLocal() []ConventionFile {
 }
 
 // gatherFromGitHub fetches convention files via gh CLI from the PR's base branch.
-func gatherFromGitHub(pr *PRInfo) []ConventionFile {
+func gatherFromGitHub(ctx context.Context, pr *PRInfo) []ConventionFile {
 	// Get the base branch
-	baseBranch := getBaseBranch(pr)
+	baseBranch := getBaseBranch(ctx, pr)
 	if baseBranch == "" {
 		baseBranch = "main"
 	}
 
 	var found []ConventionFile
 	for _, cf := range conventionFiles {
-		content := fetchFileFromGitHub(pr, cf.path, baseBranch)
+		content := fetchFileFromGitHub(ctx, pr, cf.path, baseBranch)
 		if content == "" {
 			continue
 		}
@@ -108,8 +109,8 @@ func gatherFromGitHub(pr *PRInfo) []ConventionFile {
 }
 
 // getBaseBranch retrieves the PR's base branch via gh CLI.
-func getBaseBranch(pr *PRInfo) string {
-	cmd := exec.Command("gh", "pr", "view", pr.URL, "--json", "baseRefName", "--jq", ".baseRefName")
+func getBaseBranch(ctx context.Context, pr *PRInfo) string {
+	cmd := exec.CommandContext(ctx, "gh", "pr", "view", pr.URL, "--json", "baseRefName", "--jq", ".baseRefName")
 	out, err := cmd.Output()
 	if err != nil {
 		return ""
@@ -118,10 +119,9 @@ func getBaseBranch(pr *PRInfo) string {
 }
 
 // fetchFileFromGitHub fetches a single file's content from a GitHub repo via gh CLI.
-func fetchFileFromGitHub(pr *PRInfo, path, ref string) string {
-	// Use gh api to fetch raw file content
-	apiPath := filepath.ToSlash(fmt.Sprintf("repos/%s/%s/contents/%s", pr.Owner, pr.Repo, path))
-	cmd := exec.Command("gh", "api", apiPath,
+func fetchFileFromGitHub(ctx context.Context, pr *PRInfo, path, ref string) string {
+	apiPath := fmt.Sprintf("repos/%s/%s/contents/%s", pr.Owner, pr.Repo, path)
+	cmd := exec.CommandContext(ctx, "gh", "api", apiPath,
 		"--header", "Accept: application/vnd.github.raw+json",
 		"-f", fmt.Sprintf("ref=%s", ref))
 	var stdout, stderr bytes.Buffer

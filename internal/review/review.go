@@ -39,7 +39,7 @@ func Review(ctx context.Context, prURL string, opts ...Option) (*executor.Execut
 	}
 
 	o := resolveOptions(opts)
-	prompt := BuildPrompt(pr, GatherContext(pr))
+	prompt := BuildPrompt(pr, GatherContext(ctx, pr))
 	exec := newReviewExecutor(o)
 	return exec.Run(ctx, prompt)
 }
