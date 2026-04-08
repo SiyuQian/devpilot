@@ -23,5 +23,5 @@
 
 ## 4. Verify
 
-- [ ] 4.1 Run `make test` — all tests pass
-- [ ] 4.2 Run `make lint` — no lint errors
+- [x] 4.1 Run `make test` — all tests pass
+- [x] 4.2 Run `make lint` — no lint errors
