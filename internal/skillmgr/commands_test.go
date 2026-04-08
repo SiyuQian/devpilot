@@ -94,8 +94,12 @@ func TestPromptInstallLevelSelectUser(t *testing.T) {
 
 	baseDir, userLevel := promptInstallLevel(dir, reader)
 
-	if baseDir != UserSkillDir {
-		t.Errorf("baseDir = %q, want %q", baseDir, UserSkillDir)
+	expectedUserDir, err := UserSkillDir()
+	if err != nil {
+		t.Fatalf("UserSkillDir: %v", err)
+	}
+	if baseDir != expectedUserDir {
+		t.Errorf("baseDir = %q, want %q", baseDir, expectedUserDir)
 	}
 	if !userLevel {
 		t.Error("userLevel = false, want true")

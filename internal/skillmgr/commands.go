@@ -26,15 +26,13 @@ var skillCmd = &cobra.Command{
 	Short: "Manage Claude Code skills",
 }
 
-// UserSkillDir is the directory where user-level skills are installed.
-var UserSkillDir = filepath.Join(userHomeDir(), ".claude", "skills")
-
-func userHomeDir() string {
+// UserSkillDir returns the directory where user-level skills are installed.
+func UserSkillDir() (string, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
-		return ""
+		return "", fmt.Errorf("resolving home directory: %w", err)
 	}
-	return home
+	return filepath.Join(home, ".claude", "skills"), nil
 }
 
 // promptInstallLevel asks the user to select project or user level.
@@ -47,18 +45,23 @@ func promptInstallLevel(projectDir string, reader *bufio.Reader) (baseDir string
 		return projectBase, false
 	}
 
-	fmt.Println("Install level:")
-	fmt.Printf("  1) Project (%s/)\n", InstallDir)
-	fmt.Printf("  2) User (%s/)\n", UserSkillDir)
-	fmt.Print("Select [1]: ")
-
-	line, err := reader.ReadString('\n')
+	userDir, err := UserSkillDir()
 	if err != nil {
 		return projectBase, false
 	}
 
+	fmt.Println("Install level:")
+	fmt.Printf("  1) Project (%s/)\n", InstallDir)
+	fmt.Printf("  2) User (%s/)\n", userDir)
+	fmt.Print("Select [1]: ")
+
+	line, readErr := reader.ReadString('\n')
+	if readErr != nil {
+		return projectBase, false
+	}
+
 	if strings.TrimSpace(line) == "2" {
-		return UserSkillDir, true
+		return userDir, true
 	}
 	return projectBase, false
 }
@@ -122,7 +125,11 @@ var skillAddCmd = &cobra.Command{
 			}
 		}
 
-		fmt.Printf("Installed skill %q (%s) into %s/%s/\n", name, version, baseDir, name)
+		displayPath := InstallDir + "/" + name + "/"
+		if userLevel {
+			displayPath = baseDir + "/" + name + "/"
+		}
+		fmt.Printf("Installed skill %q (%s) into %s\n", name, version, displayPath)
 		return nil
 	},
 }
