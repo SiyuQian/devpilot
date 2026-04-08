@@ -1,6 +1,7 @@
 package skillmgr
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -46,6 +47,20 @@ func TestParseIndexEmpty(t *testing.T) {
 	}
 }
 
+func TestParseIndexSkipsEmptyNames(t *testing.T) {
+	data := []byte(`{"skills": [{"name": "pm", "description": "PM", "files": ["SKILL.md"]}, {"name": "", "description": "bad", "files": []}]}`)
+	entries, err := ParseIndex(data)
+	if err != nil {
+		t.Fatalf("ParseIndex: %v", err)
+	}
+	if len(entries) != 1 {
+		t.Fatalf("len = %d, want 1 (empty name should be filtered)", len(entries))
+	}
+	if entries[0].Name != "pm" {
+		t.Errorf("Name = %q, want %q", entries[0].Name, "pm")
+	}
+}
+
 func TestParseIndexInvalidJSON(t *testing.T) {
 	_, err := ParseIndex([]byte(`not json`))
 	if err == nil {
@@ -65,7 +80,7 @@ func TestFetchIndex(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	entries, err := fetchIndexFromBase(srv.URL, "siyuqian", "devpilot", "v1.0.0")
+	entries, err := fetchIndexFromBase(context.Background(), srv.URL,"siyuqian", "devpilot", "v1.0.0")
 	if err != nil {
 		t.Fatalf("FetchIndex: %v", err)
 	}
@@ -83,7 +98,7 @@ func TestFetchIndexNotFound(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	_, err := fetchIndexFromBase(srv.URL, "o", "r", "v1.0.0")
+	_, err := fetchIndexFromBase(context.Background(), srv.URL,"o", "r", "v1.0.0")
 	if err == nil {
 		t.Fatal("expected error for 404")
 	}

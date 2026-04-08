@@ -27,17 +27,26 @@ func ParseIndex(data []byte) ([]IndexEntry, error) {
 	if err := json.Unmarshal(data, &idx); err != nil {
 		return nil, fmt.Errorf("parsing index.json: %w", err)
 	}
-	return idx.Skills, nil
+	var valid []IndexEntry
+	for _, e := range idx.Skills {
+		if e.Name != "" {
+			valid = append(valid, e)
+		}
+	}
+	return valid, nil
 }
 
 // FetchIndex downloads and parses skills/index.json from raw.githubusercontent.com.
-func FetchIndex(owner, repo, ref string) ([]IndexEntry, error) {
-	return fetchIndexFromBase(rawBaseURL, owner, repo, ref)
+func FetchIndex(ctx context.Context, owner, repo, ref string) ([]IndexEntry, error) {
+	return fetchIndexFromBase(ctx, rawBaseURL, owner, repo, ref)
 }
 
-func fetchIndexFromBase(base, owner, repo, ref string) ([]IndexEntry, error) {
+// maxIndexSize is the maximum allowed size for index.json (1 MB).
+const maxIndexSize = 1 << 20
+
+func fetchIndexFromBase(ctx context.Context, base, owner, repo, ref string) ([]IndexEntry, error) {
 	url := fmt.Sprintf("%s/%s/%s/%s/skills/index.json", base, owner, repo, ref)
-	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("creating request for index.json: %w", err)
 	}
@@ -51,7 +60,7 @@ func fetchIndexFromBase(base, owner, repo, ref string) ([]IndexEntry, error) {
 		return nil, fmt.Errorf("fetching index.json: HTTP %d", resp.StatusCode)
 	}
 
-	data, err := io.ReadAll(resp.Body)
+	data, err := io.ReadAll(io.LimitReader(resp.Body, maxIndexSize))
 	if err != nil {
 		return nil, fmt.Errorf("reading index.json body: %w", err)
 	}
