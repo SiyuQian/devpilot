@@ -110,6 +110,31 @@ func TestFetchSkillNotFound(t *testing.T) {
 	}
 }
 
+func TestFetchSkillFileDownloadFailure(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/owner/repo/v1.0.0/skills/index.json" {
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"skills":[{"name":"pm","description":"PM","files":["SKILL.md","missing.md"]}]}`))
+			return
+		}
+		if r.URL.Path == "/owner/repo/v1.0.0/skills/pm/SKILL.md" {
+			_, _ = w.Write([]byte("---\nname: pm\n---"))
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer srv.Close()
+
+	origBase := rawBaseURL
+	defer func() { setRawBaseURL(origBase) }()
+	setRawBaseURL(srv.URL)
+
+	_, err := FetchSkill("owner", "repo", "pm", "v1.0.0")
+	if err == nil {
+		t.Fatal("expected error for missing file, got nil")
+	}
+}
+
 func TestInstallSkill(t *testing.T) {
 	dir := t.TempDir()
 	baseDir := filepath.Join(dir, InstallDir)
