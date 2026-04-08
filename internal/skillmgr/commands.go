@@ -15,13 +15,11 @@ import (
 	"golang.org/x/term"
 )
 
-// fetchCatalogFn is the function used to fetch the skill catalog.
 // Override in tests to avoid hitting GitHub.
 var fetchCatalogFn = func(ctx context.Context, owner, repo, ref string) ([]CatalogEntry, error) {
 	return FetchCatalog(ctx, owner, repo, ref)
 }
 
-// fetchLatestTagFn is the function used to resolve the latest release tag.
 // Override in tests to avoid hitting GitHub.
 var fetchLatestTagFn = FetchLatestTag
 
@@ -190,22 +188,25 @@ var skillListCmd = &cobra.Command{
 			return printInstalledOnly(installed)
 		}
 
-		// Fetch catalog.
 		ctx := context.Background()
 		ref, err := fetchLatestTagFn(defaultOwner, defaultRepo)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Warning: could not resolve latest version: %v\nShowing installed skills only.\n", err)
+			warnFallback("could not resolve latest version", err)
 			return printInstalledOnly(installed)
 		}
 
 		catalog, err := fetchCatalogFn(ctx, defaultOwner, defaultRepo, ref)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Warning: could not fetch skill catalog: %v\nShowing installed skills only.\n", err)
+			warnFallback("could not fetch skill catalog", err)
 			return printInstalledOnly(installed)
 		}
 
 		return printCatalogView(catalog, installed)
 	},
+}
+
+func warnFallback(label string, err error) {
+	fmt.Fprintf(os.Stderr, "Warning: %s: %v\nShowing installed skills only.\n", label, err)
 }
 
 // loadInstalledSkills loads skills from both project and user configs.
@@ -252,17 +253,11 @@ func printInstalledOnly(installed []skillWithLevel) error {
 
 // printCatalogView displays all catalog skills with installation status.
 func printCatalogView(catalog []CatalogEntry, installed []skillWithLevel) error {
-	// Build lookup: skill name → installed info.
-	type installInfo struct {
-		Version string
-		Level   string
-	}
-	lookup := make(map[string]installInfo, len(installed))
+	lookup := make(map[string]skillWithLevel, len(installed))
 	for _, s := range installed {
-		lookup[s.Name] = installInfo{Version: s.Version, Level: s.Level}
+		lookup[s.Name] = s
 	}
 
-	// Track which installed skills appear in the catalog.
 	seen := make(map[string]bool, len(catalog))
 
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
@@ -270,8 +265,8 @@ func printCatalogView(catalog []CatalogEntry, installed []skillWithLevel) error 
 	for _, c := range catalog {
 		seen[c.Name] = true
 		desc := truncateDescription(c.Description)
-		if info, ok := lookup[c.Name]; ok {
-			_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", c.Name, desc, info.Version, info.Level)
+		if s, ok := lookup[c.Name]; ok {
+			_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", c.Name, desc, s.Version, s.Level)
 		} else {
 			_, _ = fmt.Fprintf(w, "%s\t%s\t—\t—\n", c.Name, desc)
 		}

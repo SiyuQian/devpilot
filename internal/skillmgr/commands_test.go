@@ -179,13 +179,8 @@ func TestSkillAddUserLevelWritesConfig(t *testing.T) {
 }
 
 func TestSkillListBothLevels(t *testing.T) {
-	// Override userConfigDirFn.
-	userCfgDir := t.TempDir()
-	origFn := userConfigDirFn
-	userConfigDirFn = func() (string, error) { return userCfgDir, nil }
-	t.Cleanup(func() { userConfigDirFn = origFn })
+	userCfgDir := stubUserConfigDir(t)
 
-	// Set up project-level config with a skill.
 	projDir := t.TempDir()
 	t.Chdir(projDir)
 	projCfg := &project.Config{
@@ -197,7 +192,6 @@ func TestSkillListBothLevels(t *testing.T) {
 		t.Fatalf("Save project config: %v", err)
 	}
 
-	// Set up user-level config with a different skill.
 	userCfg := &project.Config{
 		Skills: []project.SkillEntry{
 			{Name: "prompt-review", Source: "github.com/siyuqian/devpilot", Version: "v0.12.0"},
@@ -207,26 +201,10 @@ func TestSkillListBothLevels(t *testing.T) {
 		t.Fatalf("Save user config: %v", err)
 	}
 
-	// Capture output.
-	old := os.Stdout
-	r, w, _ := os.Pipe()
-	os.Stdout = w
-
-	cmd := skillListCmd
-	cmd.ResetFlags()
-	cmd.Flags().BoolP("installed", "i", false, "Show only installed skills")
-	_ = cmd.Flags().Set("installed", "true")
-	err := cmd.RunE(cmd, []string{})
-
-	_ = w.Close()
-	os.Stdout = old
-
+	output, err := runSkillListCmd(t, true)
 	if err != nil {
 		t.Fatalf("skill list error: %v", err)
 	}
-
-	out, _ := io.ReadAll(r)
-	output := string(out)
 
 	if !strings.Contains(output, "pm") {
 		t.Errorf("output missing project skill 'pm': %s", output)
@@ -243,12 +221,7 @@ func TestSkillListBothLevels(t *testing.T) {
 }
 
 func TestSkillListOnlyUserLevel(t *testing.T) {
-	// No project config, only user-level — should not error.
-	userCfgDir := t.TempDir()
-	origFn := userConfigDirFn
-	userConfigDirFn = func() (string, error) { return userCfgDir, nil }
-	t.Cleanup(func() { userConfigDirFn = origFn })
-
+	userCfgDir := stubUserConfigDir(t)
 	t.Chdir(t.TempDir()) // no .devpilot.yaml here
 
 	userCfg := &project.Config{
@@ -260,25 +233,10 @@ func TestSkillListOnlyUserLevel(t *testing.T) {
 		t.Fatalf("Save user config: %v", err)
 	}
 
-	old := os.Stdout
-	r, w, _ := os.Pipe()
-	os.Stdout = w
-
-	cmd := skillListCmd
-	cmd.ResetFlags()
-	cmd.Flags().BoolP("installed", "i", false, "Show only installed skills")
-	_ = cmd.Flags().Set("installed", "true")
-	err := cmd.RunE(cmd, []string{})
-
-	_ = w.Close()
-	os.Stdout = old
-
+	output, err := runSkillListCmd(t, true)
 	if err != nil {
 		t.Fatalf("skill list should not error without project config: %v", err)
 	}
-
-	out, _ := io.ReadAll(r)
-	output := string(out)
 
 	if !strings.Contains(output, "prompt-review") {
 		t.Errorf("output missing user skill: %s", output)
@@ -286,38 +244,30 @@ func TestSkillListOnlyUserLevel(t *testing.T) {
 }
 
 func TestSkillListNoSkillsAnywhere(t *testing.T) {
-	userCfgDir := t.TempDir()
-	origFn := userConfigDirFn
-	userConfigDirFn = func() (string, error) { return userCfgDir, nil }
-	t.Cleanup(func() { userConfigDirFn = origFn })
-
+	stubUserConfigDir(t)
 	t.Chdir(t.TempDir())
 
-	old := os.Stdout
-	r, w, _ := os.Pipe()
-	os.Stdout = w
-
-	cmd := skillListCmd
-	cmd.ResetFlags()
-	cmd.Flags().BoolP("installed", "i", false, "Show only installed skills")
-	_ = cmd.Flags().Set("installed", "true")
-	err := cmd.RunE(cmd, []string{})
-
-	_ = w.Close()
-	os.Stdout = old
-
+	output, err := runSkillListCmd(t, true)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	out, _ := io.ReadAll(r)
-	if !strings.Contains(string(out), "No skills installed") {
-		t.Errorf("expected 'No skills installed' message, got: %s", string(out))
+	if !strings.Contains(output, "No skills installed") {
+		t.Errorf("expected 'No skills installed' message, got: %s", output)
 	}
 }
 
+// stubUserConfigDir overrides userConfigDirFn to use a temp directory.
+func stubUserConfigDir(t *testing.T) string {
+	t.Helper()
+	dir := t.TempDir()
+	orig := userConfigDirFn
+	userConfigDirFn = func() (string, error) { return dir, nil }
+	t.Cleanup(func() { userConfigDirFn = orig })
+	return dir
+}
+
 // stubCatalogFns overrides fetchLatestTagFn and fetchCatalogFn for tests.
-// Returns a cleanup function to restore originals.
 func stubCatalogFns(t *testing.T, catalog []CatalogEntry, catalogErr error) {
 	t.Helper()
 	origTag := fetchLatestTagFn
@@ -353,12 +303,8 @@ func runSkillListCmd(t *testing.T, installed bool) (string, error) {
 }
 
 func TestSkillListCatalogView(t *testing.T) {
-	userCfgDir := t.TempDir()
-	origFn := userConfigDirFn
-	userConfigDirFn = func() (string, error) { return userCfgDir, nil }
-	t.Cleanup(func() { userConfigDirFn = origFn })
+	stubUserConfigDir(t)
 
-	// Install one skill at project level.
 	projDir := t.TempDir()
 	t.Chdir(projDir)
 	projCfg := &project.Config{
@@ -399,10 +345,7 @@ func TestSkillListCatalogView(t *testing.T) {
 }
 
 func TestSkillListInstalledFlag(t *testing.T) {
-	userCfgDir := t.TempDir()
-	origFn := userConfigDirFn
-	userConfigDirFn = func() (string, error) { return userCfgDir, nil }
-	t.Cleanup(func() { userConfigDirFn = origFn })
+	stubUserConfigDir(t)
 
 	projDir := t.TempDir()
 	t.Chdir(projDir)
@@ -451,10 +394,7 @@ func TestSkillListTruncateDescription(t *testing.T) {
 }
 
 func TestSkillListCatalogFetchFallback(t *testing.T) {
-	userCfgDir := t.TempDir()
-	origFn := userConfigDirFn
-	userConfigDirFn = func() (string, error) { return userCfgDir, nil }
-	t.Cleanup(func() { userConfigDirFn = origFn })
+	stubUserConfigDir(t)
 
 	projDir := t.TempDir()
 	t.Chdir(projDir)
