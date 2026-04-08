@@ -8,6 +8,8 @@ import (
 	"net/http"
 )
 
+// rawBaseURL is the base URL for raw file downloads. Mutable for testing.
+// Tests that use setRawBaseURL must not use t.Parallel().
 var rawBaseURL = "https://raw.githubusercontent.com"
 
 // setRawBaseURL overrides the raw base URL (for testing).
