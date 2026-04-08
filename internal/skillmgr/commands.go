@@ -162,18 +162,21 @@ var skillListCmd = &cobra.Command{
 			return err
 		}
 		projCfg, err := project.Load(dir)
-		if err == nil {
-			for _, s := range projCfg.Skills {
-				all = append(all, skillWithLevel{s, "project"})
-			}
+		if err != nil {
+			return fmt.Errorf("loading project config: %w", err)
+		}
+		for _, s := range projCfg.Skills {
+			all = append(all, skillWithLevel{s, "project"})
 		}
 
 		// User-level skills.
 		if userDir, err := userConfigDirFn(); err == nil {
-			if userCfg, err := project.Load(userDir); err == nil {
-				for _, s := range userCfg.Skills {
-					all = append(all, skillWithLevel{s, "user"})
-				}
+			userCfg, loadErr := project.Load(userDir)
+			if loadErr != nil {
+				return fmt.Errorf("loading user config: %w", loadErr)
+			}
+			for _, s := range userCfg.Skills {
+				all = append(all, skillWithLevel{s, "user"})
 			}
 		}
 
