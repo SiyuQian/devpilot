@@ -161,3 +161,4 @@ Skills are defined by a `SKILL.md` file (YAML frontmatter + markdown body) with 
 - Design docs come in pairs: `{date}-{feature}-design.md` + `{date}-{feature}-plan.md`
 - Skill helper scripts use Python 3
 - CI/CD: GitHub Actions for tests (`test.yml`) and releases (`release.yml`)
+- When adding, removing, or modifying skills in `skills/`, update `skills/index.json` accordingly (name, description, and file list)

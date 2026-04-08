@@ -27,9 +27,10 @@ The system SHALL truncate skill descriptions to 40 characters followed by "..." 
 - **THEN** the displayed description SHALL be truncated to 40 characters followed by "..."
 
 ### Requirement: Graceful catalog fetch failure
-The system SHALL display an error message and fall back to showing only installed skills when the GitHub catalog fetch fails (network error, rate limit, etc.).
+The system SHALL display an error message and fall back to showing only installed skills when the catalog fetch fails (network error, HTTP error, etc.).
 
 #### Scenario: Network error during catalog fetch
-- **WHEN** user runs `devpilot skill list` and the GitHub API is unreachable
+- **WHEN** user runs `devpilot skill list` and the raw URL is unreachable
 - **THEN** the system prints a warning about the catalog fetch failure
 - **AND** the system falls back to displaying installed skills only
+

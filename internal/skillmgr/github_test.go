@@ -55,20 +55,12 @@ func TestFetchLatestTagRateLimit(t *testing.T) {
 func TestFetchSkill(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case "/repos/owner/repo/contents/skills/pm":
+		case "/owner/repo/v1.0.0/skills/index.json":
 			w.Header().Set("Content-Type", "application/json")
-			_, _ = w.Write([]byte(`[
-				{"type":"file","name":"SKILL.md","download_url":"` + "http://" + r.Host + `/file/SKILL.md"},
-				{"type":"dir","name":"references","download_url":""}
-			]`))
-		case "/repos/owner/repo/contents/skills/pm/references":
-			w.Header().Set("Content-Type", "application/json")
-			_, _ = w.Write([]byte(`[
-				{"type":"file","name":"guide.md","download_url":"` + "http://" + r.Host + `/file/guide.md"}
-			]`))
-		case "/file/SKILL.md":
+			_, _ = w.Write([]byte(`{"skills":[{"name":"pm","description":"PM","files":["SKILL.md","references/guide.md"]}]}`))
+		case "/owner/repo/v1.0.0/skills/pm/SKILL.md":
 			_, _ = w.Write([]byte("---\nname: pm\n---"))
-		case "/file/guide.md":
+		case "/owner/repo/v1.0.0/skills/pm/references/guide.md":
 			_, _ = w.Write([]byte("# Guide"))
 		default:
 			http.NotFound(w, r)
@@ -76,7 +68,11 @@ func TestFetchSkill(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	files, err := fetchSkillFromBase(srv.URL+"/repos/owner/repo", "pm", "v1.0.0")
+	origBase := rawBaseURL
+	defer func() { setRawBaseURL(origBase) }()
+	setRawBaseURL(srv.URL)
+
+	files, err := FetchSkill("owner", "repo", "pm", "v1.0.0")
 	if err != nil {
 		t.Fatalf("FetchSkill: %v", err)
 	}
@@ -99,13 +95,43 @@ func TestFetchSkill(t *testing.T) {
 
 func TestFetchSkillNotFound(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"skills":[{"name":"pm","description":"PM","files":["SKILL.md"]}]}`))
+	}))
+	defer srv.Close()
+
+	origBase := rawBaseURL
+	defer func() { setRawBaseURL(origBase) }()
+	setRawBaseURL(srv.URL)
+
+	_, err := FetchSkill("owner", "repo", "nonexistent", "v1.0.0")
+	if err == nil {
+		t.Fatal("expected error for missing skill, got nil")
+	}
+}
+
+func TestFetchSkillFileDownloadFailure(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/owner/repo/v1.0.0/skills/index.json" {
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"skills":[{"name":"pm","description":"PM","files":["SKILL.md","missing.md"]}]}`))
+			return
+		}
+		if r.URL.Path == "/owner/repo/v1.0.0/skills/pm/SKILL.md" {
+			_, _ = w.Write([]byte("---\nname: pm\n---"))
+			return
+		}
 		http.NotFound(w, r)
 	}))
 	defer srv.Close()
 
-	_, err := fetchSkillFromBase(srv.URL+"/repos/owner/repo", "nonexistent", "v1.0.0")
+	origBase := rawBaseURL
+	defer func() { setRawBaseURL(origBase) }()
+	setRawBaseURL(srv.URL)
+
+	_, err := FetchSkill("owner", "repo", "pm", "v1.0.0")
 	if err == nil {
-		t.Fatal("expected error for missing skill, got nil")
+		t.Fatal("expected error for missing file, got nil")
 	}
 }
 
