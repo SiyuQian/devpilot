@@ -144,31 +144,49 @@ var skillAddCmd = &cobra.Command{
 	},
 }
 
+type skillWithLevel struct {
+	project.SkillEntry
+	Level string
+}
+
 var skillListCmd = &cobra.Command{
 	Use:   "list",
-	Short: "List skills installed in this project",
+	Short: "List installed skills",
 	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
+		var all []skillWithLevel
+
+		// Project-level skills.
 		dir, err := os.Getwd()
 		if err != nil {
 			return err
 		}
-
-		cfg, err := project.Load(dir)
-		if err != nil {
-			return fmt.Errorf("loading config: %w", err)
+		projCfg, err := project.Load(dir)
+		if err == nil {
+			for _, s := range projCfg.Skills {
+				all = append(all, skillWithLevel{s, "project"})
+			}
 		}
 
-		if len(cfg.Skills) == 0 {
+		// User-level skills.
+		if userDir, err := userConfigDirFn(); err == nil {
+			if userCfg, err := project.Load(userDir); err == nil {
+				for _, s := range userCfg.Skills {
+					all = append(all, skillWithLevel{s, "user"})
+				}
+			}
+		}
+
+		if len(all) == 0 {
 			fmt.Println("No skills installed. Use 'devpilot skill add <name>' to install one.")
 			return nil
 		}
 
 		w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-		_, _ = fmt.Fprintln(w, "NAME\tSOURCE\tVERSION\tINSTALLED")
-		for _, s := range cfg.Skills {
+		_, _ = fmt.Fprintln(w, "NAME\tSOURCE\tVERSION\tINSTALLED\tLEVEL")
+		for _, s := range all {
 			installed := s.InstalledAt.Format("2006-01-02")
-			_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", s.Name, s.Source, s.Version, installed)
+			_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", s.Name, s.Source, s.Version, installed, s.Level)
 		}
 		return w.Flush()
 	},

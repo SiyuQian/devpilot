@@ -11,7 +11,7 @@
 
 ## 3. Skill List — Show Both Levels
 
-- [ ] 3.1 Update `skill list` command to read user-level config via `project.Load(userConfigDir)` in addition to project config
-- [ ] 3.2 Add `LEVEL` column to table output showing `project` or `user`
-- [ ] 3.3 When no project `.devpilot.yaml` exists, show only user-level skills instead of erroring
-- [ ] 3.4 Add tests for listing skills from both levels
+- [x] 3.1 Update `skill list` command to read user-level config via `project.Load(userConfigDir)` in addition to project config
+- [x] 3.2 Add `LEVEL` column to table output showing `project` or `user`
+- [x] 3.3 When no project `.devpilot.yaml` exists, show only user-level skills instead of erroring
+- [x] 3.4 Add tests for listing skills from both levels
