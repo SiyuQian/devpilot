@@ -17,17 +17,17 @@ func TestParseSkillArg(t *testing.T) {
 	tests := []struct {
 		input   string
 		name    string
-		version string
+		ref     string
 		wantErr bool
 	}{
-		{input: "pm", name: "pm", version: ""},
-		{input: "pm@v1.2.3", name: "pm", version: "v1.2.3"},
-		{input: "google-go-style@v0.4.0", name: "google-go-style", version: "v0.4.0"},
+		{input: "pm", name: "pm", ref: ""},
+		{input: "pm@v1.2.3", name: "pm", ref: "v1.2.3"},
+		{input: "google-go-style@v0.4.0", name: "google-go-style", ref: "v0.4.0"},
 		{input: "@v1.0.0", wantErr: true},
 	}
 
 	for _, tt := range tests {
-		name, version, err := parseSkillArg(tt.input)
+		name, ref, err := parseSkillArg(tt.input)
 		if tt.wantErr {
 			if err == nil {
 				t.Errorf("parseSkillArg(%q) expected error, got nil", tt.input)
@@ -41,8 +41,8 @@ func TestParseSkillArg(t *testing.T) {
 		if name != tt.name {
 			t.Errorf("parseSkillArg(%q) name = %q, want %q", tt.input, name, tt.name)
 		}
-		if version != tt.version {
-			t.Errorf("parseSkillArg(%q) version = %q, want %q", tt.input, version, tt.version)
+		if ref != tt.ref {
+			t.Errorf("parseSkillArg(%q) ref = %q, want %q", tt.input, ref, tt.ref)
 		}
 	}
 }
@@ -154,9 +154,8 @@ func TestSkillAddUserLevelWritesConfig(t *testing.T) {
 		t.Fatalf("Load: %v", err)
 	}
 	cfg.UpsertSkill(project.SkillEntry{
-		Name:    "pm",
-		Source:  DefaultSource,
-		Version: "v1.0.0",
+		Name:   "pm",
+		Source: DefaultSource,
 	})
 	if err := project.Save(configDir, cfg); err != nil {
 		t.Fatalf("Save: %v", err)
@@ -173,9 +172,6 @@ func TestSkillAddUserLevelWritesConfig(t *testing.T) {
 	if loaded.Skills[0].Name != "pm" {
 		t.Errorf("Name = %q, want %q", loaded.Skills[0].Name, "pm")
 	}
-	if loaded.Skills[0].Version != "v1.0.0" {
-		t.Errorf("Version = %q, want %q", loaded.Skills[0].Version, "v1.0.0")
-	}
 }
 
 func TestSkillListBothLevels(t *testing.T) {
@@ -185,7 +181,7 @@ func TestSkillListBothLevels(t *testing.T) {
 	t.Chdir(projDir)
 	projCfg := &project.Config{
 		Skills: []project.SkillEntry{
-			{Name: "pm", Source: "github.com/siyuqian/devpilot", Version: "v1.0.0"},
+			{Name: "pm", Source: "github.com/siyuqian/devpilot"},
 		},
 	}
 	if err := project.Save(projDir, projCfg); err != nil {
@@ -194,7 +190,7 @@ func TestSkillListBothLevels(t *testing.T) {
 
 	userCfg := &project.Config{
 		Skills: []project.SkillEntry{
-			{Name: "prompt-review", Source: "github.com/siyuqian/devpilot", Version: "v0.12.0"},
+			{Name: "prompt-review", Source: "github.com/siyuqian/devpilot"},
 		},
 	}
 	if err := project.Save(userCfgDir, userCfg); err != nil {
@@ -226,7 +222,7 @@ func TestSkillListOnlyUserLevel(t *testing.T) {
 
 	userCfg := &project.Config{
 		Skills: []project.SkillEntry{
-			{Name: "prompt-review", Source: "github.com/siyuqian/devpilot", Version: "v0.12.0"},
+			{Name: "prompt-review", Source: "github.com/siyuqian/devpilot"},
 		},
 	}
 	if err := project.Save(userCfgDir, userCfg); err != nil {
@@ -267,17 +263,14 @@ func stubUserConfigDir(t *testing.T) string {
 	return dir
 }
 
-// stubCatalogFns overrides fetchLatestTagFn and fetchCatalogFn for tests.
+// stubCatalogFns overrides fetchCatalogFn for tests.
 func stubCatalogFns(t *testing.T, catalog []CatalogEntry, catalogErr error) {
 	t.Helper()
-	origTag := fetchLatestTagFn
 	origCat := fetchCatalogFn
-	fetchLatestTagFn = func(_, _ string) (string, error) { return "v1.0.0", nil }
 	fetchCatalogFn = func(_ context.Context, _, _, _ string) ([]CatalogEntry, error) {
 		return catalog, catalogErr
 	}
 	t.Cleanup(func() {
-		fetchLatestTagFn = origTag
 		fetchCatalogFn = origCat
 	})
 }
@@ -309,7 +302,7 @@ func TestSkillListCatalogView(t *testing.T) {
 	t.Chdir(projDir)
 	projCfg := &project.Config{
 		Skills: []project.SkillEntry{
-			{Name: "pm", Source: DefaultSource, Version: "v1.0.0"},
+			{Name: "pm", Source: DefaultSource},
 		},
 	}
 	if err := project.Save(projDir, projCfg); err != nil {
@@ -327,8 +320,8 @@ func TestSkillListCatalogView(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	// Installed skill should show version and level.
-	if !strings.Contains(output, "pm") || !strings.Contains(output, "v1.0.0") || !strings.Contains(output, "project") {
+	// Installed skill should show install date and level.
+	if !strings.Contains(output, "pm") || !strings.Contains(output, "project") {
 		t.Errorf("installed skill 'pm' not shown correctly: %s", output)
 	}
 	// Uninstalled skills should show dashes.
@@ -338,9 +331,12 @@ func TestSkillListCatalogView(t *testing.T) {
 	if !strings.Contains(output, "learn") {
 		t.Errorf("catalog skill 'learn' missing: %s", output)
 	}
-	// Should have DESCRIPTION column.
+	// Should have DESCRIPTION and INSTALLED columns.
 	if !strings.Contains(output, "DESCRIPTION") {
 		t.Errorf("missing DESCRIPTION header: %s", output)
+	}
+	if !strings.Contains(output, "INSTALLED") {
+		t.Errorf("missing INSTALLED header: %s", output)
 	}
 }
 
@@ -351,7 +347,7 @@ func TestSkillListInstalledFlag(t *testing.T) {
 	t.Chdir(projDir)
 	projCfg := &project.Config{
 		Skills: []project.SkillEntry{
-			{Name: "pm", Source: DefaultSource, Version: "v1.0.0"},
+			{Name: "pm", Source: DefaultSource},
 		},
 	}
 	if err := project.Save(projDir, projCfg); err != nil {
@@ -400,7 +396,7 @@ func TestSkillListCatalogFetchFallback(t *testing.T) {
 	t.Chdir(projDir)
 	projCfg := &project.Config{
 		Skills: []project.SkillEntry{
-			{Name: "pm", Source: DefaultSource, Version: "v1.0.0"},
+			{Name: "pm", Source: DefaultSource},
 		},
 	}
 	if err := project.Save(projDir, projCfg); err != nil {

@@ -8,50 +8,6 @@ import (
 	"testing"
 )
 
-func TestFetchLatestTag(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/repos/owner/repo/releases/latest" {
-			http.NotFound(w, r)
-			return
-		}
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"tag_name":"v1.2.3"}`))
-	}))
-	defer srv.Close()
-
-	tag, err := fetchLatestTagFromURL(srv.URL + "/repos/owner/repo/releases/latest")
-	if err != nil {
-		t.Fatalf("FetchLatestTag: %v", err)
-	}
-	if tag != "v1.2.3" {
-		t.Errorf("tag = %q, want v1.2.3", tag)
-	}
-}
-
-func TestFetchLatestTagNotFound(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		http.NotFound(w, r)
-	}))
-	defer srv.Close()
-
-	_, err := fetchLatestTagFromURL(srv.URL + "/repos/owner/repo/releases/latest")
-	if err == nil {
-		t.Fatal("expected error for 404, got nil")
-	}
-}
-
-func TestFetchLatestTagRateLimit(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusForbidden)
-	}))
-	defer srv.Close()
-
-	_, err := fetchLatestTagFromURL(srv.URL + "/repos/owner/repo/releases/latest")
-	if err == nil {
-		t.Fatal("expected error for rate limit, got nil")
-	}
-}
-
 func TestFetchSkill(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {

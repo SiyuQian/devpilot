@@ -15,7 +15,6 @@ const configFile = ".devpilot.yaml"
 type SkillEntry struct {
 	Name        string    `yaml:"name"`
 	Source      string    `yaml:"source"`
-	Version     string    `yaml:"version"`
 	InstalledAt time.Time `yaml:"installedAt"`
 }
 

@@ -178,7 +178,6 @@ func TestUpsertSkillAdd(t *testing.T) {
 	entry := SkillEntry{
 		Name:        "pm",
 		Source:      "github.com/siyuqian/devpilot",
-		Version:     "v1.0.0",
 		InstalledAt: time.Now(),
 	}
 	cfg.UpsertSkill(entry)
@@ -191,22 +190,24 @@ func TestUpsertSkillAdd(t *testing.T) {
 }
 
 func TestUpsertSkillUpdate(t *testing.T) {
+	old := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 	cfg := &Config{
 		Skills: []SkillEntry{
-			{Name: "pm", Source: "github.com/siyuqian/devpilot", Version: "v1.0.0"},
+			{Name: "pm", Source: "github.com/siyuqian/devpilot", InstalledAt: old},
 		},
 	}
+	now := time.Now().UTC()
 	updated := SkillEntry{
-		Name:    "pm",
-		Source:  "github.com/siyuqian/devpilot",
-		Version: "v1.1.0",
+		Name:        "pm",
+		Source:      "github.com/siyuqian/devpilot",
+		InstalledAt: now,
 	}
 	cfg.UpsertSkill(updated)
 	if len(cfg.Skills) != 1 {
 		t.Fatalf("len(Skills) = %d after update, want 1 (no duplicates)", len(cfg.Skills))
 	}
-	if cfg.Skills[0].Version != "v1.1.0" {
-		t.Errorf("Version = %q, want v1.1.0", cfg.Skills[0].Version)
+	if !cfg.Skills[0].InstalledAt.Equal(now) {
+		t.Errorf("InstalledAt = %v, want %v", cfg.Skills[0].InstalledAt, now)
 	}
 }
 
@@ -214,13 +215,14 @@ func TestUpsertSkillMultiple(t *testing.T) {
 	cfg := &Config{}
 	cfg.UpsertSkill(SkillEntry{Name: "pm"})
 	cfg.UpsertSkill(SkillEntry{Name: "trello"})
-	cfg.UpsertSkill(SkillEntry{Name: "pm", Version: "v2.0.0"})
+	now := time.Now().UTC()
+	cfg.UpsertSkill(SkillEntry{Name: "pm", InstalledAt: now})
 
 	if len(cfg.Skills) != 2 {
 		t.Fatalf("len(Skills) = %d, want 2", len(cfg.Skills))
 	}
-	if cfg.Skills[0].Version != "v2.0.0" {
-		t.Errorf("pm version = %q, want v2.0.0", cfg.Skills[0].Version)
+	if !cfg.Skills[0].InstalledAt.Equal(now) {
+		t.Errorf("pm InstalledAt = %v, want %v", cfg.Skills[0].InstalledAt, now)
 	}
 }
 
@@ -230,7 +232,7 @@ func TestSkillsRoundTrip(t *testing.T) {
 	cfg := &Config{
 		Board: "My Board",
 		Skills: []SkillEntry{
-			{Name: "pm", Source: "github.com/siyuqian/devpilot", Version: "v1.0.0", InstalledAt: now},
+			{Name: "pm", Source: "github.com/siyuqian/devpilot", InstalledAt: now},
 		},
 	}
 	if err := Save(dir, cfg); err != nil {
@@ -244,7 +246,7 @@ func TestSkillsRoundTrip(t *testing.T) {
 		t.Fatalf("len(Skills) = %d, want 1", len(loaded.Skills))
 	}
 	s := loaded.Skills[0]
-	if s.Name != "pm" || s.Source != "github.com/siyuqian/devpilot" || s.Version != "v1.0.0" {
+	if s.Name != "pm" || s.Source != "github.com/siyuqian/devpilot" {
 		t.Errorf("skill = %+v, unexpected values", s)
 	}
 	if !s.InstalledAt.Equal(now) {

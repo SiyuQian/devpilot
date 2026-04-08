@@ -79,7 +79,7 @@ func TestConfigureBoardPreservesExistingConfig(t *testing.T) {
 	dir := t.TempDir()
 
 	// Write a config with existing skills entry.
-	initial := []byte("skills:\n- name: pm\n  source: github.com/siyuqian/devpilot\n  version: v0.1.0\n  installedAt: 2026-01-01T00:00:00Z\n")
+	initial := []byte("skills:\n- name: pm\n  source: github.com/siyuqian/devpilot\n  installedAt: 2026-01-01T00:00:00Z\n")
 	if err := os.WriteFile(filepath.Join(dir, ".devpilot.yaml"), initial, 0644); err != nil {
 		t.Fatal(err)
 	}
@@ -130,11 +130,11 @@ func TestInstallSkillsNonInteractiveSkips(t *testing.T) {
 	}
 }
 
-func stubCatalogFn() ([]skillmgr.CatalogEntry, string, error) {
+func stubCatalogFn() ([]skillmgr.CatalogEntry, error) {
 	return []skillmgr.CatalogEntry{
 		{Name: "pm", Description: "Product manager skill"},
 		{Name: "trello", Description: "Trello integration"},
-	}, "v0.1.0", nil
+	}, nil
 }
 
 func TestInstallSkillsInteractiveInstalls(t *testing.T) {
