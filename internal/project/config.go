@@ -1,6 +1,7 @@
 package project
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"time"
@@ -59,6 +60,15 @@ func (c *Config) UpsertSkill(entry SkillEntry) {
 		}
 	}
 	c.Skills = append(c.Skills, entry)
+}
+
+// UserConfigDir returns the user-level config directory (~/.config/devpilot/).
+func UserConfigDir() (string, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("resolving home directory: %w", err)
+	}
+	return filepath.Join(home, ".config", "devpilot"), nil
 }
 
 // Load reads .devpilot.yaml from dir. Returns a zero-value Config (not an error)
