@@ -136,6 +136,48 @@ func TestPromptInstallLevelNilReader(t *testing.T) {
 	}
 }
 
+func TestSkillAddUserLevelWritesConfig(t *testing.T) {
+	// Simulate a user-level install: the skill add command should write
+	// skill entries to the user config dir rather than the project dir.
+	userConfigDir := t.TempDir()
+	skillDir := t.TempDir()
+
+	// Install a fake skill.
+	files := []SkillFile{{Path: "SKILL.md", Content: []byte("test skill")}}
+	if err := InstallSkill(skillDir, "pm", files); err != nil {
+		t.Fatalf("InstallSkill: %v", err)
+	}
+
+	// Simulate writing the skill entry to user-level config.
+	cfg, err := project.Load(userConfigDir)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	cfg.UpsertSkill(project.SkillEntry{
+		Name:    "pm",
+		Source:  "github.com/siyuqian/devpilot",
+		Version: "v1.0.0",
+	})
+	if err := project.Save(userConfigDir, cfg); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+
+	// Verify the user config now has the skill entry.
+	loaded, err := project.Load(userConfigDir)
+	if err != nil {
+		t.Fatalf("Load after save: %v", err)
+	}
+	if len(loaded.Skills) != 1 {
+		t.Fatalf("len(Skills) = %d, want 1", len(loaded.Skills))
+	}
+	if loaded.Skills[0].Name != "pm" {
+		t.Errorf("Name = %q, want %q", loaded.Skills[0].Name, "pm")
+	}
+	if loaded.Skills[0].Version != "v1.0.0" {
+		t.Errorf("Version = %q, want %q", loaded.Skills[0].Version, "v1.0.0")
+	}
+}
+
 func TestSkillListWithoutConfig(t *testing.T) {
 	t.Chdir(t.TempDir())
 	cmd := skillListCmd

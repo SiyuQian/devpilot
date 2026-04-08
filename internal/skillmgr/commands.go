@@ -109,20 +109,26 @@ var skillAddCmd = &cobra.Command{
 			return fmt.Errorf("installing skill: %w", err)
 		}
 
-		if !userLevel {
-			cfg, err := project.Load(dir)
+		configDir := dir
+		if userLevel {
+			ud, err := project.UserConfigDir()
 			if err != nil {
-				return fmt.Errorf("loading config: %w", err)
+				return fmt.Errorf("resolving user config dir: %w", err)
 			}
-			cfg.UpsertSkill(project.SkillEntry{
-				Name:        name,
-				Source:      DefaultSource,
-				Version:     version,
-				InstalledAt: time.Now().UTC(),
-			})
-			if err := project.Save(dir, cfg); err != nil {
-				return fmt.Errorf("saving config: %w", err)
-			}
+			configDir = ud
+		}
+		cfg, err := project.Load(configDir)
+		if err != nil {
+			return fmt.Errorf("loading config: %w", err)
+		}
+		cfg.UpsertSkill(project.SkillEntry{
+			Name:        name,
+			Source:      DefaultSource,
+			Version:     version,
+			InstalledAt: time.Now().UTC(),
+		})
+		if err := project.Save(configDir, cfg); err != nil {
+			return fmt.Errorf("saving config: %w", err)
 		}
 
 		displayPath := InstallDir + "/" + name + "/"

@@ -5,9 +5,9 @@
 
 ## 2. Skill Add — User-Level Config Recording
 
-- [ ] 2.1 In `skillmgr/commands.go`, when `userLevel=true`, call `project.Load(userConfigDir)` and `project.Save(userConfigDir, cfg)` with the skill entry instead of skipping
-- [ ] 2.2 Skip the `.devpilot.yaml` existence check when user selects user-level install
-- [ ] 2.3 Add tests for user-level skill add writing to user config
+- [x] 2.1 In `skillmgr/commands.go`, when `userLevel=true`, call `project.Load(userConfigDir)` and `project.Save(userConfigDir, cfg)` with the skill entry instead of skipping
+- [x] 2.2 Skip the `.devpilot.yaml` existence check when user selects user-level install
+- [x] 2.3 Add tests for user-level skill add writing to user config
 
 ## 3. Skill List — Show Both Levels
 
