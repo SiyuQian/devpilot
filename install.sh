@@ -53,10 +53,10 @@ esac
 # Resolve version
 if [ -z "$VERSION" ]; then
     echo "Fetching latest release..."
-    VERSION="$(curl -fsSL -H "Accept: application/vnd.github+json" \
-        "https://api.github.com/repos/${REPO}/releases/latest" \
-        | grep '"tag_name"' | head -1 | sed 's/.*"tag_name": *"\([^"]*\)".*/\1/')"
-    if [ -z "$VERSION" ]; then
+    VERSION="$(curl -fsSL -o /dev/null -w '%{url_effective}' \
+        "https://github.com/${REPO}/releases/latest" 2>/dev/null \
+        | sed 's|.*/tag/||')"
+    if [ -z "$VERSION" ] || echo "$VERSION" | grep -q "^https://"; then
         echo "Error: could not determine latest version. Use --version to specify."
         exit 1
     fi
