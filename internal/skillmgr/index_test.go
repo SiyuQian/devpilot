@@ -80,7 +80,7 @@ func TestFetchIndex(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	entries, err := fetchIndexFromBase(context.Background(), srv.URL,"siyuqian", "devpilot", "v1.0.0")
+	entries, err := fetchIndexFromBase(context.Background(), srv.URL, "siyuqian", "devpilot", "v1.0.0")
 	if err != nil {
 		t.Fatalf("FetchIndex: %v", err)
 	}
@@ -98,7 +98,7 @@ func TestFetchIndexNotFound(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	_, err := fetchIndexFromBase(context.Background(), srv.URL,"o", "r", "v1.0.0")
+	_, err := fetchIndexFromBase(context.Background(), srv.URL, "o", "r", "v1.0.0")
 	if err == nil {
 		t.Fatal("expected error for 404")
 	}

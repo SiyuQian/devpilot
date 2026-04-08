@@ -19,5 +19,5 @@
 
 ## 4. Cleanup and verify
 
-- [ ] 4.1 Remove unused GitHub API imports and helper code from `github.go` and `catalog.go`
-- [ ] 4.2 Run `make test` and `make lint` to verify all tests pass
+- [x] 4.1 Remove unused GitHub API imports and helper code from `github.go` and `catalog.go`
+- [x] 4.2 Run `make test` and `make lint` to verify all tests pass
