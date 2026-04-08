@@ -10,8 +10,8 @@
 
 ## 2. Make task source configuration skippable
 
-- [ ] 2.1 Wrap the task source configuration block in `commands.go` with `shouldGenerate(opts, "Configure task source? [Y/n]: ")`
-- [ ] 2.2 Add test for skipping task source configuration
+- [x] 2.1 Wrap the task source configuration block in `commands.go` with `shouldGenerate(opts, "Configure task source? [Y/n]: ")`
+- [x] 2.2 Add test for skipping task source configuration
 
 ## 3. Add install level selection to devpilot skill add
 

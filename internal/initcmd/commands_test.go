@@ -1,6 +1,10 @@
 package initcmd
 
-import "testing"
+import (
+	"bufio"
+	"strings"
+	"testing"
+)
 
 func TestFormatStatusConfigured(t *testing.T) {
 	s := &Status{
@@ -138,6 +142,43 @@ func TestAllConfigured(t *testing.T) {
 	}
 	if allConfigured(githubPartial) {
 		t.Error("allConfigured returned true for github status missing skills")
+	}
+}
+
+func TestShouldGenerateSkipsOnNo(t *testing.T) {
+	input := strings.NewReader("n\n")
+	opts := GenerateOpts{
+		Dir:         t.TempDir(),
+		Interactive: true,
+		Reader:      bufio.NewReader(input),
+	}
+
+	if shouldGenerate(opts, "Configure task source? [Y/n]: ") {
+		t.Error("shouldGenerate returned true for 'n' input, want false")
+	}
+}
+
+func TestShouldGenerateAcceptsDefault(t *testing.T) {
+	input := strings.NewReader("\n")
+	opts := GenerateOpts{
+		Dir:         t.TempDir(),
+		Interactive: true,
+		Reader:      bufio.NewReader(input),
+	}
+
+	if !shouldGenerate(opts, "Configure task source? [Y/n]: ") {
+		t.Error("shouldGenerate returned false for empty input, want true")
+	}
+}
+
+func TestShouldGenerateNonInteractiveReturnsTrue(t *testing.T) {
+	opts := GenerateOpts{
+		Dir:         t.TempDir(),
+		Interactive: false,
+	}
+
+	if !shouldGenerate(opts, "Configure task source? [Y/n]: ") {
+		t.Error("shouldGenerate returned false in non-interactive mode, want true")
 	}
 }
 

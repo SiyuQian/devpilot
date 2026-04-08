@@ -56,7 +56,7 @@ var initCmd = &cobra.Command{
 		// If source is "trello" (or unset) and no board is configured yet, proceed.
 		if status.Source == "github" {
 			// Already configured as GitHub Issues — labels may already exist; skip.
-		} else if !status.HasBoardConfig {
+		} else if !status.HasBoardConfig && shouldGenerate(opts, "Configure task source? [Y/n]: ") {
 			// Determine source: respect explicit config value; ask only when truly unset.
 			sourceName := status.Source // "trello" or ""
 			if sourceName == "" && opts.Interactive {
