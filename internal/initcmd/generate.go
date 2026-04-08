@@ -2,16 +2,13 @@ package initcmd
 
 import (
 	"bufio"
-	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
-	"text/template"
 	"time"
 
 	"github.com/siyuqian/devpilot/internal/project"
@@ -28,104 +25,6 @@ type GenerateOpts struct {
 	Dir         string
 	Interactive bool
 	Reader      *bufio.Reader
-}
-
-// ProjectType holds detected project language/framework info.
-type ProjectType struct {
-	Name     string
-	BuildCmd string
-	TestCmd  string
-}
-
-func detectProjectType(dir string) ProjectType {
-	// Go
-	if data, err := os.ReadFile(filepath.Join(dir, "go.mod")); err == nil {
-		name := parseGoModuleName(data)
-		return ProjectType{
-			Name:     name,
-			BuildCmd: "go build ./...",
-			TestCmd:  "go test ./...",
-		}
-	}
-
-	// Node
-	if data, err := os.ReadFile(filepath.Join(dir, "package.json")); err == nil {
-		name := parsePackageJSONName(data)
-		return ProjectType{
-			Name:     name,
-			BuildCmd: "npm run build",
-			TestCmd:  "npm test",
-		}
-	}
-
-	// Python (pyproject.toml)
-	if _, err := os.Stat(filepath.Join(dir, "pyproject.toml")); err == nil {
-		return ProjectType{
-			Name:     filepath.Base(dir),
-			BuildCmd: "python -m build",
-			TestCmd:  "python -m pytest",
-		}
-	}
-
-	// Python (requirements.txt)
-	if _, err := os.Stat(filepath.Join(dir, "requirements.txt")); err == nil {
-		return ProjectType{
-			Name:     filepath.Base(dir),
-			BuildCmd: "",
-			TestCmd:  "python -m pytest",
-		}
-	}
-
-	// Fallback
-	return ProjectType{
-		Name: filepath.Base(dir),
-	}
-}
-
-func parseGoModuleName(data []byte) string {
-	for line := range strings.SplitSeq(string(data), "\n") {
-		line = strings.TrimSpace(line)
-		if mod, ok := strings.CutPrefix(line, "module "); ok {
-			return strings.TrimSpace(mod)
-		}
-	}
-	return ""
-}
-
-func parsePackageJSONName(data []byte) string {
-	var pkg struct {
-		Name string `json:"name"`
-	}
-	if err := json.Unmarshal(data, &pkg); err == nil {
-		return pkg.Name
-	}
-	return ""
-}
-
-// GenerateClaudeMD creates a CLAUDE.md file from the detected project type.
-func GenerateClaudeMD(opts GenerateOpts) error {
-	pt := detectProjectType(opts.Dir)
-
-	tmpl, err := template.New("claude").Parse(claudeMDTemplate)
-	if err != nil {
-		return err
-	}
-
-	var buf bytes.Buffer
-	if err := tmpl.Execute(&buf, map[string]string{
-		"ProjectName": pt.Name,
-		"BuildCmd":    pt.BuildCmd,
-		"TestCmd":     pt.TestCmd,
-	}); err != nil {
-		return err
-	}
-
-	if err := os.WriteFile(filepath.Join(opts.Dir, "CLAUDE.md"), buf.Bytes(), 0644); err != nil {
-		return err
-	}
-
-	fmt.Println("  Created CLAUDE.md")
-	return nil
 }
 
 // ConfigureBoard sets up the board name in .devpilot.yaml.

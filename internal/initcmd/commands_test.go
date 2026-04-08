@@ -4,8 +4,7 @@ import "testing"
 
 func TestFormatStatusConfigured(t *testing.T) {
 	s := &Status{
-		HasClaudeMD:    true,
-		HasTrelloCreds: true,
+			HasTrelloCreds: true,
 		HasBoardConfig: true,
 		HasSkills:      true,
 		IsGitRepo:      true,
@@ -17,7 +16,6 @@ func TestFormatStatusConfigured(t *testing.T) {
 		prefix string
 		label  string
 	}{
-		{"✓", "CLAUDE.md"},
 		{"✓", "Trello board configured"},
 		{"✓", "Trello credentials"},
 		{"✓", "Skills"},
@@ -39,7 +37,6 @@ func TestFormatStatusConfigured(t *testing.T) {
 
 func TestFormatStatusGitHub(t *testing.T) {
 	s := &Status{
-		HasClaudeMD: true,
 		HasSkills:   true,
 		IsGitRepo:   true,
 		Source:      "github",
@@ -67,8 +64,7 @@ func TestFormatStatusGitHub(t *testing.T) {
 
 func TestFormatStatusMissing(t *testing.T) {
 	s := &Status{
-		HasClaudeMD:    false,
-		HasTrelloCreds: false,
+			HasTrelloCreds: false,
 		HasBoardConfig: false,
 		HasSkills:      false,
 		IsGitRepo:      true,
@@ -104,8 +100,7 @@ func TestFormatStatusNotGitRepo(t *testing.T) {
 func TestAllConfigured(t *testing.T) {
 	// Trello: fully configured
 	allDone := &Status{
-		HasClaudeMD:    true,
-		HasTrelloCreds: true,
+			HasTrelloCreds: true,
 		HasBoardConfig: true,
 		HasSkills:      true,
 		IsGitRepo:      true,
@@ -116,8 +111,7 @@ func TestAllConfigured(t *testing.T) {
 
 	// Trello: missing board
 	partial := &Status{
-		HasClaudeMD:    true,
-		HasTrelloCreds: true,
+			HasTrelloCreds: true,
 		HasBoardConfig: false,
 		HasSkills:      true,
 		IsGitRepo:      true,
@@ -128,7 +122,6 @@ func TestAllConfigured(t *testing.T) {
 
 	// GitHub: fully configured (no Trello creds needed)
 	githubDone := &Status{
-		HasClaudeMD: true,
 		HasSkills:   true,
 		IsGitRepo:   true,
 		Source:      "github",
@@ -137,15 +130,14 @@ func TestAllConfigured(t *testing.T) {
 		t.Error("allConfigured returned false for fully configured github status")
 	}
 
-	// GitHub: missing CLAUDE.md
+	// GitHub: missing skills
 	githubPartial := &Status{
-		HasClaudeMD: false,
-		HasSkills:   true,
-		IsGitRepo:   true,
-		Source:      "github",
+		HasSkills: false,
+		IsGitRepo: true,
+		Source:    "github",
 	}
 	if allConfigured(githubPartial) {
-		t.Error("allConfigured returned true for github status missing CLAUDE.md")
+		t.Error("allConfigured returned true for github status missing skills")
 	}
 }
 

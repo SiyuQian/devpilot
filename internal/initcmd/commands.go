@@ -51,16 +51,6 @@ var initCmd = &cobra.Command{
 
 		fmt.Println()
 
-		// CLAUDE.md
-		if !status.HasClaudeMD {
-			if shouldGenerate(opts, "Generate CLAUDE.md? [Y/n]: ") {
-				if err := GenerateClaudeMD(opts); err != nil {
-					fmt.Fprintf(os.Stderr, "  Error generating CLAUDE.md: %v\n", err)
-				}
-			}
-			fmt.Println()
-		}
-
 		// Task source selection + board/label configuration.
 		// If source is already set to "github" in config, nothing more to set up.
 		// If source is "trello" (or unset) and no board is configured yet, proceed.
@@ -131,12 +121,6 @@ func formatStatus(s *Status) []string {
 		lines = append(lines, "  ✗ Not a git repository")
 	}
 
-	if s.HasClaudeMD {
-		lines = append(lines, "  ✓ CLAUDE.md")
-	} else {
-		lines = append(lines, "  ✗ CLAUDE.md not found")
-	}
-
 	switch s.Source {
 	case "github":
 		lines = append(lines, "  ✓ Task source: GitHub Issues")
@@ -163,7 +147,7 @@ func formatStatus(s *Status) []string {
 }
 
 func allConfigured(s *Status) bool {
-	if !s.HasClaudeMD || !s.HasSkills || !s.IsGitRepo {
+	if !s.HasSkills || !s.IsGitRepo {
 		return false
 	}
 	switch s.Source {
