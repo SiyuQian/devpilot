@@ -63,6 +63,8 @@ func (c *Config) UpsertSkill(entry SkillEntry) {
 }
 
 // UserConfigDir returns the user-level config directory (~/.config/devpilot/).
+// We hardcode .config rather than using os.UserConfigDir() for consistency
+// with the existing runner logs directory.
 func UserConfigDir() (string, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
