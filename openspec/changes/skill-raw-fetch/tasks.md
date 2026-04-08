@@ -13,9 +13,9 @@
 
 ## 3. Replace skill file fetch with raw URL
 
-- [ ] 3.1 Rewrite `FetchSkill` to: fetch index, look up skill by name, download each file from raw URL
-- [ ] 3.2 Remove `fetchContentsRecursive` function (no longer needed)
-- [ ] 3.3 Update tests for `FetchSkill` to use the new raw URL approach
+- [x] 3.1 Rewrite `FetchSkill` to: fetch index, look up skill by name, download each file from raw URL
+- [x] 3.2 Remove `fetchContentsRecursive` function (no longer needed)
+- [x] 3.3 Update tests for `FetchSkill` to use the new raw URL approach
 
 ## 4. Cleanup and verify
 
