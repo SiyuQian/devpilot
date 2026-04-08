@@ -6,10 +6,11 @@ import (
 	"path/filepath"
 )
 
-// InstallSkill writes skill files into .claude/skills/<skillName>/ under destDir.
+// InstallSkill writes skill files into <baseDir>/<skillName>/.
+// baseDir is the absolute path to the skills directory (e.g., ".claude/skills" or "~/.claude/skills").
 // Existing files are silently overwritten.
-func InstallSkill(destDir, skillName string, files []SkillFile) error {
-	skillDir := filepath.Join(destDir, InstallDir, skillName)
+func InstallSkill(baseDir, skillName string, files []SkillFile) error {
+	skillDir := filepath.Join(baseDir, skillName)
 
 	for _, f := range files {
 		target := filepath.Join(skillDir, filepath.FromSlash(f.Path))

@@ -1,10 +1,13 @@
 package initcmd
 
-import "testing"
+import (
+	"bufio"
+	"strings"
+	"testing"
+)
 
 func TestFormatStatusConfigured(t *testing.T) {
 	s := &Status{
-		HasClaudeMD:    true,
 		HasTrelloCreds: true,
 		HasBoardConfig: true,
 		HasSkills:      true,
@@ -17,7 +20,6 @@ func TestFormatStatusConfigured(t *testing.T) {
 		prefix string
 		label  string
 	}{
-		{"✓", "CLAUDE.md"},
 		{"✓", "Trello board configured"},
 		{"✓", "Trello credentials"},
 		{"✓", "Skills"},
@@ -39,10 +41,9 @@ func TestFormatStatusConfigured(t *testing.T) {
 
 func TestFormatStatusGitHub(t *testing.T) {
 	s := &Status{
-		HasClaudeMD: true,
-		HasSkills:   true,
-		IsGitRepo:   true,
-		Source:      "github",
+		HasSkills: true,
+		IsGitRepo: true,
+		Source:    "github",
 	}
 
 	lines := formatStatus(s)
@@ -67,7 +68,6 @@ func TestFormatStatusGitHub(t *testing.T) {
 
 func TestFormatStatusMissing(t *testing.T) {
 	s := &Status{
-		HasClaudeMD:    false,
 		HasTrelloCreds: false,
 		HasBoardConfig: false,
 		HasSkills:      false,
@@ -104,7 +104,6 @@ func TestFormatStatusNotGitRepo(t *testing.T) {
 func TestAllConfigured(t *testing.T) {
 	// Trello: fully configured
 	allDone := &Status{
-		HasClaudeMD:    true,
 		HasTrelloCreds: true,
 		HasBoardConfig: true,
 		HasSkills:      true,
@@ -116,7 +115,6 @@ func TestAllConfigured(t *testing.T) {
 
 	// Trello: missing board
 	partial := &Status{
-		HasClaudeMD:    true,
 		HasTrelloCreds: true,
 		HasBoardConfig: false,
 		HasSkills:      true,
@@ -128,24 +126,59 @@ func TestAllConfigured(t *testing.T) {
 
 	// GitHub: fully configured (no Trello creds needed)
 	githubDone := &Status{
-		HasClaudeMD: true,
-		HasSkills:   true,
-		IsGitRepo:   true,
-		Source:      "github",
+		HasSkills: true,
+		IsGitRepo: true,
+		Source:    "github",
 	}
 	if !allConfigured(githubDone) {
 		t.Error("allConfigured returned false for fully configured github status")
 	}
 
-	// GitHub: missing CLAUDE.md
+	// GitHub: missing skills
 	githubPartial := &Status{
-		HasClaudeMD: false,
-		HasSkills:   true,
-		IsGitRepo:   true,
-		Source:      "github",
+		HasSkills: false,
+		IsGitRepo: true,
+		Source:    "github",
 	}
 	if allConfigured(githubPartial) {
-		t.Error("allConfigured returned true for github status missing CLAUDE.md")
+		t.Error("allConfigured returned true for github status missing skills")
+	}
+}
+
+func TestShouldGenerateSkipsOnNo(t *testing.T) {
+	input := strings.NewReader("n\n")
+	opts := GenerateOpts{
+		Dir:         t.TempDir(),
+		Interactive: true,
+		Reader:      bufio.NewReader(input),
+	}
+
+	if shouldGenerate(opts, "Configure task source? [Y/n]: ") {
+		t.Error("shouldGenerate returned true for 'n' input, want false")
+	}
+}
+
+func TestShouldGenerateAcceptsDefault(t *testing.T) {
+	input := strings.NewReader("\n")
+	opts := GenerateOpts{
+		Dir:         t.TempDir(),
+		Interactive: true,
+		Reader:      bufio.NewReader(input),
+	}
+
+	if !shouldGenerate(opts, "Configure task source? [Y/n]: ") {
+		t.Error("shouldGenerate returned false for empty input, want true")
+	}
+}
+
+func TestShouldGenerateNonInteractiveReturnsTrue(t *testing.T) {
+	opts := GenerateOpts{
+		Dir:         t.TempDir(),
+		Interactive: false,
+	}
+
+	if !shouldGenerate(opts, "Configure task source? [Y/n]: ") {
+		t.Error("shouldGenerate returned false in non-interactive mode, want true")
 	}
 }
 

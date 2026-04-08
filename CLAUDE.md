@@ -71,7 +71,7 @@ devpilot gmail summary --channel daily-digest              # Send summary to a S
 devpilot gmail summary --dm U0123ABCDE                     # Send summary as a DM (marks as read)
 devpilot gmail summary --no-mark-read=false                # Explicitly mark emails as read without sending
 
-devpilot skill add <name>                                  # Install a skill from the catalog
+devpilot skill add <name>                                  # Install a skill (prompts for project/user level)
 devpilot skill add <name>@v0.12.0                          # Install at specific version
 devpilot skill list                                        # List installed skills
 
@@ -96,9 +96,9 @@ Go CLI using Cobra for subcommand routing. Adding a new service: implement the `
 ### Project Init (`devpilot init`)
 
 Interactive wizard that detects project state and generates missing pieces:
-- Detects: `CLAUDE.md`, `.devpilot.yaml`, Trello credentials, git hooks, skills, git repo
-- Generates: `CLAUDE.md` template, board config, pre-push hook, skill scaffolding
-- Auto-detects project type (Go/Node/Python) for build/test commands
+- Detects: `.devpilot.yaml`, Trello credentials, skills, git repo
+- Generates: board config, gitignore entries, skill installation
+- Task source configuration (Trello/GitHub) can be skipped
 
 ### Task Runner (`devpilot run`)
 

@@ -111,16 +111,17 @@ func TestFetchSkillNotFound(t *testing.T) {
 
 func TestInstallSkill(t *testing.T) {
 	dir := t.TempDir()
+	baseDir := filepath.Join(dir, InstallDir)
 	files := []SkillFile{
 		{Path: "SKILL.md", Content: []byte("---\nname: pm\n---")},
 		{Path: "references/guide.md", Content: []byte("# Guide")},
 	}
 
-	if err := InstallSkill(dir, "pm", files); err != nil {
+	if err := InstallSkill(baseDir, "pm", files); err != nil {
 		t.Fatalf("InstallSkill: %v", err)
 	}
 
-	skillMD, err := os.ReadFile(filepath.Join(dir, ".claude", "skills", "pm", "SKILL.md"))
+	skillMD, err := os.ReadFile(filepath.Join(baseDir, "pm", "SKILL.md"))
 	if err != nil {
 		t.Fatalf("reading SKILL.md: %v", err)
 	}
@@ -128,7 +129,7 @@ func TestInstallSkill(t *testing.T) {
 		t.Errorf("SKILL.md = %q", string(skillMD))
 	}
 
-	guide, err := os.ReadFile(filepath.Join(dir, ".claude", "skills", "pm", "references", "guide.md"))
+	guide, err := os.ReadFile(filepath.Join(baseDir, "pm", "references", "guide.md"))
 	if err != nil {
 		t.Fatalf("reading guide.md: %v", err)
 	}
@@ -139,7 +140,8 @@ func TestInstallSkill(t *testing.T) {
 
 func TestInstallSkillOverwrites(t *testing.T) {
 	dir := t.TempDir()
-	skillDir := filepath.Join(dir, ".claude", "skills", "pm")
+	baseDir := filepath.Join(dir, InstallDir)
+	skillDir := filepath.Join(baseDir, "pm")
 	if err := os.MkdirAll(skillDir, 0755); err != nil {
 		t.Fatal(err)
 	}
@@ -150,7 +152,7 @@ func TestInstallSkillOverwrites(t *testing.T) {
 	files := []SkillFile{
 		{Path: "SKILL.md", Content: []byte("new content")},
 	}
-	if err := InstallSkill(dir, "pm", files); err != nil {
+	if err := InstallSkill(baseDir, "pm", files); err != nil {
 		t.Fatalf("InstallSkill: %v", err)
 	}
 
