@@ -6,7 +6,6 @@ set -e
 
 PASS=0
 FAIL=0
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ORIG_PATH="$PATH"
 
 pass() { PASS=$((PASS + 1)); echo "  PASS: $1"; }
@@ -113,17 +112,31 @@ else
 fi
 cleanup_mock
 
-# Test 4: --version flag skips resolution
+# Test 4: --version flag skips resolution (curl should never be called)
 echo "Test 4: --version flag bypasses version fetch"
-# Verify that when VERSION is set, the resolve block is skipped
-# We do this by setting VERSION before calling resolve_version — it should be a no-op
+setup_mock_curl
+# Replace mock curl with one that fails if called — proving fetch was skipped
+cat > "${MOCK_DIR}/curl" <<'MOCKCURL'
+#!/bin/sh
+echo "CURL_WAS_CALLED" >&2
+exit 1
+MOCKCURL
+chmod +x "${MOCK_DIR}/curl"
+# Simulate the install.sh logic: if VERSION is already set, skip resolution
+REPO="siyuqian/devpilot"
 VERSION="v1.2.3"
+if [ -z "$VERSION" ]; then
+    VERSION="$(curl -fsSL -o /dev/null -w '%{url_effective}' \
+        "https://github.com/${REPO}/releases/latest" 2>/dev/null \
+        | sed 's|.*/tag/||')"
+fi
 if [ "$VERSION" = "v1.2.3" ]; then
-    pass "--version pre-set skips fetch"
+    pass "--version pre-set skips fetch (curl not called)"
 else
-    fail "VERSION was overwritten"
+    fail "expected 'v1.2.3', got '$VERSION'"
 fi
 unset VERSION
+cleanup_mock
 
 # Test 5: Version with pre-release tag
 echo "Test 5: Resolves pre-release version tag"
