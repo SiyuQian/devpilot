@@ -2,7 +2,7 @@
 
 - [x] 1.1 Define `IndexEntry` struct in `internal/skillmgr/` with Name, Description, Files fields
 - [x] 1.2 Scan all `skills/devpilot-*/` directories and generate `skills/index.json` with current skill data
-- [ ] 1.3 Add CLAUDE.md rule: "When adding, removing, or modifying skills in `skills/`, update `skills/index.json` accordingly"
+- [x] 1.3 Add CLAUDE.md rule: "When adding, removing, or modifying skills in `skills/`, update `skills/index.json` accordingly"
 
 ## 2. Replace catalog fetch with raw URL
 
