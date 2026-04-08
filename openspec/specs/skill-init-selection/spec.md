@@ -1,11 +1,11 @@
 ## Purpose
 
 Defines requirements for the skill selection step during `devpilot init` and the catalog used to present available skills.
-
 ## Requirements
-
 ### Requirement: Skill selection step in devpilot init
 During `devpilot init`, the system SHALL present an interactive multi-select checklist of available skills from the devpilot catalog after the board configuration step and before the custom skill creation step. Selected skills SHALL be fetched and installed using the same mechanism as `devpilot skill add`. The checklist SHALL be skipped when `-y` (accept defaults) is passed; in that case no skills are auto-installed.
+
+The init command SHALL NOT generate or detect CLAUDE.md. The init command SHALL prompt "Configure task source? [Y/n]:" before the task source configuration step. If the user declines, the entire task source configuration (both Trello and GitHub paths) SHALL be skipped.
 
 #### Scenario: User selects skills during init
 - **WHEN** user runs `devpilot init` and reaches the skill selection step
@@ -23,6 +23,15 @@ During `devpilot init`, the system SHALL present an interactive multi-select che
 - **THEN** the skill selection step is skipped entirely
 - **AND** no skills are automatically installed
 
+#### Scenario: User skips task source configuration
+- **WHEN** user runs `devpilot init` and responds "n" to "Configure task source? [Y/n]:"
+- **THEN** the system skips board/source selection entirely
+- **AND** no source or board is written to `.devpilot.yaml`
+
+#### Scenario: CLAUDE.md not mentioned in status
+- **WHEN** user runs `devpilot init`
+- **THEN** the status output does NOT include any line about CLAUDE.md
+
 ### Requirement: Catalog manifest for skill selection
 The system SHALL use a hardcoded catalog of available skills for the init checklist. The catalog SHALL include name and description for each skill.
 
@@ -30,3 +39,4 @@ The system SHALL use a hardcoded catalog of available skills for the init checkl
 - **WHEN** user runs `devpilot init` without network access and reaches the skill selection step
 - **THEN** the system displays the hardcoded catalog without making network requests
 - **AND** network requests only occur when the user confirms their selection and skills are fetched
+
