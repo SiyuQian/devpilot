@@ -11,7 +11,6 @@ import (
 
 // Status holds the detection results for a project directory.
 type Status struct {
-	HasClaudeMD    bool
 	HasTrelloCreds bool
 	HasBoardConfig bool
 	HasSkills      bool
@@ -24,11 +23,6 @@ type Status struct {
 // Detect inspects the given directory and returns a Status with what's configured.
 func Detect(dir string) *Status {
 	s := &Status{WorkDir: dir}
-
-	// CLAUDE.md
-	if _, err := os.Stat(filepath.Join(dir, "CLAUDE.md")); err == nil {
-		s.HasClaudeMD = true
-	}
 
 	// Trello credentials
 	if _, err := auth.Load("trello"); err == nil {

@@ -8,25 +8,6 @@ import (
 	"github.com/siyuqian/devpilot/internal/project"
 )
 
-func TestDetectHasClaudeMD(t *testing.T) {
-	dir := t.TempDir()
-
-	// Without CLAUDE.md
-	s := Detect(dir)
-	if s.HasClaudeMD {
-		t.Error("HasClaudeMD = true, want false")
-	}
-
-	// With CLAUDE.md
-	if err := os.WriteFile(filepath.Join(dir, "CLAUDE.md"), []byte("# test"), 0644); err != nil {
-		t.Fatal(err)
-	}
-	s = Detect(dir)
-	if !s.HasClaudeMD {
-		t.Error("HasClaudeMD = false, want true")
-	}
-}
-
 func TestDetectHasBoardConfig(t *testing.T) {
 	dir := t.TempDir()
 

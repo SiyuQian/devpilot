@@ -1,7 +1,10 @@
 package skillmgr
 
 import (
+	"bufio"
 	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/siyuqian/devpilot/internal/project"
@@ -65,6 +68,71 @@ func TestSkillAddWithoutConfig(t *testing.T) {
 	}
 	if cfg.Skills[0].Name != "devpilot-pm" {
 		t.Errorf("skill name = %q, want %q", cfg.Skills[0].Name, "devpilot-pm")
+	}
+}
+
+func TestPromptInstallLevelDefaultProject(t *testing.T) {
+	dir := t.TempDir()
+	input := strings.NewReader("\n") // empty = default = project
+	reader := bufio.NewReader(input)
+
+	baseDir, userLevel := promptInstallLevel(dir, reader)
+
+	expected := filepath.Join(dir, InstallDir)
+	if baseDir != expected {
+		t.Errorf("baseDir = %q, want %q", baseDir, expected)
+	}
+	if userLevel {
+		t.Error("userLevel = true, want false")
+	}
+}
+
+func TestPromptInstallLevelSelectUser(t *testing.T) {
+	dir := t.TempDir()
+	input := strings.NewReader("2\n")
+	reader := bufio.NewReader(input)
+
+	baseDir, userLevel := promptInstallLevel(dir, reader)
+
+	expectedUserDir, err := UserSkillDir()
+	if err != nil {
+		t.Fatalf("UserSkillDir: %v", err)
+	}
+	if baseDir != expectedUserDir {
+		t.Errorf("baseDir = %q, want %q", baseDir, expectedUserDir)
+	}
+	if !userLevel {
+		t.Error("userLevel = false, want true")
+	}
+}
+
+func TestPromptInstallLevelSelectProject(t *testing.T) {
+	dir := t.TempDir()
+	input := strings.NewReader("1\n")
+	reader := bufio.NewReader(input)
+
+	baseDir, userLevel := promptInstallLevel(dir, reader)
+
+	expected := filepath.Join(dir, InstallDir)
+	if baseDir != expected {
+		t.Errorf("baseDir = %q, want %q", baseDir, expected)
+	}
+	if userLevel {
+		t.Error("userLevel = true, want false")
+	}
+}
+
+func TestPromptInstallLevelNilReader(t *testing.T) {
+	dir := t.TempDir()
+
+	baseDir, userLevel := promptInstallLevel(dir, nil)
+
+	expected := filepath.Join(dir, InstallDir)
+	if baseDir != expected {
+		t.Errorf("baseDir = %q, want %q", baseDir, expected)
+	}
+	if userLevel {
+		t.Error("userLevel = true, want false for nil reader")
 	}
 }
 
