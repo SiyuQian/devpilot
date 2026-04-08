@@ -163,12 +163,13 @@ type skillWithLevel struct {
 	Level string
 }
 
-// truncateDescription truncates s to descriptionLimit characters, appending "..." if truncated.
+// truncateDescription truncates s to descriptionLimit runes, appending "..." if truncated.
 func truncateDescription(s string) string {
-	if len(s) <= descriptionLimit {
+	runes := []rune(s)
+	if len(runes) <= descriptionLimit {
 		return s
 	}
-	return s[:descriptionLimit] + "..."
+	return string(runes[:descriptionLimit]) + "..."
 }
 
 func init() {
@@ -261,9 +262,13 @@ func printCatalogView(catalog []CatalogEntry, installed []skillWithLevel) error 
 		lookup[s.Name] = installInfo{Version: s.Version, Level: s.Level}
 	}
 
+	// Track which installed skills appear in the catalog.
+	seen := make(map[string]bool, len(catalog))
+
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	_, _ = fmt.Fprintln(w, "NAME\tDESCRIPTION\tVERSION\tLEVEL")
 	for _, c := range catalog {
+		seen[c.Name] = true
 		desc := truncateDescription(c.Description)
 		if info, ok := lookup[c.Name]; ok {
 			_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", c.Name, desc, info.Version, info.Level)
@@ -271,6 +276,14 @@ func printCatalogView(catalog []CatalogEntry, installed []skillWithLevel) error 
 			_, _ = fmt.Fprintf(w, "%s\t%s\t—\t—\n", c.Name, desc)
 		}
 	}
+
+	// Append installed skills that are not in the catalog (e.g. removed or renamed).
+	for _, s := range installed {
+		if !seen[s.Name] {
+			_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", s.Name, "(not in catalog)", s.Version, s.Level)
+		}
+	}
+
 	return w.Flush()
 }
 
