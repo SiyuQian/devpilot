@@ -1,14 +1,17 @@
 package skillmgr
 
 import (
+	"bufio"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"text/tabwriter"
 	"time"
 
 	"github.com/siyuqian/devpilot/internal/project"
 	"github.com/spf13/cobra"
+	"golang.org/x/term"
 )
 
 // RegisterCommands adds the skill command to the parent command.
@@ -23,9 +26,46 @@ var skillCmd = &cobra.Command{
 	Short: "Manage Claude Code skills",
 }
 
+// UserSkillDir is the directory where user-level skills are installed.
+var UserSkillDir = filepath.Join(userHomeDir(), ".claude", "skills")
+
+func userHomeDir() string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return ""
+	}
+	return home
+}
+
+// promptInstallLevel asks the user to select project or user level.
+// Returns the resolved base directory for skill installation and whether
+// it is a user-level install. Defaults to project level.
+func promptInstallLevel(projectDir string, reader *bufio.Reader) (baseDir string, userLevel bool) {
+	projectBase := filepath.Join(projectDir, InstallDir)
+
+	if reader == nil {
+		return projectBase, false
+	}
+
+	fmt.Println("Install level:")
+	fmt.Printf("  1) Project (%s/)\n", InstallDir)
+	fmt.Printf("  2) User (%s/)\n", UserSkillDir)
+	fmt.Print("Select [1]: ")
+
+	line, err := reader.ReadString('\n')
+	if err != nil {
+		return projectBase, false
+	}
+
+	if strings.TrimSpace(line) == "2" {
+		return UserSkillDir, true
+	}
+	return projectBase, false
+}
+
 var skillAddCmd = &cobra.Command{
 	Use:   "add <name[@version]>",
-	Short: "Install a skill from the devpilot catalog into this project",
+	Short: "Install a skill from the devpilot catalog",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		dir, err := os.Getwd()
@@ -55,25 +95,34 @@ var skillAddCmd = &cobra.Command{
 			return fmt.Errorf("skill %q not found in devpilot catalog", name)
 		}
 
-		if err := InstallSkill(dir, name, files); err != nil {
+		// Prompt for install level (project vs user) when running interactively.
+		var reader *bufio.Reader
+		if term.IsTerminal(int(os.Stdin.Fd())) {
+			reader = bufio.NewReader(os.Stdin)
+		}
+		baseDir, userLevel := promptInstallLevel(dir, reader)
+
+		if err := InstallSkill(baseDir, name, files); err != nil {
 			return fmt.Errorf("installing skill: %w", err)
 		}
 
-		cfg, err := project.Load(dir)
-		if err != nil {
-			return fmt.Errorf("loading config: %w", err)
-		}
-		cfg.UpsertSkill(project.SkillEntry{
-			Name:        name,
-			Source:      DefaultSource,
-			Version:     version,
-			InstalledAt: time.Now().UTC(),
-		})
-		if err := project.Save(dir, cfg); err != nil {
-			return fmt.Errorf("saving config: %w", err)
+		if !userLevel {
+			cfg, err := project.Load(dir)
+			if err != nil {
+				return fmt.Errorf("loading config: %w", err)
+			}
+			cfg.UpsertSkill(project.SkillEntry{
+				Name:        name,
+				Source:      DefaultSource,
+				Version:     version,
+				InstalledAt: time.Now().UTC(),
+			})
+			if err := project.Save(dir, cfg); err != nil {
+				return fmt.Errorf("saving config: %w", err)
+			}
 		}
 
-		fmt.Printf("Installed skill %q (%s) into %s/%s/\n", name, version, InstallDir, name)
+		fmt.Printf("Installed skill %q (%s) into %s/%s/\n", name, version, baseDir, name)
 		return nil
 	},
 }

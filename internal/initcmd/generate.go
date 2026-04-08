@@ -254,7 +254,7 @@ func InstallSkills(opts GenerateOpts, installOpts SkillInstallOpts) error {
 			fmt.Fprintf(os.Stderr, "  Warning: failed to fetch skill %q: %v\n", name, err)
 			continue
 		}
-		if err := skillmgr.InstallSkill(opts.Dir, name, files); err != nil {
+		if err := skillmgr.InstallSkill(filepath.Join(opts.Dir, skillmgr.InstallDir), name, files); err != nil {
 			fmt.Fprintf(os.Stderr, "  Warning: failed to install skill %q: %v\n", name, err)
 			continue
 		}

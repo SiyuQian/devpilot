@@ -15,11 +15,11 @@
 
 ## 3. Add install level selection to devpilot skill add
 
-- [ ] 3.1 Change `InstallSkill` signature to accept absolute base directory instead of building path from `destDir + InstallDir`
-- [ ] 3.2 Update `InstallSkill` callers in `commands.go` (skillmgr) and `generate.go` (initcmd) to pass the resolved path
-- [ ] 3.3 Add interactive level prompt to `skillAddCmd` in `internal/skillmgr/commands.go`
-- [ ] 3.4 When user level is selected, install to `~/.claude/skills/` and skip `.devpilot.yaml` recording
-- [ ] 3.5 Add tests for level selection behavior and user-level install path
+- [x] 3.1 Change `InstallSkill` signature to accept absolute base directory instead of building path from `destDir + InstallDir`
+- [x] 3.2 Update `InstallSkill` callers in `commands.go` (skillmgr) and `generate.go` (initcmd) to pass the resolved path
+- [x] 3.3 Add interactive level prompt to `skillAddCmd` in `internal/skillmgr/commands.go`
+- [x] 3.4 When user level is selected, install to `~/.claude/skills/` and skip `.devpilot.yaml` recording
+- [x] 3.5 Add tests for level selection behavior and user-level install path
 
 ## 4. Verify
 
