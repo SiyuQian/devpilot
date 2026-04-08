@@ -2,6 +2,8 @@ package skillmgr
 
 import (
 	"bufio"
+	"context"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -311,5 +313,184 @@ func TestSkillListNoSkillsAnywhere(t *testing.T) {
 	out, _ := io.ReadAll(r)
 	if !strings.Contains(string(out), "No skills installed") {
 		t.Errorf("expected 'No skills installed' message, got: %s", string(out))
+	}
+}
+
+// stubCatalogFns overrides fetchLatestTagFn and fetchCatalogFn for tests.
+// Returns a cleanup function to restore originals.
+func stubCatalogFns(t *testing.T, catalog []CatalogEntry, catalogErr error) {
+	t.Helper()
+	origTag := fetchLatestTagFn
+	origCat := fetchCatalogFn
+	fetchLatestTagFn = func(_, _ string) (string, error) { return "v1.0.0", nil }
+	fetchCatalogFn = func(_ context.Context, _, _, _ string) ([]CatalogEntry, error) {
+		return catalog, catalogErr
+	}
+	t.Cleanup(func() {
+		fetchLatestTagFn = origTag
+		fetchCatalogFn = origCat
+	})
+}
+
+func runSkillListCmd(t *testing.T, installed bool) (string, error) {
+	t.Helper()
+	old := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	cmd := skillListCmd
+	cmd.ResetFlags()
+	cmd.Flags().BoolP("installed", "i", false, "Show only installed skills")
+	if installed {
+		_ = cmd.Flags().Set("installed", "true")
+	}
+	err := cmd.RunE(cmd, []string{})
+
+	_ = w.Close()
+	os.Stdout = old
+	out, _ := io.ReadAll(r)
+	return string(out), err
+}
+
+func TestSkillListCatalogView(t *testing.T) {
+	userCfgDir := t.TempDir()
+	origFn := userConfigDirFn
+	userConfigDirFn = func() (string, error) { return userCfgDir, nil }
+	t.Cleanup(func() { userConfigDirFn = origFn })
+
+	// Install one skill at project level.
+	projDir := t.TempDir()
+	t.Chdir(projDir)
+	projCfg := &project.Config{
+		Skills: []project.SkillEntry{
+			{Name: "pm", Source: DefaultSource, Version: "v1.0.0"},
+		},
+	}
+	if err := project.Save(projDir, projCfg); err != nil {
+		t.Fatalf("Save project config: %v", err)
+	}
+
+	stubCatalogFns(t, []CatalogEntry{
+		{Name: "pm", Description: "Product manager skill"},
+		{Name: "trello", Description: "Trello integration"},
+		{Name: "learn", Description: "Summarize articles"},
+	}, nil)
+
+	output, err := runSkillListCmd(t, false)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Installed skill should show version and level.
+	if !strings.Contains(output, "pm") || !strings.Contains(output, "v1.0.0") || !strings.Contains(output, "project") {
+		t.Errorf("installed skill 'pm' not shown correctly: %s", output)
+	}
+	// Uninstalled skills should show dashes.
+	if !strings.Contains(output, "trello") {
+		t.Errorf("catalog skill 'trello' missing: %s", output)
+	}
+	if !strings.Contains(output, "learn") {
+		t.Errorf("catalog skill 'learn' missing: %s", output)
+	}
+	// Should have DESCRIPTION column.
+	if !strings.Contains(output, "DESCRIPTION") {
+		t.Errorf("missing DESCRIPTION header: %s", output)
+	}
+}
+
+func TestSkillListInstalledFlag(t *testing.T) {
+	userCfgDir := t.TempDir()
+	origFn := userConfigDirFn
+	userConfigDirFn = func() (string, error) { return userCfgDir, nil }
+	t.Cleanup(func() { userConfigDirFn = origFn })
+
+	projDir := t.TempDir()
+	t.Chdir(projDir)
+	projCfg := &project.Config{
+		Skills: []project.SkillEntry{
+			{Name: "pm", Source: DefaultSource, Version: "v1.0.0"},
+		},
+	}
+	if err := project.Save(projDir, projCfg); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+
+	// Should NOT call catalog — stub with error to prove it.
+	stubCatalogFns(t, nil, fmt.Errorf("should not be called"))
+
+	output, err := runSkillListCmd(t, true)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if !strings.Contains(output, "pm") {
+		t.Errorf("installed skill missing: %s", output)
+	}
+	// Should NOT contain DESCRIPTION column in installed-only view.
+	if strings.Contains(output, "DESCRIPTION") {
+		t.Errorf("--installed view should not have DESCRIPTION column: %s", output)
+	}
+}
+
+func TestSkillListTruncateDescription(t *testing.T) {
+	tests := []struct {
+		input string
+		want  string
+	}{
+		{"short", "short"},
+		{"exactly forty characters long!!!!!!!!!!!", "exactly forty characters long!!!!!!!!!!!"},                                               // 40 chars
+		{"this description is definitely longer than forty characters and should be truncated", "this description is definitely longer th..."}, // 41+ chars
+		{"日本語のテスト", "日本語のテスト"},                                                                                                                 // short multi-byte
+	}
+	for _, tt := range tests {
+		got := truncateDescription(tt.input)
+		if got != tt.want {
+			t.Errorf("truncateDescription(%q) = %q, want %q", tt.input, got, tt.want)
+		}
+	}
+}
+
+func TestSkillListCatalogFetchFallback(t *testing.T) {
+	userCfgDir := t.TempDir()
+	origFn := userConfigDirFn
+	userConfigDirFn = func() (string, error) { return userCfgDir, nil }
+	t.Cleanup(func() { userConfigDirFn = origFn })
+
+	projDir := t.TempDir()
+	t.Chdir(projDir)
+	projCfg := &project.Config{
+		Skills: []project.SkillEntry{
+			{Name: "pm", Source: DefaultSource, Version: "v1.0.0"},
+		},
+	}
+	if err := project.Save(projDir, projCfg); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+
+	// Stub catalog to fail.
+	stubCatalogFns(t, nil, fmt.Errorf("network error"))
+
+	// Capture stderr for warning.
+	oldErr := os.Stderr
+	re, we, _ := os.Pipe()
+	os.Stderr = we
+
+	output, err := runSkillListCmd(t, false)
+
+	_ = we.Close()
+	os.Stderr = oldErr
+	errOut, _ := io.ReadAll(re)
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Should fall back to installed-only view.
+	if !strings.Contains(output, "pm") {
+		t.Errorf("fallback should show installed skills: %s", output)
+	}
+	// Should print warning to stderr.
+	if !strings.Contains(string(errOut), "Warning") {
+		t.Errorf("expected warning on stderr, got: %s", string(errOut))
 	}
 }

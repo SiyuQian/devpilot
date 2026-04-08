@@ -8,7 +8,7 @@
 
 ## 2. Tests
 
-- [ ] 2.1 Test default list output shows full catalog with installed status markers
-- [ ] 2.2 Test `--installed` flag shows only installed skills
-- [ ] 2.3 Test description truncation at 40 characters
-- [ ] 2.4 Test graceful fallback when catalog fetch fails
+- [x] 2.1 Test default list output shows full catalog with installed status markers
+- [x] 2.2 Test `--installed` flag shows only installed skills
+- [x] 2.3 Test description truncation at 40 characters
+- [x] 2.4 Test graceful fallback when catalog fetch fails
