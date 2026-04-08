@@ -26,6 +26,10 @@ var skillCmd = &cobra.Command{
 	Short: "Manage Claude Code skills",
 }
 
+// userConfigDirFn is the function used to resolve the user config directory.
+// Override in tests to avoid writing to the real user config.
+var userConfigDirFn = project.UserConfigDir
+
 // UserSkillDir returns the directory where user-level skills are installed.
 func UserSkillDir() (string, error) {
 	home, err := os.UserHomeDir()
@@ -111,7 +115,7 @@ var skillAddCmd = &cobra.Command{
 
 		configDir := dir
 		if userLevel {
-			ud, err := project.UserConfigDir()
+			ud, err := userConfigDirFn()
 			if err != nil {
 				return fmt.Errorf("resolving user config dir: %w", err)
 			}
