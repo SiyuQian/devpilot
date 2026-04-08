@@ -2,6 +2,7 @@ package skillmgr
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -13,6 +14,19 @@ import (
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 )
+
+// fetchCatalogFn is the function used to fetch the skill catalog.
+// Override in tests to avoid hitting GitHub.
+var fetchCatalogFn = func(ctx context.Context, owner, repo, ref string) ([]CatalogEntry, error) {
+	return FetchCatalog(ctx, owner, repo, ref)
+}
+
+// fetchLatestTagFn is the function used to resolve the latest release tag.
+// Override in tests to avoid hitting GitHub.
+var fetchLatestTagFn = FetchLatestTag
+
+// descriptionLimit is the max length for skill descriptions in list output.
+const descriptionLimit = 40
 
 // RegisterCommands adds the skill command to the parent command.
 func RegisterCommands(parent *cobra.Command) {
@@ -149,52 +163,115 @@ type skillWithLevel struct {
 	Level string
 }
 
+// truncateDescription truncates s to descriptionLimit characters, appending "..." if truncated.
+func truncateDescription(s string) string {
+	if len(s) <= descriptionLimit {
+		return s
+	}
+	return s[:descriptionLimit] + "..."
+}
+
+func init() {
+	skillListCmd.Flags().BoolP("installed", "i", false, "Show only installed skills")
+}
+
 var skillListCmd = &cobra.Command{
 	Use:   "list",
-	Short: "List installed skills",
+	Short: "List available skills and their installation status",
 	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		var all []skillWithLevel
+		installedOnly, _ := cmd.Flags().GetBool("installed")
 
-		// Project-level skills.
-		dir, err := os.Getwd()
-		if err != nil {
-			return err
-		}
-		projCfg, err := project.Load(dir)
-		if err != nil {
-			return fmt.Errorf("loading project config: %w", err)
-		}
-		for _, s := range projCfg.Skills {
-			all = append(all, skillWithLevel{s, "project"})
+		// Load installed skills from both levels.
+		installed := loadInstalledSkills()
+
+		if installedOnly {
+			return printInstalledOnly(installed)
 		}
 
-		// User-level skills.
-		userDir, err := userConfigDirFn()
+		// Fetch catalog.
+		ctx := context.Background()
+		ref, err := fetchLatestTagFn(defaultOwner, defaultRepo)
 		if err != nil {
-			return fmt.Errorf("resolving user config dir: %w", err)
-		}
-		userCfg, err := project.Load(userDir)
-		if err != nil {
-			return fmt.Errorf("loading user config: %w", err)
-		}
-		for _, s := range userCfg.Skills {
-			all = append(all, skillWithLevel{s, "user"})
+			fmt.Fprintf(os.Stderr, "Warning: could not resolve latest version: %v\nShowing installed skills only.\n", err)
+			return printInstalledOnly(installed)
 		}
 
-		if len(all) == 0 {
-			fmt.Println("No skills installed. Use 'devpilot skill add <name>' to install one.")
-			return nil
+		catalog, err := fetchCatalogFn(ctx, defaultOwner, defaultRepo, ref)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: could not fetch skill catalog: %v\nShowing installed skills only.\n", err)
+			return printInstalledOnly(installed)
 		}
 
-		w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-		_, _ = fmt.Fprintln(w, "NAME\tSOURCE\tVERSION\tINSTALLED\tLEVEL")
-		for _, s := range all {
-			installed := s.InstalledAt.Format("2006-01-02")
-			_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", s.Name, s.Source, s.Version, installed, s.Level)
-		}
-		return w.Flush()
+		return printCatalogView(catalog, installed)
 	},
+}
+
+// loadInstalledSkills loads skills from both project and user configs.
+func loadInstalledSkills() []skillWithLevel {
+	var all []skillWithLevel
+
+	dir, err := os.Getwd()
+	if err == nil {
+		projCfg, err := project.Load(dir)
+		if err == nil {
+			for _, s := range projCfg.Skills {
+				all = append(all, skillWithLevel{s, "project"})
+			}
+		}
+	}
+
+	userDir, err := userConfigDirFn()
+	if err == nil {
+		userCfg, err := project.Load(userDir)
+		if err == nil {
+			for _, s := range userCfg.Skills {
+				all = append(all, skillWithLevel{s, "user"})
+			}
+		}
+	}
+
+	return all
+}
+
+// printInstalledOnly displays only installed skills (the --installed view).
+func printInstalledOnly(installed []skillWithLevel) error {
+	if len(installed) == 0 {
+		fmt.Println("No skills installed. Use 'devpilot skill add <name>' to install one.")
+		return nil
+	}
+
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	_, _ = fmt.Fprintln(w, "NAME\tVERSION\tLEVEL")
+	for _, s := range installed {
+		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\n", s.Name, s.Version, s.Level)
+	}
+	return w.Flush()
+}
+
+// printCatalogView displays all catalog skills with installation status.
+func printCatalogView(catalog []CatalogEntry, installed []skillWithLevel) error {
+	// Build lookup: skill name → installed info.
+	type installInfo struct {
+		Version string
+		Level   string
+	}
+	lookup := make(map[string]installInfo, len(installed))
+	for _, s := range installed {
+		lookup[s.Name] = installInfo{Version: s.Version, Level: s.Level}
+	}
+
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	_, _ = fmt.Fprintln(w, "NAME\tDESCRIPTION\tVERSION\tLEVEL")
+	for _, c := range catalog {
+		desc := truncateDescription(c.Description)
+		if info, ok := lookup[c.Name]; ok {
+			_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", c.Name, desc, info.Version, info.Level)
+		} else {
+			_, _ = fmt.Fprintf(w, "%s\t%s\t—\t—\n", c.Name, desc)
+		}
+	}
+	return w.Flush()
 }
 
 // parseSkillArg splits "pm@v1.2.3" into ("pm", "v1.2.3").

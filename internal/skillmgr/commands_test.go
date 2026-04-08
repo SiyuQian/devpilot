@@ -211,6 +211,9 @@ func TestSkillListBothLevels(t *testing.T) {
 	os.Stdout = w
 
 	cmd := skillListCmd
+	cmd.ResetFlags()
+	cmd.Flags().BoolP("installed", "i", false, "Show only installed skills")
+	_ = cmd.Flags().Set("installed", "true")
 	err := cmd.RunE(cmd, []string{})
 
 	_ = w.Close()
@@ -259,7 +262,11 @@ func TestSkillListOnlyUserLevel(t *testing.T) {
 	r, w, _ := os.Pipe()
 	os.Stdout = w
 
-	err := skillListCmd.RunE(skillListCmd, []string{})
+	cmd := skillListCmd
+	cmd.ResetFlags()
+	cmd.Flags().BoolP("installed", "i", false, "Show only installed skills")
+	_ = cmd.Flags().Set("installed", "true")
+	err := cmd.RunE(cmd, []string{})
 
 	_ = w.Close()
 	os.Stdout = old
@@ -288,7 +295,11 @@ func TestSkillListNoSkillsAnywhere(t *testing.T) {
 	r, w, _ := os.Pipe()
 	os.Stdout = w
 
-	err := skillListCmd.RunE(skillListCmd, []string{})
+	cmd := skillListCmd
+	cmd.ResetFlags()
+	cmd.Flags().BoolP("installed", "i", false, "Show only installed skills")
+	_ = cmd.Flags().Set("installed", "true")
+	err := cmd.RunE(cmd, []string{})
 
 	_ = w.Close()
 	os.Stdout = old
