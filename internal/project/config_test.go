@@ -7,6 +7,19 @@ import (
 	"time"
 )
 
+func TestUserConfigDir(t *testing.T) {
+	dir, err := UserConfigDir()
+	if err != nil {
+		t.Fatalf("UserConfigDir() error: %v", err)
+	}
+
+	home, _ := os.UserHomeDir()
+	expected := filepath.Join(home, ".config", "devpilot")
+	if dir != expected {
+		t.Errorf("UserConfigDir() = %q, want %q", dir, expected)
+	}
+}
+
 func TestSaveAndLoad(t *testing.T) {
 	dir := t.TempDir()
 

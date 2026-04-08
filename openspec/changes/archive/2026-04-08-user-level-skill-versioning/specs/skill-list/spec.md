@@ -1,7 +1,5 @@
-## Purpose
+## MODIFIED Requirements
 
-Defines requirements for listing installed skills in a DevPilot project.
-## Requirements
 ### Requirement: List installed skills
 The system SHALL display all skills tracked in both project-level `.devpilot.yaml` and user-level `~/.config/devpilot/.devpilot.yaml` when the user runs `devpilot skill list`. Output SHALL include name, source, version, installedAt, and level for each skill, formatted as a table. Project-level skills are listed first, then user-level skills.
 
@@ -24,4 +22,3 @@ The system SHALL display all skills tracked in both project-level `.devpilot.yam
 - **WHEN** user runs `devpilot skill list` in a directory without `.devpilot.yaml`
 - **THEN** the system still shows user-level skills (does NOT error)
 - **AND** only project-level skills are omitted
-
