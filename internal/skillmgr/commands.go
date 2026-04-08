@@ -20,9 +20,6 @@ var fetchCatalogFn = func(ctx context.Context, owner, repo, ref string) ([]Catal
 	return FetchCatalog(ctx, owner, repo, ref)
 }
 
-// Override in tests to avoid hitting GitHub.
-var fetchLatestTagFn = FetchLatestTag
-
 // descriptionLimit is the max length for skill descriptions in list output.
 const descriptionLimit = 40
 
@@ -83,7 +80,7 @@ func promptInstallLevel(projectDir string, reader *bufio.Reader) (baseDir string
 }
 
 var skillAddCmd = &cobra.Command{
-	Use:   "add <name[@version]>",
+	Use:   "add <name[@ref]>",
 	Short: "Install a skill from the devpilot catalog",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -92,21 +89,17 @@ var skillAddCmd = &cobra.Command{
 			return err
 		}
 
-		name, version, err := parseSkillArg(args[0])
+		name, ref, err := parseSkillArg(args[0])
 		if err != nil {
 			return err
 		}
 
-		if version == "" {
-			fmt.Printf("Resolving latest version of %q...\n", name)
-			version, err = FetchLatestTag(defaultOwner, defaultRepo)
-			if err != nil {
-				return fmt.Errorf("resolving latest tag: %w", err)
-			}
+		if ref == "" {
+			ref = defaultRef
 		}
 
-		fmt.Printf("Fetching skill %q at %s...\n", name, version)
-		files, err := FetchSkill(defaultOwner, defaultRepo, name, version)
+		fmt.Printf("Fetching skill %q...\n", name)
+		files, err := FetchSkill(defaultOwner, defaultRepo, name, ref)
 		if err != nil {
 			return fmt.Errorf("fetching skill: %w", err)
 		}
@@ -140,7 +133,6 @@ var skillAddCmd = &cobra.Command{
 		cfg.UpsertSkill(project.SkillEntry{
 			Name:        name,
 			Source:      DefaultSource,
-			Version:     version,
 			InstalledAt: time.Now().UTC(),
 		})
 		if err := project.Save(configDir, cfg); err != nil {
@@ -151,7 +143,7 @@ var skillAddCmd = &cobra.Command{
 		if userLevel {
 			displayPath = baseDir + "/" + name + "/"
 		}
-		fmt.Printf("Installed skill %q (%s) into %s\n", name, version, displayPath)
+		fmt.Printf("Installed skill %q into %s\n", name, displayPath)
 		return nil
 	},
 }
@@ -189,13 +181,7 @@ var skillListCmd = &cobra.Command{
 		}
 
 		ctx := context.Background()
-		ref, err := fetchLatestTagFn(defaultOwner, defaultRepo)
-		if err != nil {
-			warnFallback("could not resolve latest version", err)
-			return printInstalledOnly(installed)
-		}
-
-		catalog, err := fetchCatalogFn(ctx, defaultOwner, defaultRepo, ref)
+		catalog, err := fetchCatalogFn(ctx, defaultOwner, defaultRepo, defaultRef)
 		if err != nil {
 			warnFallback("could not fetch skill catalog", err)
 			return printInstalledOnly(installed)
@@ -244,9 +230,9 @@ func printInstalledOnly(installed []skillWithLevel) error {
 	}
 
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	_, _ = fmt.Fprintln(w, "NAME\tVERSION\tLEVEL")
+	_, _ = fmt.Fprintln(w, "NAME\tINSTALLED\tLEVEL")
 	for _, s := range installed {
-		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\n", s.Name, s.Version, s.Level)
+		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\n", s.Name, formatInstallDate(s.InstalledAt), s.Level)
 	}
 	return w.Flush()
 }
@@ -261,12 +247,12 @@ func printCatalogView(catalog []CatalogEntry, installed []skillWithLevel) error 
 	seen := make(map[string]bool, len(catalog))
 
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	_, _ = fmt.Fprintln(w, "NAME\tDESCRIPTION\tVERSION\tLEVEL")
+	_, _ = fmt.Fprintln(w, "NAME\tDESCRIPTION\tINSTALLED\tLEVEL")
 	for _, c := range catalog {
 		seen[c.Name] = true
 		desc := truncateDescription(c.Description)
 		if s, ok := lookup[c.Name]; ok {
-			_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", c.Name, desc, s.Version, s.Level)
+			_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", c.Name, desc, formatInstallDate(s.InstalledAt), s.Level)
 		} else {
 			_, _ = fmt.Fprintf(w, "%s\t%s\t—\t—\n", c.Name, desc)
 		}
@@ -275,23 +261,32 @@ func printCatalogView(catalog []CatalogEntry, installed []skillWithLevel) error 
 	// Append installed skills that are not in the catalog (e.g. removed or renamed).
 	for _, s := range installed {
 		if !seen[s.Name] {
-			_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", s.Name, "(not in catalog)", s.Version, s.Level)
+			_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", s.Name, "(not in catalog)", formatInstallDate(s.InstalledAt), s.Level)
 		}
 	}
 
 	return w.Flush()
 }
 
+// formatInstallDate formats a time as "2006-01-02" for display.
+// Returns "—" for the zero time.
+func formatInstallDate(t time.Time) string {
+	if t.IsZero() {
+		return "—"
+	}
+	return t.Format("2006-01-02")
+}
+
 // parseSkillArg splits "pm@v1.2.3" into ("pm", "v1.2.3").
-// Returns ("pm", "") if no version is specified.
-func parseSkillArg(arg string) (name, version string, err error) {
+// Returns ("pm", "") if no ref is specified.
+func parseSkillArg(arg string) (name, ref string, err error) {
 	parts := strings.SplitN(arg, "@", 2)
 	name = parts[0]
 	if name == "" {
 		return "", "", fmt.Errorf("skill name cannot be empty")
 	}
 	if len(parts) == 2 {
-		version = parts[1]
+		ref = parts[1]
 	}
-	return name, version, nil
+	return name, ref, nil
 }

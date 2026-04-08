@@ -72,7 +72,7 @@ devpilot gmail summary --dm U0123ABCDE                     # Send summary as a D
 devpilot gmail summary --no-mark-read=false                # Explicitly mark emails as read without sending
 
 devpilot skill add <name>                                  # Install a skill (prompts for project/user level)
-devpilot skill add <name>@v0.12.0                          # Install at specific version
+devpilot skill add <name>@<ref>                            # Install at specific git ref
 devpilot skill list                                        # List available skills with install status
 devpilot skill list --installed                            # List only installed skills
 
