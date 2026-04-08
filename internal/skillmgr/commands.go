@@ -26,6 +26,10 @@ var skillCmd = &cobra.Command{
 	Short: "Manage Claude Code skills",
 }
 
+// userConfigDirFn is the function used to resolve the user config directory.
+// Override in tests to avoid writing to the real user config.
+var userConfigDirFn = project.UserConfigDir
+
 // UserSkillDir returns the directory where user-level skills are installed.
 func UserSkillDir() (string, error) {
 	home, err := os.UserHomeDir()
@@ -109,20 +113,26 @@ var skillAddCmd = &cobra.Command{
 			return fmt.Errorf("installing skill: %w", err)
 		}
 
-		if !userLevel {
-			cfg, err := project.Load(dir)
+		configDir := dir
+		if userLevel {
+			ud, err := userConfigDirFn()
 			if err != nil {
-				return fmt.Errorf("loading config: %w", err)
+				return fmt.Errorf("resolving user config dir: %w", err)
 			}
-			cfg.UpsertSkill(project.SkillEntry{
-				Name:        name,
-				Source:      DefaultSource,
-				Version:     version,
-				InstalledAt: time.Now().UTC(),
-			})
-			if err := project.Save(dir, cfg); err != nil {
-				return fmt.Errorf("saving config: %w", err)
-			}
+			configDir = ud
+		}
+		cfg, err := project.Load(configDir)
+		if err != nil {
+			return fmt.Errorf("loading config: %w", err)
+		}
+		cfg.UpsertSkill(project.SkillEntry{
+			Name:        name,
+			Source:      DefaultSource,
+			Version:     version,
+			InstalledAt: time.Now().UTC(),
+		})
+		if err := project.Save(configDir, cfg); err != nil {
+			return fmt.Errorf("saving config: %w", err)
 		}
 
 		displayPath := InstallDir + "/" + name + "/"
@@ -134,31 +144,54 @@ var skillAddCmd = &cobra.Command{
 	},
 }
 
+type skillWithLevel struct {
+	project.SkillEntry
+	Level string
+}
+
 var skillListCmd = &cobra.Command{
 	Use:   "list",
-	Short: "List skills installed in this project",
+	Short: "List installed skills",
 	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
+		var all []skillWithLevel
+
+		// Project-level skills.
 		dir, err := os.Getwd()
 		if err != nil {
 			return err
 		}
-
-		cfg, err := project.Load(dir)
+		projCfg, err := project.Load(dir)
 		if err != nil {
-			return fmt.Errorf("loading config: %w", err)
+			return fmt.Errorf("loading project config: %w", err)
+		}
+		for _, s := range projCfg.Skills {
+			all = append(all, skillWithLevel{s, "project"})
 		}
 
-		if len(cfg.Skills) == 0 {
+		// User-level skills.
+		userDir, err := userConfigDirFn()
+		if err != nil {
+			return fmt.Errorf("resolving user config dir: %w", err)
+		}
+		userCfg, err := project.Load(userDir)
+		if err != nil {
+			return fmt.Errorf("loading user config: %w", err)
+		}
+		for _, s := range userCfg.Skills {
+			all = append(all, skillWithLevel{s, "user"})
+		}
+
+		if len(all) == 0 {
 			fmt.Println("No skills installed. Use 'devpilot skill add <name>' to install one.")
 			return nil
 		}
 
 		w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-		_, _ = fmt.Fprintln(w, "NAME\tSOURCE\tVERSION\tINSTALLED")
-		for _, s := range cfg.Skills {
+		_, _ = fmt.Fprintln(w, "NAME\tSOURCE\tVERSION\tINSTALLED\tLEVEL")
+		for _, s := range all {
 			installed := s.InstalledAt.Format("2006-01-02")
-			_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", s.Name, s.Source, s.Version, installed)
+			_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", s.Name, s.Source, s.Version, installed, s.Level)
 		}
 		return w.Flush()
 	},

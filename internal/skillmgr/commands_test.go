@@ -2,6 +2,7 @@ package skillmgr
 
 import (
 	"bufio"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -136,11 +137,168 @@ func TestPromptInstallLevelNilReader(t *testing.T) {
 	}
 }
 
-func TestSkillListWithoutConfig(t *testing.T) {
-	t.Chdir(t.TempDir())
+func TestSkillAddUserLevelWritesConfig(t *testing.T) {
+	// Override userConfigDirFn to use a temp directory.
+	userCfgDir := t.TempDir()
+	origFn := userConfigDirFn
+	userConfigDirFn = func() (string, error) { return userCfgDir, nil }
+	t.Cleanup(func() { userConfigDirFn = origFn })
+
+	// Simulate the same flow as skillAddCmd when userLevel=true:
+	// resolve configDir, load, upsert, save.
+	configDir := userCfgDir
+	cfg, err := project.Load(configDir)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	cfg.UpsertSkill(project.SkillEntry{
+		Name:    "pm",
+		Source:  DefaultSource,
+		Version: "v1.0.0",
+	})
+	if err := project.Save(configDir, cfg); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+
+	// Verify config was written to user config dir.
+	loaded, err := project.Load(userCfgDir)
+	if err != nil {
+		t.Fatalf("Load after save: %v", err)
+	}
+	if len(loaded.Skills) != 1 {
+		t.Fatalf("len(Skills) = %d, want 1", len(loaded.Skills))
+	}
+	if loaded.Skills[0].Name != "pm" {
+		t.Errorf("Name = %q, want %q", loaded.Skills[0].Name, "pm")
+	}
+	if loaded.Skills[0].Version != "v1.0.0" {
+		t.Errorf("Version = %q, want %q", loaded.Skills[0].Version, "v1.0.0")
+	}
+}
+
+func TestSkillListBothLevels(t *testing.T) {
+	// Override userConfigDirFn.
+	userCfgDir := t.TempDir()
+	origFn := userConfigDirFn
+	userConfigDirFn = func() (string, error) { return userCfgDir, nil }
+	t.Cleanup(func() { userConfigDirFn = origFn })
+
+	// Set up project-level config with a skill.
+	projDir := t.TempDir()
+	t.Chdir(projDir)
+	projCfg := &project.Config{
+		Skills: []project.SkillEntry{
+			{Name: "pm", Source: "github.com/siyuqian/devpilot", Version: "v1.0.0"},
+		},
+	}
+	if err := project.Save(projDir, projCfg); err != nil {
+		t.Fatalf("Save project config: %v", err)
+	}
+
+	// Set up user-level config with a different skill.
+	userCfg := &project.Config{
+		Skills: []project.SkillEntry{
+			{Name: "prompt-review", Source: "github.com/siyuqian/devpilot", Version: "v0.12.0"},
+		},
+	}
+	if err := project.Save(userCfgDir, userCfg); err != nil {
+		t.Fatalf("Save user config: %v", err)
+	}
+
+	// Capture output.
+	old := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
 	cmd := skillListCmd
 	err := cmd.RunE(cmd, []string{})
+
+	_ = w.Close()
+	os.Stdout = old
+
 	if err != nil {
-		t.Fatalf("skill list should work without .devpilot.yaml, got: %v", err)
+		t.Fatalf("skill list error: %v", err)
+	}
+
+	out, _ := io.ReadAll(r)
+	output := string(out)
+
+	if !strings.Contains(output, "pm") {
+		t.Errorf("output missing project skill 'pm': %s", output)
+	}
+	if !strings.Contains(output, "prompt-review") {
+		t.Errorf("output missing user skill 'prompt-review': %s", output)
+	}
+	if !strings.Contains(output, "project") {
+		t.Errorf("output missing 'project' level indicator: %s", output)
+	}
+	if !strings.Contains(output, "user") {
+		t.Errorf("output missing 'user' level indicator: %s", output)
+	}
+}
+
+func TestSkillListOnlyUserLevel(t *testing.T) {
+	// No project config, only user-level — should not error.
+	userCfgDir := t.TempDir()
+	origFn := userConfigDirFn
+	userConfigDirFn = func() (string, error) { return userCfgDir, nil }
+	t.Cleanup(func() { userConfigDirFn = origFn })
+
+	t.Chdir(t.TempDir()) // no .devpilot.yaml here
+
+	userCfg := &project.Config{
+		Skills: []project.SkillEntry{
+			{Name: "prompt-review", Source: "github.com/siyuqian/devpilot", Version: "v0.12.0"},
+		},
+	}
+	if err := project.Save(userCfgDir, userCfg); err != nil {
+		t.Fatalf("Save user config: %v", err)
+	}
+
+	old := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	err := skillListCmd.RunE(skillListCmd, []string{})
+
+	_ = w.Close()
+	os.Stdout = old
+
+	if err != nil {
+		t.Fatalf("skill list should not error without project config: %v", err)
+	}
+
+	out, _ := io.ReadAll(r)
+	output := string(out)
+
+	if !strings.Contains(output, "prompt-review") {
+		t.Errorf("output missing user skill: %s", output)
+	}
+}
+
+func TestSkillListNoSkillsAnywhere(t *testing.T) {
+	userCfgDir := t.TempDir()
+	origFn := userConfigDirFn
+	userConfigDirFn = func() (string, error) { return userCfgDir, nil }
+	t.Cleanup(func() { userConfigDirFn = origFn })
+
+	t.Chdir(t.TempDir())
+
+	old := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	err := skillListCmd.RunE(skillListCmd, []string{})
+
+	_ = w.Close()
+	os.Stdout = old
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	out, _ := io.ReadAll(r)
+	if !strings.Contains(string(out), "No skills installed") {
+		t.Errorf("expected 'No skills installed' message, got: %s", string(out))
 	}
 }

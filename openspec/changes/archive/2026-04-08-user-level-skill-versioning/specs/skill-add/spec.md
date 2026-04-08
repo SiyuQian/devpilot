@@ -1,7 +1,5 @@
-## Purpose
+## MODIFIED Requirements
 
-Defines requirements for installing skills into a DevPilot project via the `devpilot skill add` command.
-## Requirements
 ### Requirement: Install a named skill from default source
 The system SHALL fetch and install a single named skill from `github.com/siyuqian/devpilot` when the user runs `devpilot skill add <name>`. The skill is fetched at the latest release tag by default. The install target directory is determined by the user's level selection (project or user). Existing files are silently overwritten. For project-level installs, the installed skill is recorded in `.devpilot.yaml` with name, source, version, and installedAt timestamp. For user-level installs, the installed skill is recorded in `~/.config/devpilot/.devpilot.yaml` with the same fields.
 
@@ -48,4 +46,3 @@ The system SHALL require `.devpilot.yaml` to exist in the current directory befo
 #### Scenario: No project config found (user level)
 - **WHEN** user runs `devpilot skill add pm` and selects user level in a directory without `.devpilot.yaml`
 - **THEN** the system proceeds normally and installs the skill at user level
-
