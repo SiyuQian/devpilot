@@ -170,14 +170,16 @@ var skillListCmd = &cobra.Command{
 		}
 
 		// User-level skills.
-		if userDir, err := userConfigDirFn(); err == nil {
-			userCfg, loadErr := project.Load(userDir)
-			if loadErr != nil {
-				return fmt.Errorf("loading user config: %w", loadErr)
-			}
-			for _, s := range userCfg.Skills {
-				all = append(all, skillWithLevel{s, "user"})
-			}
+		userDir, err := userConfigDirFn()
+		if err != nil {
+			return fmt.Errorf("resolving user config dir: %w", err)
+		}
+		userCfg, err := project.Load(userDir)
+		if err != nil {
+			return fmt.Errorf("loading user config: %w", err)
+		}
+		for _, s := range userCfg.Skills {
+			all = append(all, skillWithLevel{s, "user"})
 		}
 
 		if len(all) == 0 {
