@@ -68,84 +68,41 @@ func fetchLatestTagFromURL(url string) (string, error) {
 	return release.TagName, nil
 }
 
-// FetchSkill fetches all files for the named skill from the GitHub repo at the given tag.
-// It returns a flat list of SkillFile with paths relative to skills/<skillName>/.
+// FetchSkill fetches all files for the named skill by reading index.json
+// from raw.githubusercontent.com, then downloading each file listed in the index.
 func FetchSkill(owner, repo, skillName, tag string) ([]SkillFile, error) {
-	baseURL := fmt.Sprintf("https://api.github.com/repos/%s/%s", owner, repo)
-	return fetchSkillFromBase(baseURL, skillName, tag)
-}
-
-func fetchSkillFromBase(baseURL, skillName, tag string) ([]SkillFile, error) {
-	basePath := fmt.Sprintf("%s/%s", CatalogDir, skillName)
-	return fetchContentsRecursive(baseURL, basePath, tag, "")
-}
-
-// fetchContentsRecursive lists a directory via the GitHub Contents API and downloads
-// each file, recursing into subdirectories. pathPrefix is the relative path from the
-// skill root (empty for top-level).
-func fetchContentsRecursive(baseURL, basePath, ref, pathPrefix string) ([]SkillFile, error) {
-	apiPath := basePath
-	if pathPrefix != "" {
-		apiPath = basePath + "/" + pathPrefix
-	}
-
-	url := fmt.Sprintf("%s/contents/%s?ref=%s", baseURL, apiPath, ref)
-	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, url, nil)
+	ctx := context.Background()
+	entries, err := FetchIndex(ctx, owner, repo, tag)
 	if err != nil {
-		return nil, fmt.Errorf("creating request for %s: %w", apiPath, err)
-	}
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("fetching contents at %s: %w", apiPath, err)
-	}
-	defer func() { _ = resp.Body.Close() }()
-
-	if resp.StatusCode == http.StatusNotFound {
-		return nil, fmt.Errorf("skill %q not found at ref %s", basePath, ref)
-	}
-	if resp.StatusCode == http.StatusForbidden || resp.StatusCode == http.StatusTooManyRequests {
-		return nil, fmt.Errorf("GitHub API rate limit exceeded; try again later")
-	}
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("GitHub API returned %d for %s", resp.StatusCode, apiPath)
+		return nil, fmt.Errorf("fetching index for skill %s: %w", skillName, err)
 	}
 
-	var entries []struct {
-		Type        string `json:"type"`
-		Name        string `json:"name"`
-		DownloadURL string `json:"download_url"`
+	var skillEntry *IndexEntry
+	for i := range entries {
+		if entries[i].Name == skillName {
+			skillEntry = &entries[i]
+			break
+		}
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&entries); err != nil {
-		return nil, fmt.Errorf("decoding contents response: %w", err)
+	if skillEntry == nil {
+		return nil, fmt.Errorf("skill %q not found in index", skillName)
 	}
 
 	var files []SkillFile
-	for _, entry := range entries {
-		relPath := entry.Name
-		if pathPrefix != "" {
-			relPath = pathPrefix + "/" + entry.Name
+	for _, filePath := range skillEntry.Files {
+		url := fmt.Sprintf("%s/%s/%s/%s/%s/%s/%s",
+			rawBaseURL, owner, repo, tag, CatalogDir, skillName, filePath)
+		content, err := downloadRawFile(ctx, url)
+		if err != nil {
+			return nil, fmt.Errorf("downloading %s: %w", filePath, err)
 		}
-
-		switch entry.Type {
-		case "file":
-			content, err := downloadFile(entry.DownloadURL)
-			if err != nil {
-				return nil, fmt.Errorf("downloading %s: %w", relPath, err)
-			}
-			files = append(files, SkillFile{Path: relPath, Content: content})
-		case "dir":
-			sub, err := fetchContentsRecursive(baseURL, basePath, ref, relPath)
-			if err != nil {
-				return nil, fmt.Errorf("fetch contents for %s: %w", relPath, err)
-			}
-			files = append(files, sub...)
-		}
+		files = append(files, SkillFile{Path: filePath, Content: content})
 	}
 	return files, nil
 }
 
-func downloadFile(url string) ([]byte, error) {
-	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, url, nil)
+func downloadRawFile(ctx context.Context, url string) ([]byte, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -155,7 +112,7 @@ func downloadFile(url string) ([]byte, error) {
 	}
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("HTTP %d", resp.StatusCode)
+		return nil, fmt.Errorf("HTTP %d for %s", resp.StatusCode, url)
 	}
 	return io.ReadAll(resp.Body)
 }

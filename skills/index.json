@@ -1,0 +1,126 @@
+{
+  "skills": [
+    {
+      "name": "devpilot-auto-feature",
+      "description": "The complete end-to-end workflow for implementing OpenSpec changes with TDD and mandatory code review checkpoints between task chapters.",
+      "files": [
+        "SKILL.md"
+      ]
+    },
+    {
+      "name": "devpilot-confluence-reviewer",
+      "description": "Review Atlassian Confluence pages and leave comments (both inline and page-level).",
+      "files": [
+        "LICENSE.txt",
+        "SKILL.md"
+      ]
+    },
+    {
+      "name": "devpilot-content-creator",
+      "description": "SEO-optimized blog and content writing skill.",
+      "files": [
+        "evals/evals.json",
+        "LICENSE.txt",
+        "SKILL.md"
+      ]
+    },
+    {
+      "name": "devpilot-google-go-style",
+      "description": "ALWAYS use when working in a Go project — writing new Go code, modifying .go files, reviewing Go PRs, or discussing Go design decisions.",
+      "files": [
+        "LICENSE.txt",
+        "references/commentary.md",
+        "references/concurrency.md",
+        "references/errors.md",
+        "references/imports.md",
+        "references/interfaces-and-types.md",
+        "references/language-patterns.md",
+        "references/naming.md",
+        "references/testing.md",
+        "SKILL.md"
+      ]
+    },
+    {
+      "name": "devpilot-learn",
+      "description": "Summarize any single article, document, or web page into a standalone HTML digest file with reader-mode styling.",
+      "files": [
+        "evals/evals.json",
+        "evals/test-files/sample.pdf",
+        "LICENSE.txt",
+        "SKILL.md"
+      ]
+    },
+    {
+      "name": "devpilot-news-digest",
+      "description": "Fetch and summarize current news into a structured briefing across categories like International, AI, Technology, and Economics.",
+      "files": [
+        "evals/evals.json",
+        "LICENSE.txt",
+        "SKILL.md"
+      ]
+    },
+    {
+      "name": "devpilot-pm",
+      "description": "Product manager skill for market research and feature discovery.",
+      "files": [
+        "LICENSE.txt",
+        "references/search-patterns.md",
+        "SKILL.md"
+      ]
+    },
+    {
+      "name": "devpilot-pr-creator",
+      "description": "Use when the user wants to create or update a pull request or merge request, open a PR/MR, push changes for review, update a PR description, or mark a draft as ready.",
+      "files": [
+        "LICENSE.txt",
+        "SKILL.md",
+        "templates/backend-bugfix.md",
+        "templates/backend-feature.md",
+        "templates/frontend-bugfix.md",
+        "templates/frontend-feature.md"
+      ]
+    },
+    {
+      "name": "devpilot-product-research",
+      "description": "Use when the user wants to research market needs, analyze competitors, discover user pain points, or prioritize features for a product.",
+      "files": [
+        "LICENSE.txt",
+        "references/search-patterns.md",
+        "SKILL.md"
+      ]
+    },
+    {
+      "name": "devpilot-prompt-review",
+      "description": "Review and improve prompts for Claude (system prompts, CLAUDE.md files, SKILL.md files, API prompts, or any LLM instruction text).",
+      "files": [
+        "references/checklist.md",
+        "SKILL.md"
+      ]
+    },
+    {
+      "name": "devpilot-task-executor",
+      "description": "Executes a task plan autonomously. Used by the devpilot runner to process Trello cards.",
+      "files": [
+        "LICENSE.txt",
+        "SKILL.md"
+      ]
+    },
+    {
+      "name": "devpilot-task-refiner",
+      "description": "Improve Trello card task plans for the devpilot runner.",
+      "files": [
+        "LICENSE.txt",
+        "references/quality-checklist.md",
+        "SKILL.md"
+      ]
+    },
+    {
+      "name": "devpilot-trello",
+      "description": "Interact with Trello boards, lists, and cards directly from Claude Code.",
+      "files": [
+        "LICENSE.txt",
+        "SKILL.md"
+      ]
+    }
+  ]
+}
