@@ -73,7 +73,8 @@ devpilot gmail summary --no-mark-read=false                # Explicitly mark ema
 
 devpilot skill add <name>                                  # Install a skill (prompts for project/user level)
 devpilot skill add <name>@v0.12.0                          # Install at specific version
-devpilot skill list                                        # List installed skills
+devpilot skill list                                        # List available skills with install status
+devpilot skill list --installed                            # List only installed skills
 
 devpilot commit                                            # Generate commit message from staged changes
 devpilot readme                                            # Generate or improve README.md
