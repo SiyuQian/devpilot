@@ -4,7 +4,7 @@ import "testing"
 
 func TestFormatStatusConfigured(t *testing.T) {
 	s := &Status{
-			HasTrelloCreds: true,
+		HasTrelloCreds: true,
 		HasBoardConfig: true,
 		HasSkills:      true,
 		IsGitRepo:      true,
@@ -37,9 +37,9 @@ func TestFormatStatusConfigured(t *testing.T) {
 
 func TestFormatStatusGitHub(t *testing.T) {
 	s := &Status{
-		HasSkills:   true,
-		IsGitRepo:   true,
-		Source:      "github",
+		HasSkills: true,
+		IsGitRepo: true,
+		Source:    "github",
 	}
 
 	lines := formatStatus(s)
@@ -64,7 +64,7 @@ func TestFormatStatusGitHub(t *testing.T) {
 
 func TestFormatStatusMissing(t *testing.T) {
 	s := &Status{
-			HasTrelloCreds: false,
+		HasTrelloCreds: false,
 		HasBoardConfig: false,
 		HasSkills:      false,
 		IsGitRepo:      true,
@@ -100,7 +100,7 @@ func TestFormatStatusNotGitRepo(t *testing.T) {
 func TestAllConfigured(t *testing.T) {
 	// Trello: fully configured
 	allDone := &Status{
-			HasTrelloCreds: true,
+		HasTrelloCreds: true,
 		HasBoardConfig: true,
 		HasSkills:      true,
 		IsGitRepo:      true,
@@ -111,7 +111,7 @@ func TestAllConfigured(t *testing.T) {
 
 	// Trello: missing board
 	partial := &Status{
-			HasTrelloCreds: true,
+		HasTrelloCreds: true,
 		HasBoardConfig: false,
 		HasSkills:      true,
 		IsGitRepo:      true,
@@ -122,9 +122,9 @@ func TestAllConfigured(t *testing.T) {
 
 	// GitHub: fully configured (no Trello creds needed)
 	githubDone := &Status{
-		HasSkills:   true,
-		IsGitRepo:   true,
-		Source:      "github",
+		HasSkills: true,
+		IsGitRepo: true,
+		Source:    "github",
 	}
 	if !allConfigured(githubDone) {
 		t.Error("allConfigured returned false for fully configured github status")
