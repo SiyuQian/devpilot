@@ -42,3 +42,7 @@ skills:
       source: github.com/siyuqian/devpilot
       version: v0.13.0
       installedAt: 2026-04-07T08:29:08.274076Z
+    - name: devpilot-auto-feature
+      source: github.com/siyuqian/devpilot
+      version: v0.14.0
+      installedAt: 2026-04-08T08:11:34.225131Z
