@@ -8,7 +8,10 @@ import (
 	"net/http"
 )
 
-const rawBaseURL = "https://raw.githubusercontent.com"
+var rawBaseURL = "https://raw.githubusercontent.com"
+
+// setRawBaseURL overrides the raw base URL (for testing).
+func setRawBaseURL(url string) { rawBaseURL = url }
 
 // IndexEntry represents a single skill in the catalog index.
 type IndexEntry struct {

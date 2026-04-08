@@ -6,10 +6,10 @@
 
 ## 2. Replace catalog fetch with raw URL
 
-- [ ] 2.1 Add `FetchIndex` function that downloads `skills/index.json` from `raw.githubusercontent.com/{owner}/{repo}/{ref}/skills/index.json` and parses it into `[]IndexEntry`
-- [ ] 2.2 Rewrite `FetchCatalog` to call `FetchIndex` and convert entries to `[]CatalogEntry` (drop the `files` field)
-- [ ] 2.3 Remove `listSkillDirs` and `fetchSkillMeta` functions (no longer needed)
-- [ ] 2.4 Update tests for `FetchCatalog` to use the new raw URL approach
+- [x] 2.1 Add `FetchIndex` function that downloads `skills/index.json` from `raw.githubusercontent.com/{owner}/{repo}/{ref}/skills/index.json` and parses it into `[]IndexEntry`
+- [x] 2.2 Rewrite `FetchCatalog` to call `FetchIndex` and convert entries to `[]CatalogEntry` (drop the `files` field)
+- [x] 2.3 Remove `listSkillDirs` and `fetchSkillMeta` functions (no longer needed)
+- [x] 2.4 Update tests for `FetchCatalog` to use the new raw URL approach
 
 ## 3. Replace skill file fetch with raw URL
 
