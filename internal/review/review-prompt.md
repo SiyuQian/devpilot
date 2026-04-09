@@ -19,7 +19,7 @@ Before reviewing, clone the target repository so you can read full source files 
 
 1. If `/tmp/{owner}-{repo}` does not exist, clone the repository:
    ```
-   git clone --single-branch https://github.com/{owner}/{repo}.git /tmp/{owner}-{repo}
+   git clone --single-branch --branch {base-branch} https://github.com/{owner}/{repo}.git /tmp/{owner}-{repo}
    ```
 2. If `/tmp/{owner}-{repo}` already exists, update it:
    ```
