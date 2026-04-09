@@ -7,7 +7,7 @@ import (
 
 // BuildPrompt assembles the complete review prompt from instructions, template,
 // and the PR URL. Context discovery is delegated to Claude via prompt instructions.
-func BuildPrompt(pr *PRInfo) string {
+func BuildPrompt(pr *PRInfo, postToGitHub bool) string {
 	var b strings.Builder
 
 	// Review instructions (includes clone + context discovery instructions)
@@ -17,6 +17,12 @@ func BuildPrompt(pr *PRInfo) string {
 	// Output template
 	b.WriteString(reviewTemplateMD)
 	b.WriteString("\n\n")
+
+	// Posting instructions (conditional)
+	if postToGitHub {
+		b.WriteString(reviewPostingMD)
+		b.WriteString("\n\n")
+	}
 
 	// PR URL
 	b.WriteString(fmt.Sprintf("## Task\n\nReview this pull request: %s\n", pr.URL))
