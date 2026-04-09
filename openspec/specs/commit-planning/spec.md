@@ -1,4 +1,8 @@
-## ADDED Requirements
+## Purpose
+
+Defines how DevPilot analyzes staged git changes and produces a structured commit plan with one or more logical commits, including sensitive file exclusion and validation.
+
+## Requirements
 
 ### Requirement: Analyze staged changes and produce a commit plan
 The system SHALL send the full staged diff content to Claude and receive a structured JSON response containing one or more commit groups, each with a conventional commit message and a list of files.

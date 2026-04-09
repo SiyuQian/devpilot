@@ -20,14 +20,14 @@ The system SHALL store project configuration in `.devpilot.yaml` (YAML format) i
 - **THEN** it creates or overwrites `.devpilot.yaml` with YAML-encoded content
 
 ### Requirement: Track installed skills in project config
-The config file SHALL include a `skills` array where each entry records a skill installation with fields: `name` (string), `source` (string), `version` (string), and `installedAt` (RFC3339 timestamp).
+The config file SHALL include a `skills` array where each entry records a skill installation with fields: `name` (string), `source` (string), and `installedAt` (RFC3339 timestamp). There is no `version` field.
 
 #### Scenario: Skill entry written on install
 - **WHEN** a skill is installed via `devpilot skill add` or `devpilot init`
 - **THEN** `.devpilot.yaml` contains an entry for that skill under the `skills` key
-- **AND** the entry includes name, source, version, and installedAt
+- **AND** the entry includes name, source, and installedAt
 
 #### Scenario: Skill entry updated on reinstall
 - **WHEN** a skill is installed again (overwrite)
-- **THEN** the existing entry in `.devpilot.yaml` is updated with the new version and installedAt
+- **THEN** the existing entry in `.devpilot.yaml` is updated with the new installedAt
 - **AND** no duplicate entries are created

@@ -1,7 +1,8 @@
 # user-level-skill-config Specification
 
 ## Purpose
-TBD - created by archiving change user-level-skill-versioning. Update Purpose after archive.
+
+Defines requirements for managing user-level skill configuration, including resolving the user config directory and persisting skill entries in the user-level `.devpilot.yaml`.
 ## Requirements
 ### Requirement: Resolve user config directory
 The system SHALL provide a `UserConfigDir()` function in the `project` package that returns `~/.config/devpilot/` (resolved to an absolute path). This path is used for reading and writing user-level `.devpilot.yaml`.

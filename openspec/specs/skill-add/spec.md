@@ -40,12 +40,12 @@ The system SHALL fetch and install a single named skill from `github.com/siyuqia
 - **WHEN** user runs `devpilot skill add` with no arguments
 - **THEN** the system returns an error stating that a skill name is required
 
-### Requirement: Require execution inside a project directory
-The system SHALL require `.devpilot.yaml` to exist in the current directory before installing a skill at project level. For user-level installs, this check is NOT required.
+### Requirement: Auto-create project config if missing
+The system SHALL NOT require `.devpilot.yaml` to exist before installing a skill at project level. If the config file does not exist, `project.Load` returns a zero-value Config and `project.Save` creates it automatically after recording the skill entry.
 
 #### Scenario: No project config found (project level)
 - **WHEN** user runs `devpilot skill add pm`, selects project level, in a directory without `.devpilot.yaml`
-- **THEN** the system returns an error instructing the user to run `devpilot init` first
+- **THEN** the system installs the skill and creates `.devpilot.yaml` with the skill entry
 
 #### Scenario: No project config found (user level)
 - **WHEN** user runs `devpilot skill add pm` and selects user level in a directory without `.devpilot.yaml`
