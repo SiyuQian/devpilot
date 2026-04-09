@@ -23,7 +23,7 @@ The system SHALL remove stored Slack credentials when the user logs out.
 - **THEN** the system removes Slack credentials from storage and prints "Logged out of Slack."
 
 ### Requirement: Slack login status
-The system SHALL report Slack authentication status through the existing `devpilot status` command.
+The system SHALL report Slack authentication status through the existing `devpilot status` command. The status command only lists services that are currently logged in.
 
 #### Scenario: Status when logged in
 - **WHEN** user runs `devpilot status` and Slack credentials exist
@@ -31,4 +31,4 @@ The system SHALL report Slack authentication status through the existing `devpil
 
 #### Scenario: Status when not logged in
 - **WHEN** user runs `devpilot status` and no Slack credentials exist
-- **THEN** the system SHALL show "slack: not logged in"
+- **THEN** Slack SHALL be omitted from the status output
