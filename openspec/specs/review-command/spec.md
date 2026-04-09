@@ -1,4 +1,8 @@
-## ADDED Requirements
+## Purpose
+
+Defines the `devpilot review` CLI command for AI-powered code review of pull requests, including context gathering, executor extraction, and runner integration.
+
+## Requirements
 
 ### Requirement: CLI review command
 The system SHALL provide a `devpilot review <pr-url>` command that performs an AI-powered code review on the specified pull request.

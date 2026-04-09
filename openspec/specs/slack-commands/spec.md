@@ -1,4 +1,8 @@
-## ADDED Requirements
+## Purpose
+
+Defines the `devpilot slack send` command for posting messages to Slack channels, including channel name resolution.
+
+## Requirements
 
 ### Requirement: Send message to Slack channel
 The system SHALL provide a `devpilot slack send` command that sends a text message to a specified Slack channel.

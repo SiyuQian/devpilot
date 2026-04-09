@@ -1,4 +1,8 @@
-## ADDED Requirements
+## Purpose
+
+Defines Gmail authentication via OAuth 2.0, including login, logout, status reporting, and automatic token refresh.
+
+## Requirements
 
 ### Requirement: Gmail OAuth login
 The system SHALL authenticate with Gmail via OAuth 2.0 browser flow using the shared `auth.StartFlow` component with scope `gmail.modify`.

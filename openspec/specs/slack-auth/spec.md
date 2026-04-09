@@ -1,4 +1,8 @@
-## ADDED Requirements
+## Purpose
+
+Defines Slack authentication via OAuth V2 browser flow, including login, logout, and status reporting.
+
+## Requirements
 
 ### Requirement: Slack OAuth login
 The system SHALL authenticate with Slack via OAuth V2 browser flow using the shared `auth.StartFlow` component with bot token scopes (chat:write, channels:read).

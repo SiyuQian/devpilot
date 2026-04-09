@@ -1,7 +1,8 @@
 # skill-raw-fetch Specification
 
 ## Purpose
-TBD - created by archiving change skill-raw-fetch. Update Purpose after archive.
+
+Defines requirements for fetching skills and the skill catalog via raw GitHub URLs using a `skills/index.json` manifest, replacing the GitHub Contents API approach.
 ## Requirements
 ### Requirement: Maintain a skill catalog index file
 The repo SHALL contain a `skills/index.json` file that lists all available skills with their name, description, and file paths. This file MUST be updated whenever skills are added, removed, or modified.

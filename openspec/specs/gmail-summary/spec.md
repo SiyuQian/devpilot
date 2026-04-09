@@ -1,3 +1,7 @@
+## Purpose
+
+Defines the `devpilot gmail summary` command that fetches today's unread emails, generates an AI-powered summary, and optionally sends it to Slack.
+
 ## Requirements
 
 ### Requirement: Summarize today's unread emails

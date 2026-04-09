@@ -1,3 +1,7 @@
+## Purpose
+
+Defines requirements for Gmail CLI commands including listing, reading, and managing emails.
+
 ## Requirements
 
 ### Requirement: List unread emails

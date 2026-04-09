@@ -1,4 +1,8 @@
-## ADDED Requirements
+## Purpose
+
+Defines the terminal user interface for the `devpilot commit` command, including spinner display, formatted plan output, interactive confirmation, execution progress, and completion summary.
+
+## Requirements
 
 ### Requirement: Show spinner during AI analysis
 The system SHALL display an animated spinner with a status message while waiting for Claude to generate the commit plan.

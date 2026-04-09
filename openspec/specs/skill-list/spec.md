@@ -7,7 +7,7 @@ The system SHALL display only installed skills (from both project-level and user
 
 #### Scenario: Skills installed at both levels with --installed flag
 - **WHEN** user runs `devpilot skill list --installed` and both project and user configs contain skill entries
-- **THEN** the system prints a table with columns: NAME, INSTALLED, LEVEL
+- **THEN** the system prints a table with columns: NAME, DESCRIPTION, INSTALLED, LEVEL
 - **AND** project-level skills show `project` in the LEVEL column
 - **AND** user-level skills show `user` in the LEVEL column
 - **AND** the INSTALLED column shows the installedAt timestamp formatted as `2006-01-02`
