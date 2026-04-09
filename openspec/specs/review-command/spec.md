@@ -5,11 +5,11 @@ Defines the `devpilot review` CLI command for AI-powered code review of pull req
 ## Requirements
 
 ### Requirement: CLI review command
-The system SHALL provide a `devpilot review <pr-url>` command that performs an AI-powered code review on the specified pull request.
+The system SHALL provide a `devpilot review <pr-url>` command that performs an AI-powered code review on the specified pull request, displaying real-time streaming progress during execution.
 
 #### Scenario: Review a GitHub PR
 - **WHEN** user runs `devpilot review https://github.com/owner/repo/pull/123`
-- **THEN** the system fetches PR context, assembles the review prompt, executes Claude with thinking mode, and outputs the structured review to stdout
+- **THEN** the system shows real-time progress on stderr, streams review text to stdout as it is generated, and exits with code 0 on success
 
 #### Scenario: Review with custom model
 - **WHEN** user runs `devpilot review <pr-url> --model claude-sonnet-4-6-20250514`
@@ -21,7 +21,7 @@ The system SHALL provide a `devpilot review <pr-url>` command that performs an A
 
 #### Scenario: Dry run review
 - **WHEN** user runs `devpilot review <pr-url> --dry-run`
-- **THEN** the system prints the assembled prompt to stdout without executing Claude
+- **THEN** the system prints the assembled prompt to stdout without executing Claude (no streaming)
 
 #### Scenario: Default timeout
 - **WHEN** user runs `devpilot review <pr-url>` without `--timeout`
