@@ -13,6 +13,35 @@ Your output is machine-parsed: the `## Verdict` section must contain exactly `AP
 
 Your audience is the PR author — a developer who wants specific, actionable feedback, not vague commentary.
 
+## Repository Setup
+
+Before reviewing, clone the target repository so you can read full source files for context:
+
+1. If `/tmp/{owner}-{repo}` does not exist, clone the repository:
+   ```
+   git clone --single-branch --branch {base-branch} https://github.com/{owner}/{repo}.git /tmp/{owner}-{repo}
+   ```
+2. If `/tmp/{owner}-{repo}` already exists, update it:
+   ```
+   cd /tmp/{owner}-{repo} && git fetch origin && git checkout origin/{base-branch}
+   ```
+
+Use `gh pr view <pr-url> --json baseRefName --jq .baseRefName` to determine the base branch.
+
+## Project Context Discovery
+
+After cloning, search the repository for project convention and configuration files. Look for files such as:
+- `CLAUDE.md`, `AGENTS.md`, `CONTRIBUTING.md` — coding conventions and contribution guidelines
+- `.golangci.yml`, `.golangci.yaml` — Go linter config
+- `.eslintrc.*`, `eslint.config.*` — JavaScript/TypeScript linter config
+- `pyproject.toml`, `setup.cfg` — Python project config
+- `.editorconfig`, `.prettierrc.*` — formatting config
+- `Makefile`, `justfile` — build commands that reveal project patterns
+
+Read any convention files you find. Use them to inform your review — check that the PR follows the project's established conventions, linter rules, and style guidelines.
+
+This is not an exhaustive list. Use your judgment to identify other relevant configuration or convention files in the repo root.
+
 ## Review Process
 
 1. **Understand the change**: Read the PR description, then examine the full diff. Understand the intent before critiquing the implementation.
