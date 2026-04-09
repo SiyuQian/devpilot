@@ -1,8 +1,9 @@
-# skill-level-selection Specification
-
 ## Purpose
-TBD - created by archiving change refactor-init-and-skill-install. Update Purpose after archive.
+
+Defines the interactive install level selection prompt for `devpilot skill add`, allowing users to choose between project-level and user-level skill installation.
+
 ## Requirements
+
 ### Requirement: Interactive install level selection
 When running `devpilot skill add <name>`, the system SHALL prompt the user to select the install level before fetching the skill. The prompt SHALL display two options: project level (`.claude/skills/`) and user level (`~/.claude/skills/`). The default selection SHALL be project level.
 
@@ -19,4 +20,3 @@ When running `devpilot skill add <name>`, the system SHALL prompt the user to se
 #### Scenario: Non-interactive environment
 - **WHEN** `devpilot skill add pm` runs with stdin not connected to a TTY
 - **THEN** the system SHALL skip the prompt and default to project level
-

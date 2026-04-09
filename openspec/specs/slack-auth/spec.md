@@ -1,11 +1,15 @@
-## ADDED Requirements
+## Purpose
+
+Defines Slack authentication via OAuth V2 browser flow, including login, logout, and status reporting.
+
+## Requirements
 
 ### Requirement: Slack OAuth login
 The system SHALL authenticate with Slack via OAuth V2 browser flow using the shared `auth.StartFlow` component with bot token scopes (chat:write, channels:read).
 
 #### Scenario: Successful login
 - **WHEN** user runs `devpilot login slack`
-- **THEN** the system opens the browser to Slack OAuth consent, completes the flow, stores the bot access_token, team_id, and team_name, and prints "Logged in to Slack (workspace: <team_name>)."
+- **THEN** the system opens the browser to Slack OAuth consent, completes the flow, stores the bot access_token (along with client_id and client_secret), and prints "Logged in to Slack."
 
 #### Scenario: Login with existing credentials
 - **WHEN** user runs `devpilot login slack` while already logged in
@@ -19,12 +23,12 @@ The system SHALL remove stored Slack credentials when the user logs out.
 - **THEN** the system removes Slack credentials from storage and prints "Logged out of Slack."
 
 ### Requirement: Slack login status
-The system SHALL report Slack authentication status through the existing `devpilot status` command.
+The system SHALL report Slack authentication status through the existing `devpilot status` command. The status command only lists services that are currently logged in.
 
 #### Scenario: Status when logged in
 - **WHEN** user runs `devpilot status` and Slack credentials exist
-- **THEN** the system SHALL show "slack: logged in (<team_name>)"
+- **THEN** the system SHALL show "slack: logged in"
 
 #### Scenario: Status when not logged in
 - **WHEN** user runs `devpilot status` and no Slack credentials exist
-- **THEN** the system SHALL show "slack: not logged in"
+- **THEN** Slack SHALL be omitted from the status output

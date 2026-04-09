@@ -1,4 +1,8 @@
-## ADDED Requirements
+## Purpose
+
+Defines the embedded review instructions and comment template used by the AI-powered code review system for structured, project-agnostic review output.
+
+## Requirements
 
 ### Requirement: Review instructions file
 The system SHALL include an embedded `review-prompt.md` file that contains comprehensive review criteria and methodology for the LLM.

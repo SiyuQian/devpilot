@@ -1,4 +1,8 @@
-## ADDED Requirements
+## Purpose
+
+Defines Gmail authentication via OAuth 2.0, including login, logout, status reporting, and automatic token refresh.
+
+## Requirements
 
 ### Requirement: Gmail OAuth login
 The system SHALL authenticate with Gmail via OAuth 2.0 browser flow using the shared `auth.StartFlow` component with scope `gmail.modify`.
@@ -19,7 +23,7 @@ The system SHALL remove stored Gmail credentials when the user logs out.
 - **THEN** the system removes Gmail credentials from storage and prints "Logged out of Gmail."
 
 ### Requirement: Gmail login status
-The system SHALL report Gmail authentication status through the existing `devpilot status` command.
+The system SHALL report Gmail authentication status through the existing `devpilot status` command. The status command only lists services that are currently logged in.
 
 #### Scenario: Status when logged in
 - **WHEN** user runs `devpilot status` and Gmail credentials exist
@@ -27,7 +31,7 @@ The system SHALL report Gmail authentication status through the existing `devpil
 
 #### Scenario: Status when not logged in
 - **WHEN** user runs `devpilot status` and no Gmail credentials exist
-- **THEN** the system SHALL show "gmail: not logged in"
+- **THEN** Gmail SHALL be omitted from the status output
 
 ### Requirement: Automatic token refresh
 The system SHALL automatically refresh the Gmail access token when it expires, using the stored refresh token.
@@ -38,4 +42,4 @@ The system SHALL automatically refresh the Gmail access token when it expires, u
 
 #### Scenario: Refresh token revoked
 - **WHEN** token refresh fails with invalid_grant
-- **THEN** the system SHALL return an error instructing the user to run `devpilot login gmail`
+- **THEN** the system SHALL return an error: "token refresh failed, run: devpilot login gmail"

@@ -3,7 +3,7 @@
 Defines requirements for listing installed skills in a DevPilot project.
 ## Requirements
 ### Requirement: List installed skills
-The system SHALL display only installed skills (from both project-level and user-level configs) when the user runs `devpilot skill list --installed`. Output SHALL include NAME, DESCRIPTION, INSTALLED, LEVEL columns. Project-level skills are listed first, then user-level skills.
+The system SHALL display only installed skills (from both project-level and user-level configs) when the user runs `devpilot skill list --installed`. Output SHALL include NAME, INSTALLED, LEVEL columns (no DESCRIPTION column). Project-level skills are listed first, then user-level skills.
 
 #### Scenario: Skills installed at both levels with --installed flag
 - **WHEN** user runs `devpilot skill list --installed` and both project and user configs contain skill entries
