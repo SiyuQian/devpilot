@@ -66,6 +66,9 @@ var reviewCmd = &cobra.Command{
 		}
 
 		if result.ExitCode != 0 {
+			if result.Stderr != "" {
+				fmt.Fprint(os.Stderr, result.Stderr)
+			}
 			os.Exit(result.ExitCode)
 		}
 	},

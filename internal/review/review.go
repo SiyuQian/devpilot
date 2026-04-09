@@ -7,7 +7,7 @@ import (
 )
 
 // DefaultReviewModel is the default Claude model used for code reviews.
-const DefaultReviewModel = "claude-opus-4-6-20250415"
+const DefaultReviewModel = "claude-opus-4-6"
 
 // Option configures a review invocation.
 type Option func(*options)
@@ -81,7 +81,7 @@ func resolveOptions(opts []Option) *options {
 }
 
 func newReviewExecutor(o *options) *executor.Executor {
-	args := []string{"-p", "--thinking", "--model", o.model, "--verbose", "--output-format", "stream-json", "--allowedTools=*"}
+	args := []string{"-p", "--thinking", "enabled", "--model", o.model, "--verbose", "--output-format", "stream-json", "--allowedTools=*"}
 	allOpts := []executor.ExecutorOption{executor.WithCommand("claude", args...)}
 	if o.eventHandler != nil {
 		allOpts = append(allOpts, executor.WithClaudeEventHandler(o.eventHandler))
