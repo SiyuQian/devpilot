@@ -76,6 +76,11 @@ devpilot skill add <name>@<ref>                            # Install at specific
 devpilot skill list                                        # List available skills with install status
 devpilot skill list --installed                            # List only installed skills
 
+devpilot review <pr-url>                                   # AI-powered code review, posts to PR as GitHub review
+devpilot review <pr-url> --no-post                         # Review without posting to PR
+devpilot review <pr-url> --model claude-sonnet-4-6-20250514  # Review with custom model
+devpilot review <pr-url> --dry-run                         # Print assembled prompt without executing
+
 devpilot commit                                            # Generate commit message from staged changes
 devpilot readme                                            # Generate or improve README.md
 ```

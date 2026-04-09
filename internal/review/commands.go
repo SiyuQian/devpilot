@@ -15,6 +15,7 @@ func RegisterCommands(parent *cobra.Command) {
 	reviewCmd.Flags().String("model", "", "Override Claude model (default: "+DefaultReviewModel+")")
 	reviewCmd.Flags().Bool("dry-run", false, "Print assembled prompt without executing Claude")
 	reviewCmd.Flags().Int("timeout", 10, "Review timeout in minutes")
+	reviewCmd.Flags().Bool("no-post", false, "Skip posting review to GitHub PR")
 
 	parent.AddCommand(reviewCmd)
 }
@@ -41,6 +42,8 @@ var reviewCmd = &cobra.Command{
 		model := resolveModel(cmd)
 		dryRun, _ := cmd.Flags().GetBool("dry-run")
 		timeoutMin, _ := cmd.Flags().GetInt("timeout")
+		noPost, _ := cmd.Flags().GetBool("no-post")
+		postToGitHub := !noPost
 
 		// Validate PR URL early
 		pr, err := ParsePRURL(prURL)
@@ -50,7 +53,7 @@ var reviewCmd = &cobra.Command{
 		}
 
 		if dryRun {
-			prompt := BuildPrompt(pr)
+			prompt := BuildPrompt(pr, postToGitHub)
 			fmt.Println(prompt)
 			return
 		}
@@ -59,7 +62,7 @@ var reviewCmd = &cobra.Command{
 		defer cancel()
 
 		streamer := newReviewStreamer()
-		result, err := Review(ctx, prURL, WithModel(model), WithEventHandler(streamer.HandleEvent))
+		result, err := Review(ctx, prURL, WithModel(model), WithPostToGitHub(postToGitHub), WithEventHandler(streamer.HandleEvent))
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "Error:", err)
 			os.Exit(1)

@@ -7,3 +7,6 @@ var reviewPromptMD string
 
 //go:embed review-template.md
 var reviewTemplateMD string
+
+//go:embed review-posting.md
+var reviewPostingMD string

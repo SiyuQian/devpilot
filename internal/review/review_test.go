@@ -3,6 +3,8 @@ package review
 import (
 	"strings"
 	"testing"
+
+	"github.com/spf13/cobra"
 )
 
 // --- URL validation tests ---
@@ -120,7 +122,7 @@ something unexpected here
 func TestBuildPrompt_ContainsReviewInstructions(t *testing.T) {
 	pr := &PRInfo{Owner: "owner", Repo: "repo", Number: "1", URL: "https://github.com/owner/repo/pull/1"}
 
-	prompt := BuildPrompt(pr)
+	prompt := BuildPrompt(pr, false)
 
 	if !strings.Contains(prompt, "Code Review Instructions") {
 		t.Error("prompt should contain review instructions")
@@ -136,7 +138,7 @@ func TestBuildPrompt_ContainsReviewInstructions(t *testing.T) {
 func TestBuildPrompt_ContainsCloneInstructions(t *testing.T) {
 	pr := &PRInfo{Owner: "owner", Repo: "repo", Number: "1", URL: "https://github.com/owner/repo/pull/1"}
 
-	prompt := BuildPrompt(pr)
+	prompt := BuildPrompt(pr, false)
 
 	if !strings.Contains(prompt, "Repository Setup") {
 		t.Error("prompt should contain repository setup section")
@@ -149,6 +151,65 @@ func TestBuildPrompt_ContainsCloneInstructions(t *testing.T) {
 	}
 	if !strings.Contains(prompt, "CLAUDE.md") {
 		t.Error("prompt should mention CLAUDE.md as a convention file to look for")
+	}
+}
+
+func TestBuildPrompt_WithPostingEnabled(t *testing.T) {
+	pr := &PRInfo{Owner: "owner", Repo: "repo", Number: "1", URL: "https://github.com/owner/repo/pull/1"}
+
+	prompt := BuildPrompt(pr, true)
+
+	if !strings.Contains(prompt, "Posting Review to GitHub") {
+		t.Error("prompt should contain posting instructions when posting is enabled")
+	}
+	if !strings.Contains(prompt, "gh api") {
+		t.Error("prompt should contain gh api instructions when posting is enabled")
+	}
+}
+
+func TestBuildPrompt_WithPostingDisabled(t *testing.T) {
+	pr := &PRInfo{Owner: "owner", Repo: "repo", Number: "1", URL: "https://github.com/owner/repo/pull/1"}
+
+	prompt := BuildPrompt(pr, false)
+
+	if strings.Contains(prompt, "Posting Review to GitHub") {
+		t.Error("prompt should NOT contain posting instructions when posting is disabled")
+	}
+}
+
+func TestNewReviewExecutor_RestrictedTools(t *testing.T) {
+	o := &options{model: DefaultReviewModel}
+	exec := newReviewExecutor(o)
+	args := exec.Args()
+	found := false
+	for _, arg := range args {
+		if arg == "--allowedTools=*" {
+			t.Error("review executor should NOT use --allowedTools=*")
+		}
+		if arg == "--allowedTools=Read,Grep,Glob,Bash" {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("review executor should use --allowedTools=Read,Grep,Glob,Bash, got args: %v", args)
+	}
+}
+
+// --- Flag tests ---
+
+func TestReviewCmd_NoPostFlag(t *testing.T) {
+	parent := &cobra.Command{Use: "test"}
+	RegisterCommands(parent)
+	cmd, _, err := parent.Find([]string{"review"})
+	if err != nil {
+		t.Fatalf("could not find review command: %v", err)
+	}
+	val, err2 := cmd.Flags().GetBool("no-post")
+	if err2 != nil {
+		t.Fatalf("--no-post flag should exist: %v", err2)
+	}
+	if val != false {
+		t.Error("--no-post default should be false")
 	}
 }
 

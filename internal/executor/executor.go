@@ -38,6 +38,11 @@ type Executor struct {
 	claudeEventHandler ClaudeEventHandler
 }
 
+// Args returns the command arguments. Useful for testing.
+func (e *Executor) Args() []string {
+	return e.args
+}
+
 type ExecutorOption func(*Executor)
 
 // WithCommand sets the command and arguments for the executor to run.

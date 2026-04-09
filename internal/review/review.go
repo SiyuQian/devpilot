@@ -14,6 +14,7 @@ type Option func(*options)
 
 type options struct {
 	model        string
+	postToGitHub bool
 	execOpts     []executor.ExecutorOption
 	eventHandler executor.ClaudeEventHandler
 }
@@ -32,6 +33,13 @@ func WithEventHandler(handler executor.ClaudeEventHandler) Option {
 	}
 }
 
+// WithPostToGitHub controls whether posting instructions are included in the prompt.
+func WithPostToGitHub(post bool) Option {
+	return func(o *options) {
+		o.postToGitHub = post
+	}
+}
+
 // WithExecutorOptions passes additional executor options (e.g., for streaming).
 func WithExecutorOptions(opts ...executor.ExecutorOption) Option {
 	return func(o *options) {
@@ -47,7 +55,7 @@ func Review(ctx context.Context, prURL string, opts ...Option) (*executor.Execut
 	}
 
 	o := resolveOptions(opts)
-	prompt := BuildPrompt(pr)
+	prompt := BuildPrompt(pr, o.postToGitHub)
 	exec := newReviewExecutor(o)
 	return exec.Run(ctx, prompt)
 }
@@ -72,7 +80,8 @@ func BuildFixPrompt(prURL string) string {
 
 func resolveOptions(opts []Option) *options {
 	o := &options{
-		model: DefaultReviewModel,
+		model:        DefaultReviewModel,
+		postToGitHub: true,
 	}
 	for _, opt := range opts {
 		opt(o)
@@ -81,7 +90,7 @@ func resolveOptions(opts []Option) *options {
 }
 
 func newReviewExecutor(o *options) *executor.Executor {
-	args := []string{"-p", "--thinking", "enabled", "--model", o.model, "--verbose", "--output-format", "stream-json", "--allowedTools=*"}
+	args := []string{"-p", "--thinking", "enabled", "--model", o.model, "--verbose", "--output-format", "stream-json", "--allowedTools=Read,Grep,Glob,Bash"}
 	allOpts := []executor.ExecutorOption{executor.WithCommand("claude", args...)}
 	if o.eventHandler != nil {
 		allOpts = append(allOpts, executor.WithClaudeEventHandler(o.eventHandler))
