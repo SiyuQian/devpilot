@@ -13,14 +13,22 @@ const DefaultReviewModel = "claude-opus-4-6-20250415"
 type Option func(*options)
 
 type options struct {
-	model    string
-	execOpts []executor.ExecutorOption
+	model        string
+	execOpts     []executor.ExecutorOption
+	eventHandler executor.ClaudeEventHandler
 }
 
 // WithModel overrides the Claude model for the review.
 func WithModel(model string) Option {
 	return func(o *options) {
 		o.model = model
+	}
+}
+
+// WithEventHandler sets a callback for streaming Claude events during review.
+func WithEventHandler(handler executor.ClaudeEventHandler) Option {
+	return func(o *options) {
+		o.eventHandler = handler
 	}
 }
 
@@ -75,6 +83,9 @@ func resolveOptions(opts []Option) *options {
 func newReviewExecutor(o *options) *executor.Executor {
 	args := []string{"-p", "--thinking", "--model", o.model, "--verbose", "--output-format", "stream-json", "--allowedTools=*"}
 	allOpts := []executor.ExecutorOption{executor.WithCommand("claude", args...)}
+	if o.eventHandler != nil {
+		allOpts = append(allOpts, executor.WithClaudeEventHandler(o.eventHandler))
+	}
 	allOpts = append(allOpts, o.execOpts...)
 	return executor.NewExecutor(allOpts...)
 }

@@ -58,13 +58,13 @@ var reviewCmd = &cobra.Command{
 		ctx, cancel := context.WithTimeout(context.Background(), time.Duration(timeoutMin)*time.Minute)
 		defer cancel()
 
-		result, err := Review(ctx, prURL, WithModel(model))
+		streamer := newReviewStreamer()
+		result, err := Review(ctx, prURL, WithModel(model), WithEventHandler(streamer.HandleEvent))
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "Error:", err)
 			os.Exit(1)
 		}
 
-		fmt.Print(result.Stdout)
 		if result.ExitCode != 0 {
 			os.Exit(result.ExitCode)
 		}
