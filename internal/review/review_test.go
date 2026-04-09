@@ -117,24 +117,13 @@ something unexpected here
 
 // --- Prompt assembly tests ---
 
-func TestBuildPrompt_WithContext(t *testing.T) {
+func TestBuildPrompt_ContainsReviewInstructions(t *testing.T) {
 	pr := &PRInfo{Owner: "owner", Repo: "repo", Number: "1", URL: "https://github.com/owner/repo/pull/1"}
-	ctx := &ProjectContext{
-		Conventions: []ConventionFile{
-			{Path: "CLAUDE.md", Description: "Project conventions", Content: "Always use gofmt."},
-		},
-	}
 
-	prompt := BuildPrompt(pr, ctx)
+	prompt := BuildPrompt(pr)
 
 	if !strings.Contains(prompt, "Code Review Instructions") {
 		t.Error("prompt should contain review instructions")
-	}
-	if !strings.Contains(prompt, "Project Context") {
-		t.Error("prompt should contain project context section")
-	}
-	if !strings.Contains(prompt, "Always use gofmt.") {
-		t.Error("prompt should contain convention file content")
 	}
 	if !strings.Contains(prompt, "https://github.com/owner/repo/pull/1") {
 		t.Error("prompt should contain PR URL")
@@ -144,27 +133,22 @@ func TestBuildPrompt_WithContext(t *testing.T) {
 	}
 }
 
-func TestBuildPrompt_WithoutContext(t *testing.T) {
-	pr := &PRInfo{Owner: "owner", Repo: "repo", Number: "1", URL: "https://github.com/owner/repo/pull/1"}
-	ctx := &ProjectContext{}
-
-	prompt := BuildPrompt(pr, ctx)
-
-	if strings.Contains(prompt, "Project Context") {
-		t.Error("prompt should not contain project context section when no conventions found")
-	}
-	if !strings.Contains(prompt, "https://github.com/owner/repo/pull/1") {
-		t.Error("prompt should contain PR URL")
-	}
-}
-
-func TestBuildPrompt_NilContext(t *testing.T) {
+func TestBuildPrompt_ContainsCloneInstructions(t *testing.T) {
 	pr := &PRInfo{Owner: "owner", Repo: "repo", Number: "1", URL: "https://github.com/owner/repo/pull/1"}
 
-	prompt := BuildPrompt(pr, nil)
+	prompt := BuildPrompt(pr)
 
-	if strings.Contains(prompt, "Project Context") {
-		t.Error("prompt should not contain project context section when context is nil")
+	if !strings.Contains(prompt, "Repository Setup") {
+		t.Error("prompt should contain repository setup section")
+	}
+	if !strings.Contains(prompt, "git clone") {
+		t.Error("prompt should contain git clone instructions")
+	}
+	if !strings.Contains(prompt, "Project Context Discovery") {
+		t.Error("prompt should contain context discovery section")
+	}
+	if !strings.Contains(prompt, "CLAUDE.md") {
+		t.Error("prompt should mention CLAUDE.md as a convention file to look for")
 	}
 }
 

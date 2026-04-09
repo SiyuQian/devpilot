@@ -50,10 +50,7 @@ var reviewCmd = &cobra.Command{
 		}
 
 		if dryRun {
-			dryCtx, dryCancel := context.WithTimeout(context.Background(), time.Duration(timeoutMin)*time.Minute)
-			defer dryCancel()
-			projectCtx := GatherContext(dryCtx, pr)
-			prompt := BuildPrompt(pr, projectCtx)
+			prompt := BuildPrompt(pr)
 			fmt.Println(prompt)
 			return
 		}
