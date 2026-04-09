@@ -13,5 +13,5 @@
 ## 3. Verification
 
 - [x] 3.1 Run `make test` and `make lint` — all pass
-- [ ] 3.2 Manual test: `devpilot review <pr-url>` shows real-time progress and readable output
-- [ ] 3.3 Manual test: `devpilot review <pr-url> > review.md` captures only review text, no progress noise
+- [x] 3.2 Manual test: `devpilot review <pr-url>` shows real-time progress and readable output
+- [x] 3.3 Manual test: `devpilot review <pr-url> > review.md` captures only review text, no progress noise
