@@ -9,7 +9,7 @@ The system SHALL authenticate with Slack via OAuth V2 browser flow using the sha
 
 #### Scenario: Successful login
 - **WHEN** user runs `devpilot login slack`
-- **THEN** the system opens the browser to Slack OAuth consent, completes the flow, stores the bot access_token, team_id, and team_name, and prints "Logged in to Slack (workspace: <team_name>)."
+- **THEN** the system opens the browser to Slack OAuth consent, completes the flow, stores the bot access_token (along with client_id and client_secret), and prints "Logged in to Slack."
 
 #### Scenario: Login with existing credentials
 - **WHEN** user runs `devpilot login slack` while already logged in
@@ -27,7 +27,7 @@ The system SHALL report Slack authentication status through the existing `devpil
 
 #### Scenario: Status when logged in
 - **WHEN** user runs `devpilot status` and Slack credentials exist
-- **THEN** the system SHALL show "slack: logged in (<team_name>)"
+- **THEN** the system SHALL show "slack: logged in"
 
 #### Scenario: Status when not logged in
 - **WHEN** user runs `devpilot status` and no Slack credentials exist

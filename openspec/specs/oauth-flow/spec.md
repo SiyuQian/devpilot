@@ -38,12 +38,16 @@ The system SHALL generate a cryptographically random state parameter for each OA
 The system SHALL start a temporary HTTP server on `localhost` with a random available port to receive the OAuth callback.
 
 #### Scenario: Server starts on available port
-- **WHEN** `StartFlow` is called
-- **THEN** the system binds to a random available port on localhost and uses `http://localhost:<port>/callback` as the redirect URI
+- **WHEN** `StartFlow` is called with `RedirectPort: 0`
+- **THEN** the system binds to `127.0.0.1:0` (OS-assigned random port) on localhost and uses `http://localhost:<port>/callback` (or `https://` when `UseTLS` is true) as the redirect URI
 
-#### Scenario: Port bind failure with retry
-- **WHEN** the initial port bind fails
-- **THEN** the system SHALL retry with a different random port up to 3 times before returning an error
+#### Scenario: Server starts on fixed port
+- **WHEN** `StartFlow` is called with a non-zero `RedirectPort` (e.g. 17321)
+- **THEN** the system binds to that specific port on localhost with no retry on failure
+
+#### Scenario: Random port bind failure with retry
+- **WHEN** port is 0 and the initial bind fails
+- **THEN** the system SHALL retry binding to `127.0.0.1:0` up to 3 times before returning an error
 
 #### Scenario: Server shuts down after flow completes
 - **WHEN** the token exchange completes (success or failure)

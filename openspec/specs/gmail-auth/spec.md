@@ -42,4 +42,4 @@ The system SHALL automatically refresh the Gmail access token when it expires, u
 
 #### Scenario: Refresh token revoked
 - **WHEN** token refresh fails with invalid_grant
-- **THEN** the system SHALL return an error instructing the user to run `devpilot login gmail`
+- **THEN** the system SHALL return an error: "token refresh failed, run: devpilot login gmail"

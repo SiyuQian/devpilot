@@ -32,11 +32,15 @@ The init command SHALL NOT generate or detect CLAUDE.md. The init command SHALL 
 - **WHEN** user runs `devpilot init`
 - **THEN** the status output does NOT include any line about CLAUDE.md
 
-### Requirement: Catalog manifest for skill selection
-The system SHALL use a hardcoded catalog of available skills for the init checklist. The catalog SHALL include name and description for each skill.
+### Requirement: Catalog fetched from remote
+The system SHALL fetch the skill catalog from the remote repository via `skillmgr.FetchCatalog()` (which downloads `skills/index.json` from `raw.githubusercontent.com`). The catalog requires network access. The catalog SHALL include name and description for each skill.
 
-#### Scenario: Catalog is available offline
+#### Scenario: Catalog fetched at init time
+- **WHEN** user runs `devpilot init` and reaches the skill selection step
+- **THEN** the system fetches the catalog from `raw.githubusercontent.com` via `skillmgr.FetchCatalog`
+- **AND** displays the fetched skills with names and descriptions
+
+#### Scenario: Network unavailable during init
 - **WHEN** user runs `devpilot init` without network access and reaches the skill selection step
-- **THEN** the system displays the hardcoded catalog without making network requests
-- **AND** network requests only occur when the user confirms their selection and skills are fetched
+- **THEN** the catalog fetch fails and the system reports an error fetching the skill catalog
 

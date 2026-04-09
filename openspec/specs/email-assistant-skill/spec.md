@@ -1,5 +1,7 @@
 ## Purpose
 
+**NOTE: This skill is NOT YET IMPLEMENTED. The spec below represents the planned design.**
+
 Defines the email-assistant skill that reads unread Gmail messages, generates an intelligent digest summary, and sends it to a Slack channel.
 
 ## Requirements

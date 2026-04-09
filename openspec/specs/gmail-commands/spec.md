@@ -25,7 +25,7 @@ The system SHALL provide a `devpilot gmail list` command that lists unread email
 
 #### Scenario: Not logged in
 - **WHEN** user runs `devpilot gmail list` without being logged in
-- **THEN** the system SHALL return an error: "Not logged in to Gmail. Run: devpilot login gmail"
+- **THEN** the system SHALL return an error: "not logged in to Gmail, run: devpilot login gmail"
 
 ### Requirement: Read email content
 The system SHALL provide a `devpilot gmail read` command that displays the full content of a specific email.

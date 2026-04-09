@@ -16,14 +16,14 @@ All product skills SHALL use a `devpilot-` prefix in their directory name (e.g.,
 
 #### Scenario: Installed skill has prefix
 - **WHEN** `devpilot skill add` installs a skill named `learn`
-- **THEN** the skill is written to `skills/devpilot-learn/`
+- **THEN** the skill is written to `.claude/skills/devpilot-learn/`
 
 ### Requirement: Skill install path
-The `skillmgr` package SHALL install skills into `skills/<skillName>/` relative to the project root, instead of `.claude/skills/<skillName>/`.
+The `skillmgr` package SHALL install skills into `.claude/skills/<skillName>/` relative to the project root, so that Claude Code automatically discovers them.
 
 #### Scenario: Install writes to correct directory
 - **WHEN** `InstallSkill` is called with skill name `devpilot-pm`
-- **THEN** files are written under `<destDir>/skills/devpilot-pm/`
+- **THEN** files are written under `<projectRoot>/.claude/skills/devpilot-pm/`
 
 ### Requirement: Remote catalog path
 The `skillmgr` catalog SHALL fetch skill listings from the `skills/` path in the remote GitHub repository instead of `.claude/skills/`.
@@ -47,11 +47,11 @@ The `skillmgr` catalog SHALL NOT contain any filtering logic to exclude openspec
 - **THEN** all entries are returned without any prefix-based filtering
 
 ### Requirement: Init skill detection
-The `initcmd` package SHALL detect existing skills in `skills/` instead of `.claude/skills/`.
+The `initcmd` package SHALL detect existing skills in `.claude/skills/`.
 
-#### Scenario: Init detects skills in new location
+#### Scenario: Init detects skills in correct location
 - **WHEN** `devpilot init` checks for existing skills
-- **THEN** it scans the `skills/` directory at the project root
+- **THEN** it scans the `.claude/skills/` directory at the project root
 
 ### Requirement: OpenSpec skills remain in .claude/skills
 OpenSpec-related skills (`openspec-explore`, `openspec-apply-change`, `openspec-archive-change`, `openspec-propose`) and `skill-creator` SHALL remain in `.claude/skills/` and SHALL NOT be moved or renamed.
