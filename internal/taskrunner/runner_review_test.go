@@ -2,22 +2,23 @@ package taskrunner
 
 import (
 	"testing"
+
+	"github.com/siyuqian/devpilot/internal/review"
 )
 
 func TestIsApproved_InReviewLoop(t *testing.T) {
 	tests := []struct {
 		name     string
-		stdout   string
+		verdict  string
 		approved bool
 	}{
-		{"clean structured review", "## Verdict\n\nAPPROVE\n\nAll good.", true},
-		{"issues found structured", "## Verdict\n\nREQUEST_CHANGES\n\nFound bugs.", false},
-		{"empty output", "", false},
-		{"approve buried in text but no section", "This PR gets an APPROVE from me", false},
+		{"approved", "APPROVE", true},
+		{"request changes", "REQUEST_CHANGES", false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := IsApproved(tt.stdout); got != tt.approved {
+			result := &review.PipelineResult{Verdict: tt.verdict}
+			if got := IsApproved(result); got != tt.approved {
 				t.Errorf("IsApproved() = %v, want %v", got, tt.approved)
 			}
 		})

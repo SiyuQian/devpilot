@@ -5,8 +5,5 @@ import _ "embed"
 //go:embed review-prompt.md
 var reviewPromptMD string
 
-//go:embed review-template.md
-var reviewTemplateMD string
-
-//go:embed review-posting.md
-var reviewPostingMD string
+//go:embed review-scoring.md
+var reviewScoringMD string

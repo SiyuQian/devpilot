@@ -9,28 +9,26 @@ import (
 
 // Reviewer runs automated code reviews and fix attempts via the review package.
 type Reviewer struct {
-	opts []review.Option
+	pipelineOpts []review.PipelineOption
+	fixExecOpts  []executor.ExecutorOption
 }
 
 // NewReviewer creates a Reviewer with the given executor options.
 func NewReviewer(execOpts ...executor.ExecutorOption) *Reviewer {
-	var opts []review.Option
-	if len(execOpts) > 0 {
-		opts = append(opts, review.WithExecutorOptions(execOpts...))
+	return &Reviewer{
+		fixExecOpts: execOpts,
 	}
-	return &Reviewer{opts: opts}
 }
 
-func (rv *Reviewer) Review(ctx context.Context, prURL string) (*executor.ExecuteResult, error) {
-	return review.Review(ctx, prURL, rv.opts...)
+func (rv *Reviewer) Review(ctx context.Context, prURL string) (*review.PipelineResult, error) {
+	return review.Review(ctx, prURL, rv.pipelineOpts...)
 }
 
 func (rv *Reviewer) Fix(ctx context.Context, prURL string) (*executor.ExecuteResult, error) {
-	return review.Fix(ctx, prURL, rv.opts...)
+	return review.Fix(ctx, prURL, rv.fixExecOpts...)
 }
 
 // IsApproved reports whether the review output indicates approval.
-// Delegates to the review package's structured verdict parser.
-func IsApproved(stdout string) bool {
-	return review.IsApproved(stdout)
+func IsApproved(result *review.PipelineResult) bool {
+	return review.IsApprovedResult(result)
 }

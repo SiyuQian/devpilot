@@ -2,38 +2,23 @@ package taskrunner
 
 import (
 	"testing"
+
+	"github.com/siyuqian/devpilot/internal/review"
 )
 
-func TestIsApproved_StructuredVerdict(t *testing.T) {
+func TestIsApproved_PipelineResult(t *testing.T) {
 	tests := []struct {
-		name   string
-		stdout string
-		want   bool
+		name    string
+		verdict string
+		want    bool
 	}{
-		{
-			"approved with structured output",
-			"## Summary\n\nGood PR.\n\n## Verdict\n\nAPPROVE\n\nNo blocking issues.\n",
-			true,
-		},
-		{
-			"request changes with structured output",
-			"## Summary\n\nHas bugs.\n\n## Verdict\n\nREQUEST_CHANGES\n\nFix the injection.\n",
-			false,
-		},
-		{
-			"empty output",
-			"",
-			false,
-		},
-		{
-			"no verdict section",
-			"Some random review text without structure",
-			false,
-		},
+		{"approved", "APPROVE", true},
+		{"request changes", "REQUEST_CHANGES", false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := IsApproved(tt.stdout)
+			result := &review.PipelineResult{Verdict: tt.verdict}
+			got := IsApproved(result)
 			if got != tt.want {
 				t.Errorf("IsApproved() = %v, want %v", got, tt.want)
 			}

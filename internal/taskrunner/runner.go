@@ -268,9 +268,9 @@ func (r *Runner) processCard(ctx context.Context, task Task) {
 				break
 			}
 
-			r.emit(ReviewDoneEvent{PRURL: prURL, ExitCode: reviewResult.ExitCode})
+			r.emit(ReviewDoneEvent{PRURL: prURL, ExitCode: 0})
 
-			if IsApproved(reviewResult.Stdout) {
+			if IsApproved(reviewResult) {
 				r.logger.Printf("Code review approved for PR: %s", prURL)
 				approved = true
 				break
