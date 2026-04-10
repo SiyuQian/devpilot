@@ -508,17 +508,24 @@ func stubFetchSkillFn(t *testing.T, files map[string][]SkillFile, failing map[st
 	t.Cleanup(func() { fetchSkillFn = orig })
 }
 
+// setupBulkStubs installs catalog + fetch-skill stubs in one call. Each name
+// in names becomes a catalog entry AND gets a minimal SKILL.md file unless
+// listed in failing, in which case fetching it returns the given error.
+func setupBulkStubs(t *testing.T, names []string, failing map[string]error) {
+	t.Helper()
+	catalog := make([]CatalogEntry, 0, len(names))
+	files := make(map[string][]SkillFile, len(names))
+	for _, name := range names {
+		catalog = append(catalog, CatalogEntry{Name: name})
+		files[name] = []SkillFile{{Path: "SKILL.md", Content: []byte(name)}}
+	}
+	stubCatalogFns(t, catalog, nil)
+	stubFetchSkillFn(t, files, failing)
+}
+
 func TestRunBulkInstallProjectLevel(t *testing.T) {
 	dir := t.TempDir()
-
-	stubCatalogFns(t, []CatalogEntry{
-		{Name: "pm", Description: "pm"},
-		{Name: "trello", Description: "trello"},
-	}, nil)
-	stubFetchSkillFn(t, map[string][]SkillFile{
-		"pm":     {{Path: "SKILL.md", Content: []byte("pm skill")}},
-		"trello": {{Path: "SKILL.md", Content: []byte("trello skill")}},
-	}, nil)
+	setupBulkStubs(t, []string{"pm", "trello"}, nil)
 
 	err := runBulkInstall(dir, "project", nil)
 	if err != nil {
@@ -545,20 +552,9 @@ func TestRunBulkInstallProjectLevel(t *testing.T) {
 
 func TestRunBulkInstallPartialFailure(t *testing.T) {
 	dir := t.TempDir()
-
-	stubCatalogFns(t, []CatalogEntry{
-		{Name: "pm"},
-		{Name: "broken"},
-		{Name: "trello"},
-	}, nil)
-	stubFetchSkillFn(t,
-		map[string][]SkillFile{
-			"pm":     {{Path: "SKILL.md", Content: []byte("pm")}},
-			"trello": {{Path: "SKILL.md", Content: []byte("trello")}},
-		},
-		map[string]error{
-			"broken": fmt.Errorf("404 not found"),
-		},
+	setupBulkStubs(t,
+		[]string{"pm", "broken", "trello"},
+		map[string]error{"broken": fmt.Errorf("404 not found")},
 	)
 
 	err := runBulkInstall(dir, "project", nil)
@@ -587,13 +583,7 @@ func TestRunBulkInstallUserLevel(t *testing.T) {
 	t.Setenv("HOME", userCfgDir) // so UserSkillDir returns <userCfgDir>/.claude/skills
 
 	dir := t.TempDir()
-
-	stubCatalogFns(t, []CatalogEntry{
-		{Name: "pm"},
-	}, nil)
-	stubFetchSkillFn(t, map[string][]SkillFile{
-		"pm": {{Path: "SKILL.md", Content: []byte("pm")}},
-	}, nil)
+	setupBulkStubs(t, []string{"pm"}, nil)
 
 	if err := runBulkInstall(dir, "user", nil); err != nil {
 		t.Fatalf("runBulkInstall: %v", err)

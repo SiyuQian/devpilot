@@ -105,6 +105,43 @@ func resolveInstallLevel(levelFlag, projectDir string, reader *bufio.Reader) (ba
 	}
 }
 
+// configDirForLevel returns the directory that holds .devpilot.yaml for the
+// given install level (project dir for project, user config dir for user).
+func configDirForLevel(projectDir string, userLevel bool) (string, error) {
+	if !userLevel {
+		return projectDir, nil
+	}
+	ud, err := userConfigDirFn()
+	if err != nil {
+		return "", fmt.Errorf("resolving user config dir: %w", err)
+	}
+	return ud, nil
+}
+
+// recordInstalledSkills loads the config at configDir, upserts one entry per
+// name, and saves it back. It is a no-op when names is empty so callers can
+// pass in a list of successfully-installed skills without guarding the call.
+func recordInstalledSkills(configDir string, names []string) error {
+	if len(names) == 0 {
+		return nil
+	}
+	cfg, err := project.Load(configDir)
+	if err != nil {
+		return fmt.Errorf("loading config: %w", err)
+	}
+	for _, name := range names {
+		cfg.UpsertSkill(project.SkillEntry{
+			Name:        name,
+			Source:      DefaultSource,
+			InstalledAt: time.Now().UTC(),
+		})
+	}
+	if err := project.Save(configDir, cfg); err != nil {
+		return fmt.Errorf("saving config: %w", err)
+	}
+	return nil
+}
+
 // validateSkillAddArgs enforces that exactly one of {positional name, --all}
 // is provided. Called from skillAddCmd.Args.
 func validateSkillAddArgs(cmd *cobra.Command, args []string) error {
@@ -138,11 +175,6 @@ destination non-interactively (project or user).`,
 		all, _ := cmd.Flags().GetBool("all")
 		levelFlag, _ := cmd.Flags().GetString("level")
 
-		// Validate --level early, before any network / filesystem work.
-		if levelFlag != "" && levelFlag != "project" && levelFlag != "user" {
-			return fmt.Errorf("invalid --level value %q: must be 'project' or 'user'", levelFlag)
-		}
-
 		var reader *bufio.Reader
 		if term.IsTerminal(int(os.Stdin.Fd())) {
 			reader = bufio.NewReader(os.Stdin)
@@ -151,7 +183,6 @@ destination non-interactively (project or user).`,
 		if all {
 			return runBulkInstall(dir, levelFlag, reader)
 		}
-
 		return runSingleInstall(dir, args[0], levelFlag, reader)
 	},
 }
@@ -167,7 +198,7 @@ func runSingleInstall(dir, arg, levelFlag string, reader *bufio.Reader) error {
 	}
 
 	fmt.Printf("Fetching skill %q...\n", name)
-	files, err := FetchSkill(defaultOwner, defaultRepo, name, ref)
+	files, err := fetchSkillFn(defaultOwner, defaultRepo, name, ref)
 	if err != nil {
 		return fmt.Errorf("fetching skill: %w", err)
 	}
@@ -179,30 +210,16 @@ func runSingleInstall(dir, arg, levelFlag string, reader *bufio.Reader) error {
 	if err != nil {
 		return err
 	}
-
 	if err := InstallSkill(baseDir, name, files); err != nil {
 		return fmt.Errorf("installing skill: %w", err)
 	}
 
-	configDir := dir
-	if userLevel {
-		ud, err := userConfigDirFn()
-		if err != nil {
-			return fmt.Errorf("resolving user config dir: %w", err)
-		}
-		configDir = ud
-	}
-	cfg, err := project.Load(configDir)
+	configDir, err := configDirForLevel(dir, userLevel)
 	if err != nil {
-		return fmt.Errorf("loading config: %w", err)
+		return err
 	}
-	cfg.UpsertSkill(project.SkillEntry{
-		Name:        name,
-		Source:      DefaultSource,
-		InstalledAt: time.Now().UTC(),
-	})
-	if err := project.Save(configDir, cfg); err != nil {
-		return fmt.Errorf("saving config: %w", err)
+	if err := recordInstalledSkills(configDir, []string{name}); err != nil {
+		return err
 	}
 
 	displayPath := filepath.Join(baseDir, name) + "/"
@@ -210,12 +227,27 @@ func runSingleInstall(dir, arg, levelFlag string, reader *bufio.Reader) error {
 	return nil
 }
 
+// installCatalogEntry fetches and installs one catalog entry into baseDir.
+// Returns nil on success or a wrapped error describing the phase that failed.
+func installCatalogEntry(baseDir, name string) error {
+	files, err := fetchSkillFn(defaultOwner, defaultRepo, name, defaultRef)
+	if err != nil {
+		return fmt.Errorf("fetching: %w", err)
+	}
+	if len(files) == 0 {
+		return fmt.Errorf("not found in catalog")
+	}
+	if err := InstallSkill(baseDir, name, files); err != nil {
+		return fmt.Errorf("installing: %w", err)
+	}
+	return nil
+}
+
 // runBulkInstall installs every skill in the catalog at the resolved level.
 // Individual failures do not abort the batch; a summary is printed at the end
 // and a non-nil error is returned if any skill failed.
 func runBulkInstall(dir, levelFlag string, reader *bufio.Reader) error {
-	ctx := context.Background()
-	catalog, err := fetchCatalogFn(ctx, defaultOwner, defaultRepo, defaultRef)
+	catalog, err := fetchCatalogFn(context.Background(), defaultOwner, defaultRepo, defaultRef)
 	if err != nil {
 		return fmt.Errorf("fetching skill catalog: %w", err)
 	}
@@ -227,71 +259,41 @@ func runBulkInstall(dir, levelFlag string, reader *bufio.Reader) error {
 	if err != nil {
 		return err
 	}
-
-	configDir := dir
-	if userLevel {
-		ud, err := userConfigDirFn()
-		if err != nil {
-			return fmt.Errorf("resolving user config dir: %w", err)
-		}
-		configDir = ud
-	}
-	cfg, err := project.Load(configDir)
+	configDir, err := configDirForLevel(dir, userLevel)
 	if err != nil {
-		return fmt.Errorf("loading config: %w", err)
+		return err
 	}
 
-	type failure struct {
+	type failedSkill struct {
 		name string
 		err  error
 	}
-	var failures []failure
-	installed := 0
+	var failed []failedSkill
+	var installed []string
 
 	fmt.Printf("Installing %d skills into %s/...\n", len(catalog), baseDir)
 	for _, entry := range catalog {
-		name := entry.Name
-		fmt.Printf("  • %s ... ", name)
-		files, ferr := fetchSkillFn(defaultOwner, defaultRepo, name, defaultRef)
-		if ferr != nil {
+		fmt.Printf("  • %s ... ", entry.Name)
+		if err := installCatalogEntry(baseDir, entry.Name); err != nil {
 			fmt.Println("FAIL")
-			failures = append(failures, failure{name, fmt.Errorf("fetching: %w", ferr)})
+			failed = append(failed, failedSkill{entry.Name, err})
 			continue
 		}
-		if len(files) == 0 {
-			fmt.Println("FAIL")
-			failures = append(failures, failure{name, fmt.Errorf("not found in catalog")})
-			continue
-		}
-		if ierr := InstallSkill(baseDir, name, files); ierr != nil {
-			fmt.Println("FAIL")
-			failures = append(failures, failure{name, fmt.Errorf("installing: %w", ierr)})
-			continue
-		}
-		cfg.UpsertSkill(project.SkillEntry{
-			Name:        name,
-			Source:      DefaultSource,
-			InstalledAt: time.Now().UTC(),
-		})
-		installed++
+		installed = append(installed, entry.Name)
 		fmt.Println("ok")
 	}
 
-	// Persist config once at the end (even on partial failure so successful
-	// installs are recorded).
-	if installed > 0 {
-		if serr := project.Save(configDir, cfg); serr != nil {
-			return fmt.Errorf("saving config: %w", serr)
-		}
+	if err := recordInstalledSkills(configDir, installed); err != nil {
+		return err
 	}
 
-	fmt.Printf("\nInstalled %d/%d skills into %s/\n", installed, len(catalog), baseDir)
-	if len(failures) > 0 {
+	fmt.Printf("\nInstalled %d/%d skills into %s/\n", len(installed), len(catalog), baseDir)
+	if len(failed) > 0 {
 		fmt.Println("Failed:")
-		for _, f := range failures {
+		for _, f := range failed {
 			fmt.Printf("  - %s: %v\n", f.name, f.err)
 		}
-		return fmt.Errorf("%d skill(s) failed to install", len(failures))
+		return fmt.Errorf("%d skill(s) failed to install", len(failed))
 	}
 	return nil
 }
