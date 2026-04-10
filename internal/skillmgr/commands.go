@@ -143,7 +143,8 @@ func recordInstalledSkills(configDir string, names []string) error {
 }
 
 // validateSkillAddArgs enforces that exactly one of {positional name, --all}
-// is provided. Called from skillAddCmd.Args.
+// is provided and that --level (if set) is a known value. Called from
+// skillAddCmd.Args so errors fire before any network or filesystem work.
 func validateSkillAddArgs(cmd *cobra.Command, args []string) error {
 	all, _ := cmd.Flags().GetBool("all")
 	switch {
@@ -153,6 +154,10 @@ func validateSkillAddArgs(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("skill name is required (or use --all to install the entire catalog)")
 	case !all && len(args) > 1:
 		return fmt.Errorf("skill add accepts exactly one skill name")
+	}
+	levelFlag, _ := cmd.Flags().GetString("level")
+	if levelFlag != "" && levelFlag != "project" && levelFlag != "user" {
+		return fmt.Errorf("invalid --level value %q: must be 'project' or 'user'", levelFlag)
 	}
 	return nil
 }

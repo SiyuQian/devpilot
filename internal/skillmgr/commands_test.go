@@ -394,21 +394,30 @@ func TestValidateSkillAddArgs(t *testing.T) {
 	tests := []struct {
 		name    string
 		all     bool
+		level   string
 		args    []string
 		wantErr bool
 	}{
-		{name: "single name no flag", all: false, args: []string{"pm"}, wantErr: false},
+		{name: "single name no flag", args: []string{"pm"}, wantErr: false},
 		{name: "all flag no args", all: true, args: []string{}, wantErr: false},
-		{name: "no args no flag", all: false, args: []string{}, wantErr: true},
+		{name: "no args no flag", args: []string{}, wantErr: true},
 		{name: "all flag with name", all: true, args: []string{"pm"}, wantErr: true},
-		{name: "two positional args", all: false, args: []string{"pm", "trello"}, wantErr: true},
+		{name: "two positional args", args: []string{"pm", "trello"}, wantErr: true},
+		{name: "single with --level project", level: "project", args: []string{"pm"}, wantErr: false},
+		{name: "single with --level user", level: "user", args: []string{"pm"}, wantErr: false},
+		{name: "single with invalid --level", level: "system", args: []string{"pm"}, wantErr: true},
+		{name: "all with invalid --level", all: true, level: "system", args: []string{}, wantErr: true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cmd := &cobra.Command{}
 			cmd.Flags().Bool("all", false, "")
+			cmd.Flags().String("level", "", "")
 			if tt.all {
 				_ = cmd.Flags().Set("all", "true")
+			}
+			if tt.level != "" {
+				_ = cmd.Flags().Set("level", tt.level)
 			}
 			err := validateSkillAddArgs(cmd, tt.args)
 			if tt.wantErr && err == nil {
@@ -416,6 +425,60 @@ func TestValidateSkillAddArgs(t *testing.T) {
 			}
 			if !tt.wantErr && err != nil {
 				t.Errorf("unexpected error: %v", err)
+			}
+		})
+	}
+}
+
+// TestSkillAddInvalidLevelNoNetwork ensures an invalid --level value fails at
+// Args-validation time, before any catalog or skill fetch runs.
+func TestSkillAddInvalidLevelNoNetwork(t *testing.T) {
+	stubUserConfigDir(t)
+	t.Chdir(t.TempDir())
+
+	catalogCalls := 0
+	fetchCalls := 0
+	origCat := fetchCatalogFn
+	origFetch := fetchSkillFn
+	fetchCatalogFn = func(_ context.Context, _, _, _ string) ([]CatalogEntry, error) {
+		catalogCalls++
+		return nil, nil
+	}
+	fetchSkillFn = func(_, _, _, _ string) ([]SkillFile, error) {
+		fetchCalls++
+		return nil, nil
+	}
+	t.Cleanup(func() {
+		fetchCatalogFn = origCat
+		fetchSkillFn = origFetch
+	})
+
+	cases := []struct {
+		name string
+		argv []string
+	}{
+		{"single with invalid level", []string{"pm", "--level", "system"}},
+		{"all with invalid level", []string{"--all", "--level", "system"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			catalogCalls, fetchCalls = 0, 0
+			// Reset flags to their zero values between sub-tests.
+			_ = skillAddCmd.Flags().Set("all", "false")
+			_ = skillAddCmd.Flags().Set("level", "")
+			skillAddCmd.SetArgs(tc.argv)
+			err := skillAddCmd.Execute()
+			if err == nil {
+				t.Fatal("expected error for invalid --level")
+			}
+			if !strings.Contains(err.Error(), "invalid --level") {
+				t.Errorf("error should mention invalid --level, got: %v", err)
+			}
+			if catalogCalls != 0 {
+				t.Errorf("fetchCatalogFn was called %d times, want 0", catalogCalls)
+			}
+			if fetchCalls != 0 {
+				t.Errorf("fetchSkillFn was called %d times, want 0", fetchCalls)
 			}
 		})
 	}
