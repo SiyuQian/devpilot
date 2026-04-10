@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/siyuqian/devpilot/internal/project"
+	"github.com/spf13/cobra"
 )
 
 func TestParseSkillArg(t *testing.T) {
@@ -386,6 +387,308 @@ func TestSkillListTruncateDescription(t *testing.T) {
 		if got != tt.want {
 			t.Errorf("truncateDescription(%q) = %q, want %q", tt.input, got, tt.want)
 		}
+	}
+}
+
+func TestValidateSkillAddArgs(t *testing.T) {
+	tests := []struct {
+		name    string
+		all     bool
+		level   string
+		args    []string
+		wantErr bool
+	}{
+		{name: "single name no flag", args: []string{"pm"}, wantErr: false},
+		{name: "all flag no args", all: true, args: []string{}, wantErr: false},
+		{name: "no args no flag", args: []string{}, wantErr: true},
+		{name: "all flag with name", all: true, args: []string{"pm"}, wantErr: true},
+		{name: "two positional args", args: []string{"pm", "trello"}, wantErr: true},
+		{name: "single with --level project", level: "project", args: []string{"pm"}, wantErr: false},
+		{name: "single with --level user", level: "user", args: []string{"pm"}, wantErr: false},
+		{name: "single with invalid --level", level: "system", args: []string{"pm"}, wantErr: true},
+		{name: "all with invalid --level", all: true, level: "system", args: []string{}, wantErr: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cmd := &cobra.Command{}
+			cmd.Flags().Bool("all", false, "")
+			cmd.Flags().String("level", "", "")
+			if tt.all {
+				_ = cmd.Flags().Set("all", "true")
+			}
+			if tt.level != "" {
+				_ = cmd.Flags().Set("level", tt.level)
+			}
+			err := validateSkillAddArgs(cmd, tt.args)
+			if tt.wantErr && err == nil {
+				t.Errorf("expected error, got nil")
+			}
+			if !tt.wantErr && err != nil {
+				t.Errorf("unexpected error: %v", err)
+			}
+		})
+	}
+}
+
+// TestSkillAddInvalidLevelNoNetwork ensures an invalid --level value fails at
+// Args-validation time, before any catalog or skill fetch runs.
+func TestSkillAddInvalidLevelNoNetwork(t *testing.T) {
+	stubUserConfigDir(t)
+	t.Chdir(t.TempDir())
+
+	catalogCalls := 0
+	fetchCalls := 0
+	origCat := fetchCatalogFn
+	origFetch := fetchSkillFn
+	fetchCatalogFn = func(_ context.Context, _, _, _ string) ([]CatalogEntry, error) {
+		catalogCalls++
+		return nil, nil
+	}
+	fetchSkillFn = func(_, _, _, _ string) ([]SkillFile, error) {
+		fetchCalls++
+		return nil, nil
+	}
+	t.Cleanup(func() {
+		fetchCatalogFn = origCat
+		fetchSkillFn = origFetch
+	})
+
+	cases := []struct {
+		name string
+		argv []string
+	}{
+		{"single with invalid level", []string{"pm", "--level", "system"}},
+		{"all with invalid level", []string{"--all", "--level", "system"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			catalogCalls, fetchCalls = 0, 0
+			// Reset flags to their zero values between sub-tests.
+			_ = skillAddCmd.Flags().Set("all", "false")
+			_ = skillAddCmd.Flags().Set("level", "")
+			skillAddCmd.SetArgs(tc.argv)
+			err := skillAddCmd.Execute()
+			if err == nil {
+				t.Fatal("expected error for invalid --level")
+			}
+			if !strings.Contains(err.Error(), "invalid --level") {
+				t.Errorf("error should mention invalid --level, got: %v", err)
+			}
+			if catalogCalls != 0 {
+				t.Errorf("fetchCatalogFn was called %d times, want 0", catalogCalls)
+			}
+			if fetchCalls != 0 {
+				t.Errorf("fetchSkillFn was called %d times, want 0", fetchCalls)
+			}
+		})
+	}
+}
+
+func TestResolveInstallLevel(t *testing.T) {
+	projectDir := t.TempDir()
+	userHome := t.TempDir()
+	t.Setenv("HOME", userHome)
+	expectedUser := filepath.Join(userHome, ".claude", "skills")
+	expectedProject := filepath.Join(projectDir, InstallDir)
+
+	t.Run("flag project overrides TTY prompt", func(t *testing.T) {
+		reader := bufio.NewReader(strings.NewReader("2\n")) // would select user if prompted
+		base, userLevel, err := resolveInstallLevel("project", projectDir, reader)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if base != expectedProject {
+			t.Errorf("base = %q, want %q", base, expectedProject)
+		}
+		if userLevel {
+			t.Error("userLevel = true, want false")
+		}
+	})
+
+	t.Run("flag user overrides default", func(t *testing.T) {
+		base, userLevel, err := resolveInstallLevel("user", projectDir, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if base != expectedUser {
+			t.Errorf("base = %q, want %q", base, expectedUser)
+		}
+		if !userLevel {
+			t.Error("userLevel = false, want true")
+		}
+	})
+
+	t.Run("empty flag with TTY prompts", func(t *testing.T) {
+		reader := bufio.NewReader(strings.NewReader("2\n"))
+		base, userLevel, err := resolveInstallLevel("", projectDir, reader)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !userLevel {
+			t.Error("userLevel = false, want true (from prompt)")
+		}
+		if base != expectedUser {
+			t.Errorf("base = %q, want %q", base, expectedUser)
+		}
+	})
+
+	t.Run("empty flag no TTY defaults to project", func(t *testing.T) {
+		base, userLevel, err := resolveInstallLevel("", projectDir, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if userLevel {
+			t.Error("userLevel = true, want false")
+		}
+		if base != expectedProject {
+			t.Errorf("base = %q, want %q", base, expectedProject)
+		}
+	})
+
+	t.Run("invalid flag value errors", func(t *testing.T) {
+		_, _, err := resolveInstallLevel("system", projectDir, nil)
+		if err == nil {
+			t.Error("expected error for invalid --level value")
+		}
+	})
+}
+
+// stubFetchSkillFn overrides fetchSkillFn for bulk install tests.
+// The provided map keys skill names to the files returned for that skill;
+// a skill name in failing returns an error instead.
+func stubFetchSkillFn(t *testing.T, files map[string][]SkillFile, failing map[string]error) {
+	t.Helper()
+	orig := fetchSkillFn
+	fetchSkillFn = func(_, _, name, _ string) ([]SkillFile, error) {
+		if err, ok := failing[name]; ok {
+			return nil, err
+		}
+		if f, ok := files[name]; ok {
+			return f, nil
+		}
+		return nil, fmt.Errorf("unknown skill %q", name)
+	}
+	t.Cleanup(func() { fetchSkillFn = orig })
+}
+
+// setupBulkStubs installs catalog + fetch-skill stubs in one call. Each name
+// in names becomes a catalog entry AND gets a minimal SKILL.md file unless
+// listed in failing, in which case fetching it returns the given error.
+func setupBulkStubs(t *testing.T, names []string, failing map[string]error) {
+	t.Helper()
+	catalog := make([]CatalogEntry, 0, len(names))
+	files := make(map[string][]SkillFile, len(names))
+	for _, name := range names {
+		catalog = append(catalog, CatalogEntry{Name: name})
+		files[name] = []SkillFile{{Path: "SKILL.md", Content: []byte(name)}}
+	}
+	stubCatalogFns(t, catalog, nil)
+	stubFetchSkillFn(t, files, failing)
+}
+
+func TestRunBulkInstallProjectLevel(t *testing.T) {
+	dir := t.TempDir()
+	setupBulkStubs(t, []string{"pm", "trello"}, nil)
+
+	err := runBulkInstall(dir, "project", nil)
+	if err != nil {
+		t.Fatalf("runBulkInstall: %v", err)
+	}
+
+	// Both skills should exist on disk.
+	for _, name := range []string{"pm", "trello"} {
+		p := filepath.Join(dir, InstallDir, name, "SKILL.md")
+		if _, err := os.Stat(p); err != nil {
+			t.Errorf("expected %s, got err: %v", p, err)
+		}
+	}
+
+	// Config should record both.
+	cfg, err := project.Load(dir)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if len(cfg.Skills) != 2 {
+		t.Errorf("len(Skills) = %d, want 2", len(cfg.Skills))
+	}
+}
+
+func TestRunBulkInstallPartialFailure(t *testing.T) {
+	dir := t.TempDir()
+	setupBulkStubs(t,
+		[]string{"pm", "broken", "trello"},
+		map[string]error{"broken": fmt.Errorf("404 not found")},
+	)
+
+	err := runBulkInstall(dir, "project", nil)
+	if err == nil {
+		t.Fatal("expected non-nil error on partial failure")
+	}
+	if !strings.Contains(err.Error(), "1 skill") {
+		t.Errorf("error should mention failure count, got: %v", err)
+	}
+
+	// Successful skills should still be installed and recorded.
+	cfg, err := project.Load(dir)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if len(cfg.Skills) != 2 {
+		t.Errorf("len(Skills) = %d, want 2 (pm + trello)", len(cfg.Skills))
+	}
+	if _, err := os.Stat(filepath.Join(dir, InstallDir, "broken", "SKILL.md")); err == nil {
+		t.Error("broken skill should not have been installed")
+	}
+}
+
+func TestRunBulkInstallUserLevel(t *testing.T) {
+	userCfgDir := stubUserConfigDir(t)
+	t.Setenv("HOME", userCfgDir) // so UserSkillDir returns <userCfgDir>/.claude/skills
+
+	dir := t.TempDir()
+	setupBulkStubs(t, []string{"pm"}, nil)
+
+	if err := runBulkInstall(dir, "user", nil); err != nil {
+		t.Fatalf("runBulkInstall: %v", err)
+	}
+
+	// Skill should be installed under userCfgDir/.claude/skills, NOT the project dir.
+	userSkill := filepath.Join(userCfgDir, ".claude", "skills", "pm", "SKILL.md")
+	if _, err := os.Stat(userSkill); err != nil {
+		t.Errorf("expected %s, got err: %v", userSkill, err)
+	}
+	projectSkill := filepath.Join(dir, InstallDir, "pm")
+	if _, err := os.Stat(projectSkill); err == nil {
+		t.Error("skill should not be installed at project level when --level user is set")
+	}
+
+	// Config should be written to user config dir, not project.
+	userCfg, err := project.Load(userCfgDir)
+	if err != nil {
+		t.Fatalf("Load user cfg: %v", err)
+	}
+	if len(userCfg.Skills) != 1 {
+		t.Errorf("user cfg Skills = %d, want 1", len(userCfg.Skills))
+	}
+	projCfg, err := project.Load(dir)
+	if err != nil {
+		t.Fatalf("Load project cfg: %v", err)
+	}
+	if len(projCfg.Skills) != 0 {
+		t.Errorf("project cfg should be empty, got %d skills", len(projCfg.Skills))
+	}
+}
+
+func TestRunBulkInstallCatalogFetchFails(t *testing.T) {
+	dir := t.TempDir()
+	stubCatalogFns(t, nil, fmt.Errorf("network error"))
+
+	err := runBulkInstall(dir, "project", nil)
+	if err == nil {
+		t.Fatal("expected error when catalog fetch fails")
+	}
+	if !strings.Contains(err.Error(), "catalog") {
+		t.Errorf("error should mention catalog, got: %v", err)
 	}
 }
 

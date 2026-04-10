@@ -20,6 +20,11 @@ var fetchCatalogFn = func(ctx context.Context, owner, repo, ref string) ([]Catal
 	return FetchCatalog(ctx, owner, repo, ref)
 }
 
+// Override in tests to avoid hitting GitHub.
+var fetchSkillFn = func(owner, repo, name, ref string) ([]SkillFile, error) {
+	return FetchSkill(owner, repo, name, ref)
+}
+
 // descriptionLimit is the max length for skill descriptions in list output.
 const descriptionLimit = 40
 
@@ -79,73 +84,223 @@ func promptInstallLevel(projectDir string, reader *bufio.Reader) (baseDir string
 	return projectBase, false
 }
 
+// resolveInstallLevel applies precedence: --level flag > interactive prompt
+// (if reader != nil) > project-level default.
+// levelFlag must be "", "project", or "user"; any other value is an error.
+func resolveInstallLevel(levelFlag, projectDir string, reader *bufio.Reader) (baseDir string, userLevel bool, err error) {
+	switch levelFlag {
+	case "project":
+		return filepath.Join(projectDir, InstallDir), false, nil
+	case "user":
+		userDir, derr := UserSkillDir()
+		if derr != nil {
+			return "", false, derr
+		}
+		return userDir, true, nil
+	case "":
+		base, ul := promptInstallLevel(projectDir, reader)
+		return base, ul, nil
+	default:
+		return "", false, fmt.Errorf("invalid --level value %q: must be 'project' or 'user'", levelFlag)
+	}
+}
+
+// configDirForLevel returns the directory that holds .devpilot.yaml for the
+// given install level (project dir for project, user config dir for user).
+func configDirForLevel(projectDir string, userLevel bool) (string, error) {
+	if !userLevel {
+		return projectDir, nil
+	}
+	ud, err := userConfigDirFn()
+	if err != nil {
+		return "", fmt.Errorf("resolving user config dir: %w", err)
+	}
+	return ud, nil
+}
+
+// recordInstalledSkills loads the config at configDir, upserts one entry per
+// name, and saves it back. It is a no-op when names is empty so callers can
+// pass in a list of successfully-installed skills without guarding the call.
+func recordInstalledSkills(configDir string, names []string) error {
+	if len(names) == 0 {
+		return nil
+	}
+	cfg, err := project.Load(configDir)
+	if err != nil {
+		return fmt.Errorf("loading config: %w", err)
+	}
+	for _, name := range names {
+		cfg.UpsertSkill(project.SkillEntry{
+			Name:        name,
+			Source:      DefaultSource,
+			InstalledAt: time.Now().UTC(),
+		})
+	}
+	if err := project.Save(configDir, cfg); err != nil {
+		return fmt.Errorf("saving config: %w", err)
+	}
+	return nil
+}
+
+// validateSkillAddArgs enforces that exactly one of {positional name, --all}
+// is provided and that --level (if set) is a known value. Called from
+// skillAddCmd.Args so errors fire before any network or filesystem work.
+func validateSkillAddArgs(cmd *cobra.Command, args []string) error {
+	all, _ := cmd.Flags().GetBool("all")
+	switch {
+	case all && len(args) > 0:
+		return fmt.Errorf("cannot combine --all with a skill name")
+	case !all && len(args) == 0:
+		return fmt.Errorf("skill name is required (or use --all to install the entire catalog)")
+	case !all && len(args) > 1:
+		return fmt.Errorf("skill add accepts exactly one skill name")
+	}
+	levelFlag, _ := cmd.Flags().GetString("level")
+	if levelFlag != "" && levelFlag != "project" && levelFlag != "user" {
+		return fmt.Errorf("invalid --level value %q: must be 'project' or 'user'", levelFlag)
+	}
+	return nil
+}
+
 var skillAddCmd = &cobra.Command{
-	Use:   "add <name[@ref]>",
+	Use:   "add [name[@ref]]",
 	Short: "Install a skill from the devpilot catalog",
-	Args:  cobra.ExactArgs(1),
+	Long: `Install a skill from the devpilot catalog.
+
+Use a positional argument to install a single named skill, or pass --all to
+install every skill in the catalog. Use --level to pick the install
+destination non-interactively (project or user).`,
+	Args: validateSkillAddArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		dir, err := os.Getwd()
 		if err != nil {
 			return err
 		}
 
-		name, ref, err := parseSkillArg(args[0])
-		if err != nil {
-			return err
-		}
+		all, _ := cmd.Flags().GetBool("all")
+		levelFlag, _ := cmd.Flags().GetString("level")
 
-		if ref == "" {
-			ref = defaultRef
-		}
-
-		fmt.Printf("Fetching skill %q...\n", name)
-		files, err := FetchSkill(defaultOwner, defaultRepo, name, ref)
-		if err != nil {
-			return fmt.Errorf("fetching skill: %w", err)
-		}
-		if len(files) == 0 {
-			return fmt.Errorf("skill %q not found in devpilot catalog", name)
-		}
-
-		// Prompt for install level (project vs user) when running interactively.
 		var reader *bufio.Reader
 		if term.IsTerminal(int(os.Stdin.Fd())) {
 			reader = bufio.NewReader(os.Stdin)
 		}
-		baseDir, userLevel := promptInstallLevel(dir, reader)
 
-		if err := InstallSkill(baseDir, name, files); err != nil {
-			return fmt.Errorf("installing skill: %w", err)
+		if all {
+			return runBulkInstall(dir, levelFlag, reader)
 		}
-
-		configDir := dir
-		if userLevel {
-			ud, err := userConfigDirFn()
-			if err != nil {
-				return fmt.Errorf("resolving user config dir: %w", err)
-			}
-			configDir = ud
-		}
-		cfg, err := project.Load(configDir)
-		if err != nil {
-			return fmt.Errorf("loading config: %w", err)
-		}
-		cfg.UpsertSkill(project.SkillEntry{
-			Name:        name,
-			Source:      DefaultSource,
-			InstalledAt: time.Now().UTC(),
-		})
-		if err := project.Save(configDir, cfg); err != nil {
-			return fmt.Errorf("saving config: %w", err)
-		}
-
-		displayPath := InstallDir + "/" + name + "/"
-		if userLevel {
-			displayPath = baseDir + "/" + name + "/"
-		}
-		fmt.Printf("Installed skill %q into %s\n", name, displayPath)
-		return nil
+		return runSingleInstall(dir, args[0], levelFlag, reader)
 	},
+}
+
+// runSingleInstall installs one skill (the existing default behavior).
+func runSingleInstall(dir, arg, levelFlag string, reader *bufio.Reader) error {
+	name, ref, err := parseSkillArg(arg)
+	if err != nil {
+		return err
+	}
+	if ref == "" {
+		ref = defaultRef
+	}
+
+	fmt.Printf("Fetching skill %q...\n", name)
+	files, err := fetchSkillFn(defaultOwner, defaultRepo, name, ref)
+	if err != nil {
+		return fmt.Errorf("fetching skill: %w", err)
+	}
+	if len(files) == 0 {
+		return fmt.Errorf("skill %q not found in devpilot catalog", name)
+	}
+
+	baseDir, userLevel, err := resolveInstallLevel(levelFlag, dir, reader)
+	if err != nil {
+		return err
+	}
+	if err := InstallSkill(baseDir, name, files); err != nil {
+		return fmt.Errorf("installing skill: %w", err)
+	}
+
+	configDir, err := configDirForLevel(dir, userLevel)
+	if err != nil {
+		return err
+	}
+	if err := recordInstalledSkills(configDir, []string{name}); err != nil {
+		return err
+	}
+
+	displayPath := filepath.Join(baseDir, name) + "/"
+	fmt.Printf("Installed skill %q into %s\n", name, displayPath)
+	return nil
+}
+
+// installCatalogEntry fetches and installs one catalog entry into baseDir.
+// Returns nil on success or a wrapped error describing the phase that failed.
+func installCatalogEntry(baseDir, name string) error {
+	files, err := fetchSkillFn(defaultOwner, defaultRepo, name, defaultRef)
+	if err != nil {
+		return fmt.Errorf("fetching: %w", err)
+	}
+	if len(files) == 0 {
+		return fmt.Errorf("not found in catalog")
+	}
+	if err := InstallSkill(baseDir, name, files); err != nil {
+		return fmt.Errorf("installing: %w", err)
+	}
+	return nil
+}
+
+// runBulkInstall installs every skill in the catalog at the resolved level.
+// Individual failures do not abort the batch; a summary is printed at the end
+// and a non-nil error is returned if any skill failed.
+func runBulkInstall(dir, levelFlag string, reader *bufio.Reader) error {
+	catalog, err := fetchCatalogFn(context.Background(), defaultOwner, defaultRepo, defaultRef)
+	if err != nil {
+		return fmt.Errorf("fetching skill catalog: %w", err)
+	}
+	if len(catalog) == 0 {
+		return fmt.Errorf("skill catalog is empty")
+	}
+
+	baseDir, userLevel, err := resolveInstallLevel(levelFlag, dir, reader)
+	if err != nil {
+		return err
+	}
+	configDir, err := configDirForLevel(dir, userLevel)
+	if err != nil {
+		return err
+	}
+
+	type failedSkill struct {
+		name string
+		err  error
+	}
+	var failed []failedSkill
+	var installed []string
+
+	fmt.Printf("Installing %d skills into %s/...\n", len(catalog), baseDir)
+	for _, entry := range catalog {
+		fmt.Printf("  • %s ... ", entry.Name)
+		if err := installCatalogEntry(baseDir, entry.Name); err != nil {
+			fmt.Println("FAIL")
+			failed = append(failed, failedSkill{entry.Name, err})
+			continue
+		}
+		installed = append(installed, entry.Name)
+		fmt.Println("ok")
+	}
+
+	if err := recordInstalledSkills(configDir, installed); err != nil {
+		return err
+	}
+
+	fmt.Printf("\nInstalled %d/%d skills into %s/\n", len(installed), len(catalog), baseDir)
+	if len(failed) > 0 {
+		fmt.Println("Failed:")
+		for _, f := range failed {
+			fmt.Printf("  - %s: %v\n", f.name, f.err)
+		}
+		return fmt.Errorf("%d skill(s) failed to install", len(failed))
+	}
+	return nil
 }
 
 type skillWithLevel struct {
@@ -164,6 +319,8 @@ func truncateDescription(s string) string {
 
 func init() {
 	skillListCmd.Flags().BoolP("installed", "i", false, "Show only installed skills")
+	skillAddCmd.Flags().Bool("all", false, "Install every skill in the devpilot catalog")
+	skillAddCmd.Flags().String("level", "", "Install level: 'project' or 'user' (bypasses interactive prompt)")
 }
 
 var skillListCmd = &cobra.Command{
