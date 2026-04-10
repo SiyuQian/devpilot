@@ -73,6 +73,9 @@ devpilot gmail summary --no-mark-read=false                # Explicitly mark ema
 
 devpilot skill add <name>                                  # Install a skill (prompts for project/user level)
 devpilot skill add <name>@<ref>                            # Install at specific git ref
+devpilot skill add <name> --level user                     # Install at user level non-interactively (no prompt)
+devpilot skill add --all                                   # Install every skill in the catalog
+devpilot skill add --all --level project                   # Bulk install at project level, no prompt
 devpilot skill list                                        # List available skills with install status
 devpilot skill list --installed                            # List only installed skills
 

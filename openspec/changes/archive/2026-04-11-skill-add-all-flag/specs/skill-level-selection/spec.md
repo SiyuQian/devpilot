@@ -1,8 +1,4 @@
-## Purpose
-
-Defines the interactive install level selection prompt for `devpilot skill add`, allowing users to choose between project-level and user-level skill installation.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Interactive install level selection
 When running `devpilot skill add <name>` WITHOUT the `--level` flag, the system SHALL prompt the user to select the install level before fetching the skill. The prompt SHALL display two options: project level (`.claude/skills/`) and user level (`~/.claude/skills/`). The default selection SHALL be project level. When the `--level` flag IS set, the system SHALL NOT display the prompt and SHALL use the flag value as the install destination.
@@ -20,6 +16,8 @@ When running `devpilot skill add <name>` WITHOUT the `--level` flag, the system 
 #### Scenario: Non-interactive environment without --level
 - **WHEN** `devpilot skill add pm` runs with stdin not connected to a TTY and no `--level` flag
 - **THEN** the system SHALL skip the prompt and default to project level
+
+## ADDED Requirements
 
 ### Requirement: Non-interactive level selection via --level flag
 The system SHALL accept a `--level` flag on `devpilot skill add` whose value is either `project` or `user`. When `--level` is set, the system SHALL use its value as the install destination and SHALL NOT display the interactive level prompt, regardless of whether stdin is a TTY. An invalid `--level` value SHALL cause a clear error at argument-parse time before any network or filesystem work is performed. The precedence for level resolution is: `--level` flag (if set) > interactive prompt (if stdin is a TTY) > project-level default.
