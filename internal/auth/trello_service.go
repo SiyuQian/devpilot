@@ -11,10 +11,15 @@ import (
 
 const trelloBaseURL = "https://api.trello.com"
 
+// TrelloService implements Service for Trello. Login collects an API key
+// and token from stdin, verifies them against the Trello API, and persists
+// them via the credentials store.
 type TrelloService struct {
 	baseURL string
 }
 
+// NewTrelloService returns a TrelloService configured against the public
+// Trello API.
 func NewTrelloService() *TrelloService {
 	return &TrelloService{baseURL: trelloBaseURL}
 }
