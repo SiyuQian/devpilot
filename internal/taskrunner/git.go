@@ -22,16 +22,18 @@ func (g *GitOps) run(args ...string) (string, error) {
 	cmd.Dir = g.dir
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		return "", fmt.Errorf("git %s: %s %w", strings.Join(args, " "), string(out), err)
+		return "", fmt.Errorf("git %s: %s: %w", strings.Join(args, " "), string(out), err)
 	}
 	return strings.TrimSpace(string(out)), nil
 }
 
+// CreateBranch creates or resets a branch with the given name and checks it out.
 func (g *GitOps) CreateBranch(name string) error {
 	_, err := g.run("checkout", "-B", name)
 	return err
 }
 
+// CheckoutMain checks out the main branch, falling back to master.
 func (g *GitOps) CheckoutMain() error {
 	if _, err := g.run("checkout", "main"); err != nil {
 		_, err = g.run("checkout", "master")
@@ -40,11 +42,13 @@ func (g *GitOps) CheckoutMain() error {
 	return nil
 }
 
+// Pull fast-forwards the current branch from its upstream.
 func (g *GitOps) Pull() error {
 	_, err := g.run("pull", "--ff-only")
 	return err
 }
 
+// BranchName builds a task branch name from a card ID and card name.
 func (g *GitOps) BranchName(cardID, cardName string) string {
 	slug := Slugify(cardName)
 	if len(slug) > 40 {
@@ -57,27 +61,30 @@ func (g *GitOps) BranchName(cardID, cardName string) string {
 	return fmt.Sprintf("task/%s-%s", cardID, slug)
 }
 
+// Push pushes the given branch to origin and sets upstream tracking.
 func (g *GitOps) Push(branch string) error {
 	_, err := g.run("push", "-u", "origin", branch)
 	return err
 }
 
+// CreatePR creates a GitHub pull request via the gh CLI and returns its URL.
 func (g *GitOps) CreatePR(title, body string) (string, error) {
 	cmd := exec.Command("gh", "pr", "create", "--title", title, "--body", body)
 	cmd.Dir = g.dir
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		return "", fmt.Errorf("gh pr create: %s %w", string(out), err)
+		return "", fmt.Errorf("gh pr create: %s: %w", string(out), err)
 	}
 	return strings.TrimSpace(string(out)), nil
 }
 
+// MergePR enables auto-merge (squash) on the current branch's pull request.
 func (g *GitOps) MergePR() error {
 	cmd := exec.Command("gh", "pr", "merge", "--squash", "--auto")
 	cmd.Dir = g.dir
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("gh pr merge: %s %w", string(out), err)
+		return fmt.Errorf("gh pr merge: %s: %w", string(out), err)
 	}
 	return nil
 }
