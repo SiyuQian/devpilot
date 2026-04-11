@@ -21,10 +21,12 @@ func NewReviewer(execOpts ...executor.ExecutorOption) *Reviewer {
 	return &Reviewer{opts: opts}
 }
 
+// Review runs an automated code review against the given PR URL.
 func (rv *Reviewer) Review(ctx context.Context, prURL string) (*executor.ExecuteResult, error) {
 	return review.Review(ctx, prURL, rv.opts...)
 }
 
+// Fix runs an automated fix attempt against the given PR URL.
 func (rv *Reviewer) Fix(ctx context.Context, prURL string) (*executor.ExecuteResult, error) {
 	return review.Fix(ctx, prURL, rv.opts...)
 }

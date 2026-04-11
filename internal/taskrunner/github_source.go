@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os/exec"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -23,6 +24,7 @@ func NewGitHubSource() *GitHubSource {
 	return &GitHubSource{}
 }
 
+// Init detects the current repository via the gh CLI and returns its slug.
 func (s *GitHubSource) Init() (SourceInfo, error) {
 	out, err := exec.Command("gh", "repo", "view", "--json", "nameWithOwner", "--jq", ".nameWithOwner").Output()
 	if err != nil {
@@ -45,6 +47,7 @@ type ghIssue struct {
 	CreatedAt time.Time `json:"createdAt"`
 }
 
+// FetchReady returns ready tasks by querying open devpilot-labeled issues.
 func (s *GitHubSource) FetchReady() ([]Task, error) {
 	// "sort:created-asc" asks the GitHub API to return issues oldest-first.
 	// Combined with the stable priority sort in SortByPriority, this gives a
@@ -75,7 +78,7 @@ func issuesToReadyTasks(issues []ghIssue) []Task {
 			continue
 		}
 		tasks = append(tasks, Task{
-			ID:          fmt.Sprintf("%d", issue.Number),
+			ID:          strconv.Itoa(issue.Number),
 			Name:        issue.Title,
 			Description: issue.Body,
 			URL:         issue.URL,
@@ -86,6 +89,7 @@ func issuesToReadyTasks(issues []ghIssue) []Task {
 	return tasks
 }
 
+// MarkInProgress adds the in-progress label to the given issue.
 func (s *GitHubSource) MarkInProgress(id string) error {
 	_, err := exec.Command("gh", "issue", "edit", id, "--add-label", ghLabelInProgress).Output()
 	if err != nil {
@@ -94,6 +98,7 @@ func (s *GitHubSource) MarkInProgress(id string) error {
 	return nil
 }
 
+// MarkDone closes the given issue and adds a completion comment.
 func (s *GitHubSource) MarkDone(id, comment string) error {
 	_, err := exec.Command("gh", "issue", "close", id).Output()
 	if err != nil {
@@ -102,6 +107,7 @@ func (s *GitHubSource) MarkDone(id, comment string) error {
 	return s.addComment(id, comment)
 }
 
+// MarkFailed replaces the in-progress label with failed and adds a comment.
 func (s *GitHubSource) MarkFailed(id, comment string) error {
 	_, err := exec.Command("gh", "issue", "edit", id,
 		"--remove-label", ghLabelInProgress,
