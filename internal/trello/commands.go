@@ -12,6 +12,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// RegisterCommands registers the trello subcommands on the given parent.
 func RegisterCommands(parent *cobra.Command) {
 	pushCmd.Flags().String("board", "", "Trello board name (required)")
 	pushCmd.Flags().String("list", "Ready", "Target list name")
