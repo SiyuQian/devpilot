@@ -1,3 +1,5 @@
+// Package executor runs external commands (primarily the claude CLI) with
+// optional line-by-line output streaming and stream-json event parsing.
 package executor
 
 import (
@@ -31,6 +33,8 @@ type OutputHandler func(line OutputLine)
 // ClaudeEventHandler is called for each parsed stream-json event.
 type ClaudeEventHandler func(event ClaudeEvent)
 
+// Executor runs an external command and optionally streams its output
+// through user-supplied handlers.
 type Executor struct {
 	command            string
 	args               []string
@@ -43,6 +47,8 @@ func (e *Executor) Args() []string {
 	return e.args
 }
 
+// ExecutorOption configures an Executor. Use the WithXxx functions to
+// build options and pass them to NewExecutor.
 type ExecutorOption func(*Executor)
 
 // WithCommand sets the command and arguments for the executor to run.
@@ -79,6 +85,9 @@ func NewExecutor(opts ...ExecutorOption) *Executor {
 	return e
 }
 
+// Run executes the configured command, appending prompt as a final argument
+// when the command is the claude CLI. It respects ctx for cancellation and
+// returns the captured output along with exit status.
 func (e *Executor) Run(ctx context.Context, prompt string) (*ExecuteResult, error) {
 	args := make([]string, len(e.args))
 	copy(args, e.args)
