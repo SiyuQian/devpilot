@@ -93,12 +93,12 @@ type ghLabel struct {
 
 // ghRequiredLabels are the labels DevPilot needs on a GitHub repository.
 var ghRequiredLabels = []ghLabel{
-	{"devpilot", "0075ca", "Task managed by DevPilot"},
-	{"in-progress", "e4e669", "Task is currently being executed by DevPilot"},
-	{"failed", "d93f0b", "DevPilot task execution failed"},
-	{"P0-critical", "b60205", "Highest priority — execute first"},
-	{"P1-high", "e99695", "High priority"},
-	{"P2-normal", "c5def5", "Normal priority (default)"},
+	{name: "devpilot", color: "0075ca", desc: "Task managed by DevPilot"},
+	{name: "in-progress", color: "e4e669", desc: "Task is currently being executed by DevPilot"},
+	{name: "failed", color: "d93f0b", desc: "DevPilot task execution failed"},
+	{name: "P0-critical", color: "b60205", desc: "Highest priority — execute first"},
+	{name: "P1-high", color: "e99695", desc: "High priority"},
+	{name: "P2-normal", color: "c5def5", desc: "Normal priority (default)"},
 }
 
 // ConfigureGitHubSource saves source=github to .devpilot.yaml and creates the
@@ -202,7 +202,7 @@ func InstallSkills(opts GenerateOpts, installOpts SkillInstallOpts) error {
 	fetchCatalogFn := installOpts.FetchCatalogFn
 	if fetchCatalogFn == nil {
 		fetchCatalogFn = func() ([]skillmgr.CatalogEntry, error) {
-			fmt.Printf("  Discovering available skills...\n")
+			fmt.Println("  Discovering available skills...")
 			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 			defer cancel()
 			catalog, err := skillmgr.FetchCatalog(ctx, "siyuqian", "devpilot", "main")
