@@ -1,3 +1,7 @@
+// Package auth manages authentication credentials for external services
+// used by devpilot. It provides on-disk credential storage, an OAuth 2.0
+// browser flow helper, and a pluggable Service registry for service-specific
+// login/logout commands.
 package auth
 
 import (
@@ -8,8 +12,11 @@ import (
 	"sort"
 )
 
+// ServiceCredentials is an opaque set of key/value credential fields for a
+// single service (for example "api_key" and "token" for Trello).
 type ServiceCredentials map[string]string
 
+// AllCredentials maps service names to their stored credentials.
 type AllCredentials map[string]ServiceCredentials
 
 var configDir = func() string {
@@ -55,6 +62,7 @@ func saveAll(all AllCredentials) error {
 	return os.WriteFile(credentialsPath(), data, 0600)
 }
 
+// Save persists creds for the named service, replacing any existing entry.
 func Save(service string, creds ServiceCredentials) error {
 	all, err := loadAll()
 	if err != nil {
@@ -64,6 +72,8 @@ func Save(service string, creds ServiceCredentials) error {
 	return saveAll(all)
 }
 
+// Load returns the stored credentials for the named service, or an error if
+// no credentials are saved.
 func Load(service string) (ServiceCredentials, error) {
 	all, err := loadAll()
 	if err != nil {
@@ -76,6 +86,8 @@ func Load(service string) (ServiceCredentials, error) {
 	return creds, nil
 }
 
+// Remove deletes the stored credentials for the named service. It is a
+// no-op if no credentials exist for that service.
 func Remove(service string) error {
 	all, err := loadAll()
 	if err != nil {
@@ -85,6 +97,7 @@ func Remove(service string) error {
 	return saveAll(all)
 }
 
+// ListServices returns the sorted names of services with stored credentials.
 func ListServices() []string {
 	all, err := loadAll()
 	if err != nil {

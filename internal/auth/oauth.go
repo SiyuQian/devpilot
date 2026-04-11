@@ -10,6 +10,7 @@ import (
 	"crypto/x509/pkix"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"math/big"
@@ -22,6 +23,8 @@ import (
 	"time"
 )
 
+// OAuthConfig describes the parameters needed to run an OAuth 2.0
+// authorization-code flow against a single provider.
 type OAuthConfig struct {
 	ProviderName string
 	AuthURL      string
@@ -33,6 +36,7 @@ type OAuthConfig struct {
 	UseTLS       bool // Use HTTPS for callback server (required by some providers like Slack)
 }
 
+// OAuthToken is a decoded OAuth 2.0 token set.
 type OAuthToken struct {
 	AccessToken  string
 	RefreshToken string
@@ -40,6 +44,8 @@ type OAuthToken struct {
 	TokenType    string
 }
 
+// SaveOAuthToken persists token under serviceName, preserving any
+// non-token fields already stored for that service (for example, a client_id).
 func SaveOAuthToken(serviceName string, token *OAuthToken) error {
 	// Load existing credentials to preserve non-token fields (e.g. client_id).
 	creds, _ := Load(serviceName)
@@ -55,6 +61,7 @@ func SaveOAuthToken(serviceName string, token *OAuthToken) error {
 	return Save(serviceName, creds)
 }
 
+// LoadOAuthToken reads the OAuth token previously saved for serviceName.
 func LoadOAuthToken(serviceName string) (*OAuthToken, error) {
 	creds, err := Load(serviceName)
 	if err != nil {
@@ -135,14 +142,14 @@ func startCallbackServer(state string, useTLS bool, port int) (net.Listener, *ht
 		if r.URL.Query().Get("state") != state {
 			w.Header().Set("Content-Type", "text/html")
 			http.Error(w, "Invalid state parameter", http.StatusBadRequest)
-			resultCh <- callbackResult{err: fmt.Errorf("oauth: invalid state parameter (possible CSRF)")}
+			resultCh <- callbackResult{err: errors.New("oauth: invalid state parameter (possible CSRF)")}
 			return
 		}
 
 		code := r.URL.Query().Get("code")
 		if code == "" {
 			http.Error(w, "Missing authorization code", http.StatusBadRequest)
-			resultCh <- callbackResult{err: fmt.Errorf("oauth: missing authorization code in callback")}
+			resultCh <- callbackResult{err: errors.New("oauth: missing authorization code in callback")}
 			return
 		}
 
@@ -278,6 +285,9 @@ func parseTokenResponse(body []byte) (*OAuthToken, error) {
 	return token, nil
 }
 
+// RefreshToken exchanges a refresh token for a new access token using the
+// provider described by cfg. It returns ErrReauthRequired when the provider
+// reports that the refresh token is no longer valid.
 func RefreshToken(cfg OAuthConfig, refreshToken string) (*OAuthToken, error) {
 	data := url.Values{
 		"grant_type":    {"refresh_token"},
@@ -324,6 +334,9 @@ func RefreshToken(cfg OAuthConfig, refreshToken string) (*OAuthToken, error) {
 	return token, nil
 }
 
+// StartFlow runs a complete OAuth 2.0 authorization-code flow: it opens the
+// user's browser, listens on a local callback server, exchanges the returned
+// code for a token, and returns the resulting OAuthToken.
 func StartFlow(cfg OAuthConfig) (*OAuthToken, error) {
 	state, err := generateState()
 	if err != nil {
@@ -355,6 +368,6 @@ func StartFlow(cfg OAuthConfig) (*OAuthToken, error) {
 		}
 		return exchangeCode(cfg, result.code, redirectURI)
 	case <-time.After(2 * time.Minute):
-		return nil, fmt.Errorf("oauth: authorization timed out after 2 minutes")
+		return nil, errors.New("oauth: authorization timed out after 2 minutes")
 	}
 }

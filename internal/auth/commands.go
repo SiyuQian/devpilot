@@ -7,6 +7,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// RegisterCommands registers the auth-related subcommands (login, logout,
+// status) on the given parent command.
 func RegisterCommands(parent *cobra.Command) {
 	parent.AddCommand(loginCmd)
 	parent.AddCommand(logoutCmd)
