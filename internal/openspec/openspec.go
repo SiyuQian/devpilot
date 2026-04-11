@@ -1,3 +1,5 @@
+// Package openspec integrates OpenSpec change proposals with task boards,
+// scanning openspec/changes/ and syncing proposals to Trello or GitHub Issues.
 package openspec
 
 import (

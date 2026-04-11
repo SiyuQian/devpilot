@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os/exec"
+	"strconv"
 )
 
 // GitHubTarget implements SyncTarget using the gh CLI to manage GitHub Issues.
@@ -19,6 +20,8 @@ func (g *GitHubTarget) findArgs(name string) []string {
 		"--search", name + " in:title", "--json", "number,title", "--limit", "5"}
 }
 
+// FindByName returns the number (as a string) of the open devpilot-labeled
+// issue whose title exactly matches name, or "" if none matches.
 func (g *GitHubTarget) FindByName(name string) (string, error) {
 	out, err := exec.Command("gh", g.findArgs(name)...).Output()
 	if err != nil {
@@ -33,12 +36,14 @@ func (g *GitHubTarget) FindByName(name string) (string, error) {
 	}
 	for _, issue := range issues {
 		if issue.Title == name {
-			return fmt.Sprintf("%d", issue.Number), nil
+			return strconv.Itoa(issue.Number), nil
 		}
 	}
 	return "", nil
 }
 
+// Create opens a new GitHub issue labeled "devpilot" with the given title and
+// body.
 func (g *GitHubTarget) Create(name, desc string) error {
 	_, err := exec.Command("gh", "issue", "create",
 		"--title", name, "--body", desc, "--label", "devpilot",
@@ -49,6 +54,7 @@ func (g *GitHubTarget) Create(name, desc string) error {
 	return nil
 }
 
+// Update replaces the body of the issue with the given number.
 func (g *GitHubTarget) Update(id, desc string) error {
 	_, err := exec.Command("gh", "issue", "edit", id, "--body", desc).Output()
 	if err != nil {

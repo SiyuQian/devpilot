@@ -13,13 +13,13 @@ func TestFullSyncFlow(t *testing.T) {
 	// Create two changes
 	for _, name := range []string{"add-auth", "fix-bug"} {
 		changeDir := filepath.Join(dir, "openspec", "changes", name)
-		if err := os.MkdirAll(changeDir, 0755); err != nil {
+		if err := os.MkdirAll(changeDir, 0o755); err != nil {
 			t.Fatal(err)
 		}
-		if err := os.WriteFile(filepath.Join(changeDir, "proposal.md"), []byte("# "+name+"\nDescription"), 0644); err != nil {
+		if err := os.WriteFile(filepath.Join(changeDir, "proposal.md"), []byte("# "+name+"\nDescription"), 0o644); err != nil {
 			t.Fatal(err)
 		}
-		if err := os.WriteFile(filepath.Join(changeDir, "tasks.md"), []byte("- [ ] Task 1"), 0644); err != nil {
+		if err := os.WriteFile(filepath.Join(changeDir, "tasks.md"), []byte("- [ ] Task 1"), 0o644); err != nil {
 			t.Fatal(err)
 		}
 	}
