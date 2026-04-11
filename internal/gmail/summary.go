@@ -1,6 +1,7 @@
 package gmail
 
 import (
+	"errors"
 	"fmt"
 	"os/exec"
 	"strings"
@@ -114,7 +115,8 @@ func RunClaude(prompt string) (string, error) {
 	cmd := exec.Command(claudePath, "-p", prompt)
 	output, err := cmd.Output()
 	if err != nil {
-		if exitErr, ok := err.(*exec.ExitError); ok {
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) {
 			return "", fmt.Errorf("claude -p failed: %s", string(exitErr.Stderr))
 		}
 		return "", fmt.Errorf("claude -p failed: %w", err)

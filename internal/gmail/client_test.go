@@ -234,7 +234,7 @@ func TestStripHTML(t *testing.T) {
 }
 
 func TestServiceName(t *testing.T) {
-	svc := NewGmailService()
+	svc := NewService()
 	if svc.Name() != "gmail" {
 		t.Fatalf("expected 'gmail', got '%s'", svc.Name())
 	}

@@ -1,3 +1,5 @@
+// Package gmail provides a Gmail API client, authentication service, and
+// CLI commands for listing, reading, summarizing, and marking messages.
 package gmail
 
 import (
@@ -16,20 +18,25 @@ const (
 )
 
 func init() {
-	auth.Register(NewGmailService())
+	auth.Register(NewService())
 }
 
-type GmailService struct{}
+// Service implements the auth.Service interface for Gmail OAuth.
+type Service struct{}
 
-func NewGmailService() *GmailService {
-	return &GmailService{}
+// NewService returns a new Gmail auth service.
+func NewService() *Service {
+	return &Service{}
 }
 
-func (g *GmailService) Name() string {
+// Name returns the service identifier used by the auth registry.
+func (g *Service) Name() string {
 	return "gmail"
 }
 
-func (g *GmailService) Login() error {
+// Login walks the user through the Gmail OAuth client credential prompt and
+// persists the resulting token.
+func (g *Service) Login() error {
 	fmt.Println("Gmail Login")
 	fmt.Println("===========")
 	fmt.Println()
@@ -75,7 +82,8 @@ func (g *GmailService) Login() error {
 	return nil
 }
 
-func (g *GmailService) Logout() error {
+// Logout removes the stored Gmail credentials.
+func (g *Service) Logout() error {
 	if err := auth.Remove(g.Name()); err != nil {
 		return err
 	}
@@ -83,12 +91,13 @@ func (g *GmailService) Logout() error {
 	return nil
 }
 
-func (g *GmailService) IsLoggedIn() bool {
+// IsLoggedIn reports whether Gmail credentials are currently stored.
+func (g *Service) IsLoggedIn() bool {
 	_, err := auth.Load(g.Name())
 	return err == nil
 }
 
-func (g *GmailService) oauthConfig() auth.OAuthConfig {
+func (g *Service) oauthConfig() auth.OAuthConfig {
 	creds, _ := auth.Load(g.Name())
 	return auth.OAuthConfig{
 		ProviderName: "gmail",
