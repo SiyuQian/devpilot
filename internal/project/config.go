@@ -1,3 +1,4 @@
+// Package project provides project-level configuration stored in .devpilot.yaml.
 package project
 
 import (
@@ -80,11 +81,11 @@ func Load(dir string) (*Config, error) {
 		if os.IsNotExist(err) {
 			return &Config{}, nil
 		}
-		return nil, err
+		return nil, fmt.Errorf("reading %s: %w", configFile, err)
 	}
 	var cfg Config
 	if err := yaml.Unmarshal(data, &cfg); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("parsing %s: %w", configFile, err)
 	}
 	return &cfg, nil
 }
@@ -92,11 +93,14 @@ func Load(dir string) (*Config, error) {
 // Save writes cfg to .devpilot.yaml in dir, creating intermediate directories.
 func Save(dir string, cfg *Config) error {
 	if err := os.MkdirAll(dir, 0755); err != nil {
-		return err
+		return fmt.Errorf("creating config directory: %w", err)
 	}
 	data, err := yaml.Marshal(cfg)
 	if err != nil {
-		return err
+		return fmt.Errorf("marshaling config: %w", err)
 	}
-	return os.WriteFile(filepath.Join(dir, configFile), data, 0644)
+	if err := os.WriteFile(filepath.Join(dir, configFile), data, 0644); err != nil {
+		return fmt.Errorf("writing %s: %w", configFile, err)
+	}
+	return nil
 }
