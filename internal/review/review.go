@@ -1,3 +1,5 @@
+// Package review performs AI-powered code reviews of GitHub pull requests
+// by delegating to the Claude CLI and parsing its structured output.
 package review
 
 import (
@@ -6,8 +8,8 @@ import (
 	"github.com/siyuqian/devpilot/internal/executor"
 )
 
-// DefaultReviewModel is the default Claude model used for code reviews.
-const DefaultReviewModel = "claude-opus-4-6"
+// DefaultModel is the default Claude model used for code reviews.
+const DefaultModel = "claude-opus-4-6"
 
 // Option configures a review invocation.
 type Option func(*options)
@@ -80,7 +82,7 @@ func BuildFixPrompt(prURL string) string {
 
 func resolveOptions(opts []Option) *options {
 	o := &options{
-		model:        DefaultReviewModel,
+		model:        DefaultModel,
 		postToGitHub: true,
 	}
 	for _, opt := range opts {

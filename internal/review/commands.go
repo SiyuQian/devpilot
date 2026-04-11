@@ -12,7 +12,7 @@ import (
 
 // RegisterCommands adds the review subcommand to the given parent command.
 func RegisterCommands(parent *cobra.Command) {
-	reviewCmd.Flags().String("model", "", "Override Claude model (default: "+DefaultReviewModel+")")
+	reviewCmd.Flags().String("model", "", "Override Claude model (default: "+DefaultModel+")")
 	reviewCmd.Flags().Bool("dry-run", false, "Print assembled prompt without executing Claude")
 	reviewCmd.Flags().Int("timeout", 10, "Review timeout in minutes")
 	reviewCmd.Flags().Bool("no-post", false, "Skip posting review to GitHub PR")
@@ -29,7 +29,7 @@ func resolveModel(cmd *cobra.Command) string {
 	if m := cfg.ModelFor("review"); m != "" {
 		return m
 	}
-	return DefaultReviewModel
+	return DefaultModel
 }
 
 var reviewCmd = &cobra.Command{
