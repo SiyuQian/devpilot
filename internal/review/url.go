@@ -19,7 +19,7 @@ var prURLPattern = regexp.MustCompile(`^https://github\.com/([^/]+)/([^/]+)/pull
 func ParsePRURL(url string) (*PRInfo, error) {
 	matches := prURLPattern.FindStringSubmatch(url)
 	if matches == nil {
-		return nil, fmt.Errorf("invalid GitHub PR URL: %s (expected https://github.com/{owner}/{repo}/pull/{number})", url)
+		return nil, fmt.Errorf("invalid GitHub PR URL: %q (expected https://github.com/{owner}/{repo}/pull/{number})", url)
 	}
 	return &PRInfo{
 		Owner:  matches[1],

@@ -178,7 +178,7 @@ func TestBuildPrompt_WithPostingDisabled(t *testing.T) {
 }
 
 func TestNewReviewExecutor_RestrictedTools(t *testing.T) {
-	o := &options{model: DefaultReviewModel}
+	o := &options{model: DefaultModel}
 	exec := newReviewExecutor(o)
 	args := exec.Args()
 	found := false
