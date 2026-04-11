@@ -10,6 +10,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// RegisterCommands attaches the OpenSpec subcommands (currently "sync") to
+// the given parent Cobra command.
 func RegisterCommands(parent *cobra.Command) {
 	syncCmd.Flags().String("board", "", "Trello board name (required for trello source)")
 	syncCmd.Flags().String("source", "", "Task source: trello or github (default from .devpilot.yaml)")
