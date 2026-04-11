@@ -9,8 +9,8 @@ import (
 	"strings"
 )
 
-// Generate calls `claude --print` with the given prompt and optional model.
-func Generate(ctx context.Context, prompt, model string) (string, error) {
+// run calls `claude --print` with the given prompt and optional model.
+func run(ctx context.Context, prompt, model string) (string, error) {
 	args := buildArgs(model)
 	args = append(args, prompt)
 
@@ -41,8 +41,8 @@ func buildReadmeArgs(model string) []string {
 	return args
 }
 
-// GenerateWithTools calls `claude -p` with tools enabled for autonomous exploration.
-func GenerateWithTools(ctx context.Context, prompt, model string) (string, error) {
+// runWithTools calls `claude -p` with tools enabled for autonomous exploration.
+func runWithTools(ctx context.Context, prompt, model string) (string, error) {
 	args := buildReadmeArgs(model)
 	args = append(args, prompt)
 

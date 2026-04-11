@@ -30,7 +30,7 @@ var (
 )
 
 // View renders the current state of the commit TUI.
-func (m CommitModel) View() string {
+func (m commitModel) View() string {
 	switch m.phase {
 	case phaseStagingFiles:
 		return m.viewStaging()
@@ -46,15 +46,15 @@ func (m CommitModel) View() string {
 	return ""
 }
 
-func (m CommitModel) viewStaging() string {
+func (m commitModel) viewStaging() string {
 	return m.spinner.View() + " Staging changes...\n"
 }
 
-func (m CommitModel) viewAnalyzing() string {
+func (m commitModel) viewAnalyzing() string {
 	return m.spinner.View() + " Analyzing changes...\n"
 }
 
-func (m CommitModel) viewPlan() string {
+func (m commitModel) viewPlan() string {
 	var sb strings.Builder
 	statusMap := parseNameStatus(m.nameStatus)
 
@@ -100,7 +100,7 @@ func (m CommitModel) viewPlan() string {
 	return sb.String()
 }
 
-func (m CommitModel) viewExecuting() string {
+func (m commitModel) viewExecuting() string {
 	var sb strings.Builder
 	sb.WriteString(commitTitleStyle.Render("Committing...") + "\n\n")
 
@@ -126,7 +126,7 @@ func (m CommitModel) viewExecuting() string {
 	return sb.String()
 }
 
-func (m CommitModel) viewDone() string {
+func (m commitModel) viewDone() string {
 	var sb strings.Builder
 
 	if m.err != nil {

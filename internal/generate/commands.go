@@ -10,6 +10,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// RegisterCommands attaches the `commit` and `readme` subcommands to parent.
 func RegisterCommands(parent *cobra.Command) {
 	commitCmd.Flags().StringP("message", "m", "", "Additional context for AI")
 	commitCmd.Flags().String("model", "", "Override Claude model")
@@ -44,7 +45,7 @@ var commitCmd = &cobra.Command{
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 		defer cancel()
 
-		if err := RunCommit(ctx, model, msg, dryRun); err != nil {
+		if err := runCommit(ctx, model, msg, dryRun); err != nil {
 			fmt.Fprintln(os.Stderr, "Error:", err)
 			os.Exit(1)
 		}
@@ -63,7 +64,7 @@ var readmeCmd = &cobra.Command{
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 		defer cancel()
 
-		if err := RunReadme(ctx, model, dryRun); err != nil {
+		if err := runReadme(ctx, model, dryRun); err != nil {
 			fmt.Fprintln(os.Stderr, "Error:", err)
 			os.Exit(1)
 		}
