@@ -8,30 +8,30 @@ import (
 	"strings"
 )
 
-// CommitEntry represents a single commit in the plan.
-type CommitEntry struct {
+// commitEntry represents a single commit in the plan.
+type commitEntry struct {
 	Message string   `json:"message"`
 	Files   []string `json:"files"`
 }
 
-// ExcludedFile represents a file excluded from committing.
-type ExcludedFile struct {
+// excludedFile represents a file excluded from committing.
+type excludedFile struct {
 	File   string `json:"file"`
 	Reason string `json:"reason"`
 }
 
-// CommitPlan represents the full commit plan returned by Claude.
-type CommitPlan struct {
-	Commits  []CommitEntry  `json:"commits"`
-	Excluded []ExcludedFile `json:"excluded"`
+// commitPlan represents the full commit plan returned by Claude.
+type commitPlan struct {
+	Commits  []commitEntry  `json:"commits"`
+	Excluded []excludedFile `json:"excluded"`
 }
 
-// parseCommitPlan parses JSON output from Claude into a CommitPlan.
+// parseCommitPlan parses JSON output from Claude into a commitPlan.
 // On parse failure, falls back to a single commit with all files.
-func parseCommitPlan(output string, stagedFiles []string) CommitPlan {
+func parseCommitPlan(output string, stagedFiles []string) commitPlan {
 	output = cleanOutput(output)
 
-	var plan CommitPlan
+	var plan commitPlan
 	if err := json.Unmarshal([]byte(output), &plan); err != nil {
 		return fallbackPlan(output, stagedFiles)
 	}
@@ -44,13 +44,13 @@ func parseCommitPlan(output string, stagedFiles []string) CommitPlan {
 }
 
 // fallbackPlan creates a single-commit plan using raw output as message.
-func fallbackPlan(rawMessage string, stagedFiles []string) CommitPlan {
+func fallbackPlan(rawMessage string, stagedFiles []string) commitPlan {
 	msg := strings.TrimSpace(rawMessage)
 	if msg == "" {
 		msg = "chore: update files"
 	}
-	return CommitPlan{
-		Commits: []CommitEntry{
+	return commitPlan{
+		Commits: []commitEntry{
 			{Message: msg, Files: stagedFiles},
 		},
 	}
@@ -59,7 +59,7 @@ func fallbackPlan(rawMessage string, stagedFiles []string) CommitPlan {
 // validatePlan checks that all plan files exist in staged changes and
 // all staged files appear in exactly one commit or excluded.
 // Returns warnings and a corrected plan.
-func validatePlan(plan CommitPlan, stagedFiles []string) (CommitPlan, []string) {
+func validatePlan(plan commitPlan, stagedFiles []string) (commitPlan, []string) {
 	staged := make(map[string]bool, len(stagedFiles))
 	for _, f := range stagedFiles {
 		staged[f] = true
@@ -102,7 +102,7 @@ func validatePlan(plan CommitPlan, stagedFiles []string) (CommitPlan, []string) 
 	}
 
 	// Remove empty commits
-	var nonEmpty []CommitEntry
+	var nonEmpty []commitEntry
 	for _, c := range plan.Commits {
 		if len(c.Files) > 0 {
 			nonEmpty = append(nonEmpty, c)
@@ -113,8 +113,8 @@ func validatePlan(plan CommitPlan, stagedFiles []string) (CommitPlan, []string) 
 	return plan, warnings
 }
 
-// serializePlanToMarkdown converts a CommitPlan to an editable markdown format.
-func serializePlanToMarkdown(plan CommitPlan) string {
+// serializePlanToMarkdown converts a commitPlan to an editable markdown format.
+func serializePlanToMarkdown(plan commitPlan) string {
 	var sb strings.Builder
 	for i, c := range plan.Commits {
 		fmt.Fprintf(&sb, "## Commit %d\n\n", i+1)
@@ -134,9 +134,9 @@ func serializePlanToMarkdown(plan CommitPlan) string {
 	return sb.String()
 }
 
-// parsePlanFromMarkdown parses the markdown format back into a CommitPlan.
-func parsePlanFromMarkdown(text string) (CommitPlan, error) {
-	var plan CommitPlan
+// parsePlanFromMarkdown parses the markdown format back into a commitPlan.
+func parsePlanFromMarkdown(text string) (commitPlan, error) {
+	var plan commitPlan
 	sections := strings.Split(text, "## ")
 
 	for _, section := range sections {
@@ -156,9 +156,9 @@ func parsePlanFromMarkdown(text string) (CommitPlan, error) {
 				if idx := strings.LastIndex(line, " ("); idx > 0 {
 					file := line[:idx]
 					reason := strings.TrimSuffix(line[idx+2:], ")")
-					plan.Excluded = append(plan.Excluded, ExcludedFile{File: file, Reason: reason})
+					plan.Excluded = append(plan.Excluded, excludedFile{File: file, Reason: reason})
 				} else {
-					plan.Excluded = append(plan.Excluded, ExcludedFile{File: line, Reason: "excluded by user"})
+					plan.Excluded = append(plan.Excluded, excludedFile{File: line, Reason: "excluded by user"})
 				}
 			}
 			continue
@@ -169,7 +169,7 @@ func parsePlanFromMarkdown(text string) (CommitPlan, error) {
 		}
 
 		lines := strings.Split(section, "\n")
-		var commit CommitEntry
+		var commit commitEntry
 		inFiles := false
 		for _, line := range lines[1:] {
 			line = strings.TrimSpace(line)
@@ -194,7 +194,7 @@ func parsePlanFromMarkdown(text string) (CommitPlan, error) {
 }
 
 // editPlanInTerminal opens $EDITOR with the plan in markdown format.
-func editPlanInTerminal(plan CommitPlan) (CommitPlan, error) {
+func editPlanInTerminal(plan commitPlan) (commitPlan, error) {
 	editor := os.Getenv("EDITOR")
 	if editor == "" {
 		editor = "vi"

@@ -25,8 +25,8 @@ const (
 	phaseDone         = "done"
 )
 
-// CommitModel is the Bubble Tea model for the commit workflow.
-type CommitModel struct {
+// commitModel is the Bubble Tea model for the commit workflow.
+type commitModel struct {
 	// Config
 	model   string
 	context string
@@ -35,7 +35,7 @@ type CommitModel struct {
 
 	// State
 	phase    string
-	plan     CommitPlan
+	plan     commitPlan
 	warnings []string
 	err      error
 
@@ -70,7 +70,7 @@ type stagingDoneMsg struct {
 }
 
 type analysisDoneMsg struct {
-	plan     CommitPlan
+	plan     commitPlan
 	warnings []string
 	err      error
 }
@@ -82,26 +82,26 @@ type commitExecMsg struct {
 }
 
 type editDoneMsg struct {
-	plan CommitPlan
+	plan commitPlan
 	err  error
 }
 
-func (m CommitModel) finishWithError(err error) (tea.Model, tea.Cmd) {
+func (m commitModel) finishWithError(err error) (tea.Model, tea.Cmd) {
 	m.phase = phaseDone
 	m.err = err
 	return m, tea.Quit
 }
 
-func (m CommitModel) isMultiCommit() bool {
+func (m commitModel) isMultiCommit() bool {
 	return len(m.plan.Commits) > 1 || len(m.plan.Excluded) > 0
 }
 
-// NewCommitModel creates a new CommitModel.
-func NewCommitModel(ctx context.Context, model, userContext string, dryRun bool) CommitModel {
+// newCommitModel creates a new commitModel.
+func newCommitModel(ctx context.Context, model, userContext string, dryRun bool) commitModel {
 	s := spinner.New()
 	s.Spinner = spinner.Dot
 
-	return CommitModel{
+	return commitModel{
 		model:   model,
 		context: userContext,
 		dryRun:  dryRun,
@@ -111,11 +111,11 @@ func NewCommitModel(ctx context.Context, model, userContext string, dryRun bool)
 	}
 }
 
-func (m CommitModel) Init() tea.Cmd {
+func (m commitModel) Init() tea.Cmd {
 	return tea.Batch(m.spinner.Tick, m.stageAndCollectDiff())
 }
 
-func (m CommitModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m commitModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		return m.handleKey(msg)
@@ -138,7 +138,7 @@ func (m CommitModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m CommitModel) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+func (m commitModel) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "ctrl+c":
 		return m, tea.Quit
@@ -165,7 +165,7 @@ func (m CommitModel) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m CommitModel) handleStagingDone(msg stagingDoneMsg) (tea.Model, tea.Cmd) {
+func (m commitModel) handleStagingDone(msg stagingDoneMsg) (tea.Model, tea.Cmd) {
 	if msg.err != nil {
 		return m.finishWithError(msg.err)
 	}
@@ -183,7 +183,7 @@ func (m CommitModel) handleStagingDone(msg stagingDoneMsg) (tea.Model, tea.Cmd) 
 	return m, m.analyzeChanges()
 }
 
-func (m CommitModel) handleAnalysisDone(msg analysisDoneMsg) (tea.Model, tea.Cmd) {
+func (m commitModel) handleAnalysisDone(msg analysisDoneMsg) (tea.Model, tea.Cmd) {
 	if msg.err != nil {
 		return m.finishWithError(msg.err)
 	}
@@ -200,7 +200,7 @@ func (m CommitModel) handleAnalysisDone(msg analysisDoneMsg) (tea.Model, tea.Cmd
 	return m, nil
 }
 
-func (m CommitModel) handleCommitExec(msg commitExecMsg) (tea.Model, tea.Cmd) {
+func (m commitModel) handleCommitExec(msg commitExecMsg) (tea.Model, tea.Cmd) {
 	result := commitResult{hash: msg.hash, message: m.plan.Commits[msg.index].Message}
 	if msg.err != nil {
 		result.err = msg.err
@@ -219,7 +219,7 @@ func (m CommitModel) handleCommitExec(msg commitExecMsg) (tea.Model, tea.Cmd) {
 	return m, m.executeCommit(m.currentCommit)
 }
 
-func (m CommitModel) handleEditDone(msg editDoneMsg) (tea.Model, tea.Cmd) {
+func (m commitModel) handleEditDone(msg editDoneMsg) (tea.Model, tea.Cmd) {
 	if msg.err != nil {
 		// Stay in plan phase, show error
 		m.warnings = append(m.warnings, fmt.Sprintf("edit error: %v", msg.err))
@@ -230,7 +230,7 @@ func (m CommitModel) handleEditDone(msg editDoneMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m CommitModel) startExecution() (tea.Model, tea.Cmd) {
+func (m commitModel) startExecution() (tea.Model, tea.Cmd) {
 	m.phase = phaseExecuting
 	m.currentCommit = 0
 	m.completedCommits = nil
@@ -244,7 +244,7 @@ func (m CommitModel) startExecution() (tea.Model, tea.Cmd) {
 
 // Async commands
 
-func (m CommitModel) stageAndCollectDiff() tea.Cmd {
+func (m commitModel) stageAndCollectDiff() tea.Cmd {
 	return func() tea.Msg {
 		// Stage all changes
 		if out, err := exec.Command("git", "add", ".").CombinedOutput(); err != nil {
@@ -284,14 +284,14 @@ func (m CommitModel) stageAndCollectDiff() tea.Cmd {
 	}
 }
 
-func (m CommitModel) analyzeChanges() tea.Cmd {
+func (m commitModel) analyzeChanges() tea.Cmd {
 	return func() tea.Msg {
 		prompt, err := buildCommitPrompt(m.nameStatus, m.diffStat, m.diffContent, m.context)
 		if err != nil {
 			return analysisDoneMsg{err: fmt.Errorf("build prompt: %w", err)}
 		}
 
-		output, err := Generate(m.genCtx, prompt, m.model)
+		output, err := run(m.genCtx, prompt, m.model)
 		if err != nil {
 			return analysisDoneMsg{err: err}
 		}
@@ -303,7 +303,7 @@ func (m CommitModel) analyzeChanges() tea.Cmd {
 	}
 }
 
-func (m CommitModel) executeCommit(index int) tea.Cmd {
+func (m commitModel) executeCommit(index int) tea.Cmd {
 	commit := m.plan.Commits[index]
 	return func() tea.Msg {
 		// Reset staging area
@@ -331,7 +331,7 @@ func (m CommitModel) executeCommit(index int) tea.Cmd {
 	}
 }
 
-func (m CommitModel) unstageExcluded() tea.Cmd {
+func (m commitModel) unstageExcluded() tea.Cmd {
 	excluded := m.plan.Excluded
 	return func() tea.Msg {
 		var files []string
@@ -344,7 +344,7 @@ func (m CommitModel) unstageExcluded() tea.Cmd {
 	}
 }
 
-func (m CommitModel) openEditor() tea.Cmd {
+func (m commitModel) openEditor() tea.Cmd {
 	return func() tea.Msg {
 		edited, err := editPlanInTerminal(m.plan)
 		if err != nil {
