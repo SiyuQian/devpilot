@@ -69,8 +69,8 @@ func TestParseCommitPlan_MarkdownFences(t *testing.T) {
 }
 
 func TestValidatePlan_UnknownFile(t *testing.T) {
-	plan := CommitPlan{
-		Commits: []CommitEntry{
+	plan := commitPlan{
+		Commits: []commitEntry{
 			{Message: "feat: x", Files: []string{"real.go", "ghost.go"}},
 		},
 	}
@@ -86,8 +86,8 @@ func TestValidatePlan_UnknownFile(t *testing.T) {
 }
 
 func TestValidatePlan_MissingFile(t *testing.T) {
-	plan := CommitPlan{
-		Commits: []CommitEntry{
+	plan := commitPlan{
+		Commits: []commitEntry{
 			{Message: "feat: x", Files: []string{"a.go"}},
 		},
 	}
@@ -146,12 +146,12 @@ func TestTruncateDiff_Empty(t *testing.T) {
 }
 
 func TestSerializeAndParsePlanRoundtrip(t *testing.T) {
-	plan := CommitPlan{
-		Commits: []CommitEntry{
+	plan := commitPlan{
+		Commits: []commitEntry{
 			{Message: "feat: add auth", Files: []string{"auth.go", "auth_test.go"}},
 			{Message: "fix: typo in docs", Files: []string{"README.md"}},
 		},
-		Excluded: []ExcludedFile{
+		Excluded: []excludedFile{
 			{File: ".env", Reason: "Contains secrets"},
 		},
 	}

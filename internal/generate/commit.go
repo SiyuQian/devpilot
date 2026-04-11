@@ -120,16 +120,16 @@ func gitOutput(args ...string) (string, error) {
 	return strings.TrimSpace(string(out)), nil
 }
 
-// RunCommit launches the Bubble Tea commit workflow.
-func RunCommit(ctx context.Context, model, userContext string, dryRun bool) error {
-	m := NewCommitModel(ctx, model, userContext, dryRun)
+// runCommit launches the Bubble Tea commit workflow.
+func runCommit(ctx context.Context, model, userContext string, dryRun bool) error {
+	m := newCommitModel(ctx, model, userContext, dryRun)
 	p := tea.NewProgram(m)
 	finalModel, err := p.Run()
 	if err != nil {
 		return err
 	}
 
-	fm := finalModel.(CommitModel)
+	fm := finalModel.(commitModel)
 	if fm.err != nil {
 		if errors.Is(fm.err, errAborted) || errors.Is(fm.err, errNoChanges) {
 			return nil

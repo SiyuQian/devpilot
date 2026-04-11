@@ -24,8 +24,8 @@ func buildReadmePrompt(existingReadme string) (string, error) {
 	return buf.String(), err
 }
 
-// RunReadme generates a README by letting Claude explore the project with tools.
-func RunReadme(ctx context.Context, model string, dryRun bool) error {
+// runReadme generates a README by letting Claude explore the project with tools.
+func runReadme(ctx context.Context, model string, dryRun bool) error {
 	dir, err := os.Getwd()
 	if err != nil {
 		return err
@@ -42,7 +42,7 @@ func RunReadme(ctx context.Context, model string, dryRun bool) error {
 	}
 
 	fmt.Println("Generating README (exploring project)...")
-	content, err := GenerateWithTools(ctx, prompt, model)
+	content, err := runWithTools(ctx, prompt, model)
 	if err != nil {
 		return err
 	}
@@ -62,7 +62,7 @@ func RunReadme(ctx context.Context, model string, dryRun bool) error {
 		return nil
 	}
 
-	if err := os.WriteFile(filepath.Join(dir, "README.md"), []byte(content+"\n"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "README.md"), []byte(content+"\n"), 0o644); err != nil {
 		return err
 	}
 	fmt.Println("Saved to README.md")
