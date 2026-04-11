@@ -16,6 +16,7 @@ import (
 
 const defaultBaseURL = "https://gmail.googleapis.com"
 
+// Client is a minimal Gmail REST API client with automatic OAuth token refresh.
 type Client struct {
 	accessToken  string
 	refreshToken string
@@ -24,16 +25,20 @@ type Client struct {
 	httpClient   *http.Client
 }
 
+// Option configures a Client.
 type Option func(*Client)
 
+// WithBaseURL overrides the Gmail API base URL (used in tests).
 func WithBaseURL(url string) Option {
 	return func(c *Client) { c.baseURL = url }
 }
 
+// WithHTTPClient overrides the underlying HTTP client.
 func WithHTTPClient(hc *http.Client) Option {
 	return func(c *Client) { c.httpClient = hc }
 }
 
+// NewClient returns a Client authenticated with the given access token.
 func NewClient(accessToken string, opts ...Option) *Client {
 	c := &Client{
 		accessToken: accessToken,
@@ -46,6 +51,8 @@ func NewClient(accessToken string, opts ...Option) *Client {
 	return c
 }
 
+// NewClientFromToken returns a Client seeded with an OAuth token (including
+// refresh token and expiry) so that expired access tokens can be refreshed.
 func NewClientFromToken(token *auth.OAuthToken, opts ...Option) *Client {
 	c := NewClient(token.AccessToken, opts...)
 	c.refreshToken = token.RefreshToken
@@ -53,21 +60,25 @@ func NewClientFromToken(token *auth.OAuthToken, opts ...Option) *Client {
 	return c
 }
 
+// MessageListResponse is the Gmail users.messages.list response envelope.
 type MessageListResponse struct {
 	Messages      []MessageRef `json:"messages"`
 	NextPageToken string       `json:"nextPageToken"`
 }
 
+// MessageRef is a lightweight reference to a Gmail message.
 type MessageRef struct {
 	ID       string `json:"id"`
 	ThreadID string `json:"threadId"`
 }
 
+// Message is a full Gmail message with headers and body payload.
 type Message struct {
 	ID      string  `json:"id"`
 	Payload Payload `json:"payload"`
 }
 
+// Payload is a MIME payload tree node for a Gmail message.
 type Payload struct {
 	Headers  []Header  `json:"headers"`
 	Body     Body      `json:"body"`
@@ -75,11 +86,13 @@ type Payload struct {
 	MimeType string    `json:"mimeType"`
 }
 
+// Header is a single RFC 822 message header.
 type Header struct {
 	Name  string `json:"name"`
 	Value string `json:"value"`
 }
 
+// Body holds the base64url-encoded bytes of a MIME part.
 type Body struct {
 	Data string `json:"data"`
 	Size int    `json:"size"`
@@ -92,7 +105,7 @@ func (c *Client) refreshIfNeeded() error {
 	if time.Now().Before(c.expiry.Add(-1 * time.Minute)) {
 		return nil
 	}
-	svc := NewGmailService()
+	svc := NewService()
 	cfg := svc.oauthConfig()
 	newToken, err := auth.RefreshToken(cfg, c.refreshToken)
 	if err != nil {
@@ -135,11 +148,11 @@ func (c *Client) doRequest(method, path string, params url.Values) ([]byte, erro
 	}
 
 	if resp.StatusCode == http.StatusUnauthorized && c.refreshToken != "" {
-		svc := NewGmailService()
+		svc := NewService()
 		cfg := svc.oauthConfig()
 		newToken, refreshErr := auth.RefreshToken(cfg, c.refreshToken)
 		if refreshErr != nil {
-			return nil, fmt.Errorf("not logged in to Gmail. Run: devpilot login gmail")
+			return nil, fmt.Errorf("not logged in to gmail, run: devpilot login gmail")
 		}
 		if saveErr := auth.SaveOAuthToken("gmail", newToken); saveErr != nil {
 			return nil, fmt.Errorf("failed to save refreshed token: %w", saveErr)
@@ -148,7 +161,10 @@ func (c *Client) doRequest(method, path string, params url.Values) ([]byte, erro
 		c.refreshToken = newToken.RefreshToken
 		c.expiry = newToken.Expiry
 
-		req2, _ := http.NewRequest(method, reqURL, nil)
+		req2, err := http.NewRequest(method, reqURL, nil)
+		if err != nil {
+			return nil, fmt.Errorf("create retry request failed: %w", err)
+		}
 		req2.Header.Set("Authorization", "Bearer "+c.accessToken)
 		resp2, err2 := c.httpClient.Do(req2)
 		if err2 != nil {
@@ -207,6 +223,8 @@ func (c *Client) doPost(path string, payload any) ([]byte, error) {
 	return body, nil
 }
 
+// ListMessages returns up to limit message references matching the Gmail
+// search query. An empty query matches all messages.
 func (c *Client) ListMessages(query string, limit int) ([]MessageRef, error) {
 	params := url.Values{}
 	if query != "" {
@@ -228,6 +246,8 @@ func (c *Client) ListMessages(query string, limit int) ([]MessageRef, error) {
 	return resp.Messages, nil
 }
 
+// ListAllMessageIDs returns every message ID matching the Gmail search query,
+// paginating through all result pages.
 func (c *Client) ListAllMessageIDs(query string) ([]string, error) {
 	var allIDs []string
 	pageToken := ""
@@ -261,6 +281,7 @@ func (c *Client) ListAllMessageIDs(query string) ([]string, error) {
 	return allIDs, nil
 }
 
+// GetMessage fetches the full message payload for the given message ID.
 func (c *Client) GetMessage(id string) (*Message, error) {
 	params := url.Values{"format": {"full"}}
 	data, err := c.doRequest(http.MethodGet, fmt.Sprintf("/gmail/v1/users/me/messages/%s", id), params)
@@ -275,10 +296,12 @@ func (c *Client) GetMessage(id string) (*Message, error) {
 	return &msg, nil
 }
 
-func (c *Client) BatchModify(ids []string, removeLabelIds []string) error {
+// BatchModify removes the given label IDs from each of the given message IDs.
+// Gmail supports up to 1000 message IDs per call.
+func (c *Client) BatchModify(ids []string, removeLabelIDs []string) error {
 	payload := map[string]any{
 		"ids":            ids,
-		"removeLabelIds": removeLabelIds,
+		"removeLabelIds": removeLabelIDs,
 	}
 	_, err := c.doPost("/gmail/v1/users/me/messages/batchModify", payload)
 	return err
