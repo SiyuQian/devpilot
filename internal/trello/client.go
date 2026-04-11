@@ -11,6 +11,7 @@ import (
 
 const defaultBaseURL = "https://api.trello.com"
 
+// Client is a minimal Trello REST API client.
 type Client struct {
 	apiKey  string
 	token   string
@@ -18,12 +19,16 @@ type Client struct {
 	http    *http.Client
 }
 
+// ClientOption configures a Client.
 type ClientOption func(*Client)
 
-func WithBaseURL(url string) ClientOption {
-	return func(c *Client) { c.baseURL = url }
+// WithBaseURL overrides the default Trello API base URL. It is primarily
+// intended for tests.
+func WithBaseURL(baseURL string) ClientOption {
+	return func(c *Client) { c.baseURL = baseURL }
 }
 
+// NewClient returns a Client authenticated with the given API key and token.
 func NewClient(apiKey, token string, opts ...ClientOption) *Client {
 	c := &Client{
 		apiKey:  apiKey,
@@ -114,6 +119,7 @@ func (c *Client) put(path string, params url.Values) ([]byte, error) {
 	return body, nil
 }
 
+// GetBoards returns the authenticated member's open boards.
 func (c *Client) GetBoards() ([]Board, error) {
 	params := url.Values{"filter": {"open"}}
 	data, err := c.get("/1/members/me/boards", params)
@@ -127,6 +133,7 @@ func (c *Client) GetBoards() ([]Board, error) {
 	return boards, nil
 }
 
+// GetBoardLists returns the open lists on the given board.
 func (c *Client) GetBoardLists(boardID string) ([]List, error) {
 	params := url.Values{"filter": {"open"}}
 	data, err := c.get(fmt.Sprintf("/1/boards/%s/lists", boardID), params)
@@ -140,6 +147,7 @@ func (c *Client) GetBoardLists(boardID string) ([]List, error) {
 	return lists, nil
 }
 
+// GetListCards returns the cards in the given list.
 func (c *Client) GetListCards(listID string) ([]Card, error) {
 	params := url.Values{"fields": {"name,desc,idList,shortUrl,labels"}}
 	data, err := c.get(fmt.Sprintf("/1/lists/%s/cards", listID), params)
@@ -153,18 +161,21 @@ func (c *Client) GetListCards(listID string) ([]Card, error) {
 	return cards, nil
 }
 
+// MoveCard moves a card to the given list.
 func (c *Client) MoveCard(cardID, listID string) error {
 	params := url.Values{"idList": {listID}}
 	_, err := c.put(fmt.Sprintf("/1/cards/%s", cardID), params)
 	return err
 }
 
+// AddComment posts a comment to the given card.
 func (c *Client) AddComment(cardID, text string) error {
 	params := url.Values{"text": {text}}
 	_, err := c.post(fmt.Sprintf("/1/cards/%s/actions/comments", cardID), params)
 	return err
 }
 
+// CreateCard creates a new card in the given list.
 func (c *Client) CreateCard(listID, name, desc string) (*Card, error) {
 	params := url.Values{
 		"idList": {listID},
@@ -203,6 +214,8 @@ func (c *Client) FindCardByName(listID, name string) (*Card, error) {
 	return nil, nil
 }
 
+// FindBoardByName returns the first open board whose name matches exactly.
+// It returns an error if no board is found.
 func (c *Client) FindBoardByName(name string) (*Board, error) {
 	boards, err := c.GetBoards()
 	if err != nil {
@@ -216,6 +229,8 @@ func (c *Client) FindBoardByName(name string) (*Board, error) {
 	return nil, fmt.Errorf("board not found: %s", name)
 }
 
+// FindListByName returns the first open list on the given board whose name
+// matches exactly. It returns an error if no list is found.
 func (c *Client) FindListByName(boardID, name string) (*List, error) {
 	lists, err := c.GetBoardLists(boardID)
 	if err != nil {
