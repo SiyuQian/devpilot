@@ -1,3 +1,6 @@
+// Package skillmgr manages Claude Code skills: discovering them in a remote
+// catalog, downloading their files, installing them into a project or user
+// directory, and recording installation metadata.
 package skillmgr
 
 import "context"
