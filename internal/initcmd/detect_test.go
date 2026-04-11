@@ -8,7 +8,7 @@ import (
 	"github.com/siyuqian/devpilot/internal/project"
 )
 
-func TestDetectHasBoardConfig(t *testing.T) {
+func TestDetect_HasBoardConfig(t *testing.T) {
 	dir := t.TempDir()
 
 	// Without .devpilot.yaml
@@ -36,7 +36,7 @@ func TestDetectHasBoardConfig(t *testing.T) {
 	}
 }
 
-func TestDetectHasSkills(t *testing.T) {
+func TestDetect_HasSkills(t *testing.T) {
 	dir := t.TempDir()
 
 	// Without skills dir
@@ -73,7 +73,7 @@ func TestDetectHasSkills(t *testing.T) {
 	}
 }
 
-func TestDetectIsGitRepo(t *testing.T) {
+func TestDetect_IsGitRepo(t *testing.T) {
 	dir := t.TempDir()
 
 	// Without .git
@@ -92,7 +92,7 @@ func TestDetectIsGitRepo(t *testing.T) {
 	}
 }
 
-func TestDetectWorkDir(t *testing.T) {
+func TestDetect_WorkDir(t *testing.T) {
 	dir := t.TempDir()
 	s := Detect(dir)
 	if s.WorkDir != dir {
@@ -100,7 +100,7 @@ func TestDetectWorkDir(t *testing.T) {
 	}
 }
 
-func TestDetectSource(t *testing.T) {
+func TestDetect_Source(t *testing.T) {
 	dir := t.TempDir()
 
 	// No config file: Source should be ""

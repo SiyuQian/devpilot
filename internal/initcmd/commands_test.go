@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func TestFormatStatusConfigured(t *testing.T) {
+func TestFormatStatus_Configured(t *testing.T) {
 	s := &Status{
 		HasTrelloCreds: true,
 		HasBoardConfig: true,
@@ -30,16 +30,16 @@ func TestFormatStatusConfigured(t *testing.T) {
 	}
 
 	for i, exp := range expected {
-		if !containsSubstring(lines[i], exp.prefix) {
+		if !strings.Contains(lines[i], exp.prefix) {
 			t.Errorf("line %d missing prefix %q: %s", i, exp.prefix, lines[i])
 		}
-		if !containsSubstring(lines[i], exp.label) {
+		if !strings.Contains(lines[i], exp.label) {
 			t.Errorf("line %d missing label %q: %s", i, exp.label, lines[i])
 		}
 	}
 }
 
-func TestFormatStatusGitHub(t *testing.T) {
+func TestFormatStatus_GitHub(t *testing.T) {
 	s := &Status{
 		HasSkills: true,
 		IsGitRepo: true,
@@ -50,7 +50,7 @@ func TestFormatStatusGitHub(t *testing.T) {
 
 	foundGitHub := false
 	for _, line := range lines {
-		if containsSubstring(line, "GitHub Issues") {
+		if strings.Contains(line, "GitHub Issues") {
 			foundGitHub = true
 		}
 	}
@@ -60,13 +60,13 @@ func TestFormatStatusGitHub(t *testing.T) {
 
 	// Should NOT mention Trello when source is github
 	for _, line := range lines {
-		if containsSubstring(line, "Trello") {
+		if strings.Contains(line, "Trello") {
 			t.Errorf("unexpected Trello mention in github source status: %s", line)
 		}
 	}
 }
 
-func TestFormatStatusMissing(t *testing.T) {
+func TestFormatStatus_Missing(t *testing.T) {
 	s := &Status{
 		HasTrelloCreds: false,
 		HasBoardConfig: false,
@@ -77,13 +77,13 @@ func TestFormatStatusMissing(t *testing.T) {
 	lines := formatStatus(s)
 
 	for _, line := range lines {
-		if containsSubstring(line, "✓") {
+		if strings.Contains(line, "✓") {
 			t.Errorf("expected all ✗ but got ✓ in line: %s", line)
 		}
 	}
 }
 
-func TestFormatStatusNotGitRepo(t *testing.T) {
+func TestFormatStatus_NotGitRepo(t *testing.T) {
 	s := &Status{
 		IsGitRepo: false,
 	}
@@ -92,7 +92,7 @@ func TestFormatStatusNotGitRepo(t *testing.T) {
 
 	foundGitWarning := false
 	for _, line := range lines {
-		if containsSubstring(line, "Not a git repository") {
+		if strings.Contains(line, "Not a git repository") {
 			foundGitWarning = true
 		}
 	}
@@ -145,7 +145,7 @@ func TestAllConfigured(t *testing.T) {
 	}
 }
 
-func TestShouldGenerateSkipsOnNo(t *testing.T) {
+func TestShouldGenerate_SkipsOnNo(t *testing.T) {
 	input := strings.NewReader("n\n")
 	opts := GenerateOpts{
 		Dir:         t.TempDir(),
@@ -158,7 +158,7 @@ func TestShouldGenerateSkipsOnNo(t *testing.T) {
 	}
 }
 
-func TestShouldGenerateAcceptsDefault(t *testing.T) {
+func TestShouldGenerate_AcceptsDefault(t *testing.T) {
 	input := strings.NewReader("\n")
 	opts := GenerateOpts{
 		Dir:         t.TempDir(),
@@ -171,7 +171,7 @@ func TestShouldGenerateAcceptsDefault(t *testing.T) {
 	}
 }
 
-func TestShouldGenerateNonInteractiveReturnsTrue(t *testing.T) {
+func TestShouldGenerate_NonInteractiveReturnsTrue(t *testing.T) {
 	opts := GenerateOpts{
 		Dir:         t.TempDir(),
 		Interactive: false,
@@ -180,17 +180,4 @@ func TestShouldGenerateNonInteractiveReturnsTrue(t *testing.T) {
 	if !shouldGenerate(opts, "Configure task source? [Y/n]: ") {
 		t.Error("shouldGenerate returned false in non-interactive mode, want true")
 	}
-}
-
-func containsSubstring(s, substr string) bool {
-	return len(s) >= len(substr) && findSubstring(s, substr)
-}
-
-func findSubstring(s, substr string) bool {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
-		}
-	}
-	return false
 }

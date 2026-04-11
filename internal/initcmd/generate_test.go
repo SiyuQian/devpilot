@@ -11,7 +11,7 @@ import (
 	"github.com/siyuqian/devpilot/internal/skillmgr"
 )
 
-func TestConfigureBoardNonInteractiveSkips(t *testing.T) {
+func TestConfigureBoard_NonInteractiveSkips(t *testing.T) {
 	dir := t.TempDir()
 
 	opts := GenerateOpts{Dir: dir, Interactive: false}
@@ -25,7 +25,7 @@ func TestConfigureBoardNonInteractiveSkips(t *testing.T) {
 	}
 }
 
-func TestConfigureBoardInteractiveWithListBoards(t *testing.T) {
+func TestConfigureBoard_InteractiveWithListBoards(t *testing.T) {
 	dir := t.TempDir()
 
 	input := strings.NewReader("1\n")
@@ -52,7 +52,7 @@ func TestConfigureBoardInteractiveWithListBoards(t *testing.T) {
 	}
 }
 
-func TestConfigureBoardInteractiveFreeText(t *testing.T) {
+func TestConfigureBoard_InteractiveFreeText(t *testing.T) {
 	dir := t.TempDir()
 
 	input := strings.NewReader("My Custom Board\n")
@@ -75,7 +75,7 @@ func TestConfigureBoardInteractiveFreeText(t *testing.T) {
 	}
 }
 
-func TestConfigureBoardPreservesExistingConfig(t *testing.T) {
+func TestConfigureBoard_PreservesExistingConfig(t *testing.T) {
 	dir := t.TempDir()
 
 	// Write a config with existing skills entry.
@@ -107,7 +107,7 @@ func TestConfigureBoardPreservesExistingConfig(t *testing.T) {
 	}
 }
 
-func TestInstallSkillsNonInteractiveSkips(t *testing.T) {
+func TestInstallSkills_NonInteractiveSkips(t *testing.T) {
 	dir := t.TempDir()
 	opts := GenerateOpts{Dir: dir, Interactive: false}
 
@@ -137,7 +137,7 @@ func stubCatalogFn() ([]skillmgr.CatalogEntry, error) {
 	}, nil
 }
 
-func TestInstallSkillsInteractiveInstalls(t *testing.T) {
+func TestInstallSkills_InteractiveInstalls(t *testing.T) {
 	dir := t.TempDir()
 	opts := GenerateOpts{Dir: dir, Interactive: true}
 
@@ -162,7 +162,7 @@ func TestInstallSkillsInteractiveInstalls(t *testing.T) {
 	}
 }
 
-func TestInstallSkillsNoSelection(t *testing.T) {
+func TestInstallSkills_NoSelection(t *testing.T) {
 	dir := t.TempDir()
 	opts := GenerateOpts{Dir: dir, Interactive: true}
 
