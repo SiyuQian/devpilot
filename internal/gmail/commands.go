@@ -11,6 +11,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// RegisterCommands adds the `gmail` subtree to parent.
 func RegisterCommands(parent *cobra.Command) {
 	gmailCmd := &cobra.Command{
 		Use:   "gmail",
