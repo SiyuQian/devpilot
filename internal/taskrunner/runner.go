@@ -94,6 +94,7 @@ func (r *Runner) init() error {
 	return nil
 }
 
+// Run starts the polling loop and processes ready tasks until ctx is cancelled.
 func (r *Runner) Run(ctx context.Context) error {
 	if err := r.init(); err != nil {
 		return err
