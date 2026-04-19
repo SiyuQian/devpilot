@@ -30,8 +30,29 @@ clearly-named responsibility. If you need "and" to describe what it does, split 
 **Meaningful names > comments.** A good name makes a comment unnecessary. If you need a comment to
 explain what a variable or function is, rename it.
 
-**Violating the letter of the rules is violating the spirit.** "My function is 30 lines but it's
-still readable" is a rationalization. Extract.
+**"Does it do one thing?" is the real test — not line count.** If a function cannot be further
+decomposed into named sub-functions that each carry meaning, leave it. A 35-line state machine
+that does one thing is fine; a 12-line function doing three things is not. Line-count heuristics
+(below) are tripwires, not verdicts.
+
+## Conflict Resolution
+
+This skill and a language-specific style skill may disagree. **Language idiom always wins.** If
+`devpilot-google-go-style` is loaded and conflicts with Clean Code, follow the Go skill.
+
+If **no language-specific skill is loaded** for the code you're reviewing, apply these defaults:
+
+| Topic | Go default | TypeScript default | Python default | Source of truth |
+|---|---|---|---|---|
+| Error mechanism | `(T, error)` returns | `throw` + `try/catch` | `raise` + `try/except` | language idiom, not Clean Code |
+| Accessor naming | no `Get` prefix (`User.Name()`) | `getName()` or property accessors | `name` property | language idiom |
+| Doc comments on exports | **required** (godoc) | TSDoc for public APIs only | docstrings expected | language idiom |
+| Null handling | `(T, bool)` or `(T, error)` — never zero-as-sentinel | avoid `null`; use union types | avoid returning `None` for "empty" | Clean Code (don't return null) + language form |
+| Class vs composition | structs + packages (no classes) | classes OK | classes OK | language shape |
+| Test assertion style | no assertion libs; `cmp.Diff` + `t.Errorf` | Jest `expect` | `pytest` assertions | language community norm |
+
+**Spirit of Clean Code survives the mechanism.** Whichever error mechanism you use: keep the happy
+path flat, attach context, never swallow errors, never signal absence with a zero value.
 
 ## Quick Reference — Principles by Category
 
@@ -41,35 +62,46 @@ still readable" is a rationalization. Extract.
 - Avoid **disinformation**: don't call it `accountList` if it isn't a List.
 - Make **meaningful distinctions**: `ProductData` vs `ProductInfo` is noise.
 - **Pronounceable** and **searchable** names. Single letters only for tiny scopes.
-- **Class names** are nouns (`Customer`, `Account`). **Method names** are verbs (`save`, `deletePage`).
+- **Class/type names** are nouns (`Customer`, `Account`). **Method/function names** are verbs (`save`, `deletePage`).
+- **Accessor prefix (`get*`/`set*`) is language-dependent.** TS/Java/C# accept `getName()`; **Go drops the `Get`** — `User.Name()`, not `User.GetName()`. See Conflict Resolution above.
 - **One word per concept**: don't mix `fetch`, `retrieve`, `get` for the same operation.
+- **Initialism casing (`ID`, `URL`, `HTTP`)** matters in Go — never `Id`, `Url`, `Http` on exported names.
 - Don't **encode types** in names (`strName`, `m_user`) — modern IDEs show types.
 
-See `references/naming.md`.
+**For deeper guidance and examples, open `references/naming.md`.**
 
 ### Functions (Ch. 3)
 
-- **Small. Then smaller.** Aim for <20 lines; most should be <10.
-- **Do one thing.** A function does one thing when you can't extract another meaningful function from it.
+- **Do one thing — primary test.** A function does one thing when you can't extract another meaningful
+  named function from it. *This is the rule; size is a consequence.*
+- **Size is a tripwire, not a verdict.** If a function exceeds ~20 lines, re-read it looking for a
+  hidden sub-concept. If none exists after an honest look, leave it — splitting a genuinely atomic
+  function invents noise.
 - **One level of abstraction per function.** Don't mix high-level policy with low-level details.
-- **Few arguments.** 0 > 1 > 2 > 3. Three or more is a smell — introduce an object.
+- **Few arguments.** 0 > 1 > 2 > 3. Three or more is a smell — introduce an object / options struct.
 - **No flag arguments.** `render(true)` means the function does two things. Split it.
 - **No side effects.** `checkPassword()` that also initializes a session is a lie.
 - **Command-Query Separation.** Functions either *do* something or *answer* something, never both.
-- **Prefer exceptions to error codes.** Error codes pollute callers with nested `if`s.
-- **DRY.** Duplication is the root of most evil in software.
+- **Flat happy path > nested error handling.** TS: `throw`. Go: early-return `if err != nil`. Either
+  way, don't pyramid. See Conflict Resolution for which mechanism to use.
+- **DRY.** Duplication is the root of most maintenance pain.
 
-See `references/functions.md`.
+**For deeper guidance and examples, open `references/functions.md`.**
 
 ### Comments (Ch. 4)
 
-- **Comments are a failure.** Every comment is an admission that you couldn't make the code speak.
+- **Inline/explanatory comments are a near-failure.** Every one is an admission the code couldn't
+  speak. Rename or extract first.
+- **Godoc / TSDoc / docstrings on exported APIs are REQUIRED, not a smell.** Go enforces this for
+  every exported symbol; TS/Python do it for public library surfaces. This is the opposite of
+  the "comments are failure" rule — doc comments *are* the contract.
 - **Don't comment bad code — rewrite it.**
-- **Good comments:** legal headers, explanation of intent, warnings of consequences, TODOs, public API docs.
-- **Bad comments:** redundant (`// increment i`), misleading, mandated by policy, journal entries,
-  commented-out code (delete it — version control remembers).
+- **Good inline comments:** legal headers, intent that isn't derivable from code, warnings of
+  consequences, TODOs with ticket + owner.
+- **Bad comments:** redundant (`// increment i`), misleading, mandated-by-policy noise, journal
+  entries, commented-out code (delete it — VCS remembers).
 
-See `references/comments.md`.
+**For deeper guidance and examples, open `references/comments.md`.**
 
 ### Formatting (Ch. 5)
 
@@ -79,7 +111,7 @@ See `references/comments.md`.
 - **Dependent functions should be near.** Caller above callee when possible.
 - **Team style trumps personal preference.** Pick one, enforce with formatter.
 
-See `references/formatting.md`.
+**For deeper guidance and examples, open `references/formatting.md`.**
 
 ### Objects and Data Structures (Ch. 6)
 
@@ -88,18 +120,22 @@ See `references/formatting.md`.
 - **Law of Demeter:** a method should only call methods of its class, its parameters, objects it
   creates, or its direct fields — not navigate through chains (`a.getB().getC().doStuff()`).
 
-See `references/objects-and-data.md`.
+**For deeper guidance and examples, open `references/objects-and-data.md`.**
 
 ### Error Handling (Ch. 7)
 
-- **Use exceptions, not return codes.** Error codes mix happy path with error path.
-- **Write the `try` block first** — it defines the scope of what can go wrong.
-- **Provide context with exceptions.** The message should let the caller diagnose.
-- **Don't return null. Don't pass null.** Null checks metastasize. Use Optional, empty collections,
-  or the Null Object pattern.
-- **Wrap third-party APIs** to define your own exception hierarchy.
+- **Keep happy path flat.** TS: `throw` + one `try/catch` at the boundary. Go: early-return
+  `if err != nil { return err }` guards. Python: `raise` + `try/except`. **Match language idiom; see
+  Conflict Resolution.** Never nest error checks into a pyramid.
+- **Scaffold the error boundary first** — write `try/catch` or the error-return scope before the
+  happy path.
+- **Provide context.** TS: subclass `Error` with fields. Go: `fmt.Errorf("op: %w", err)`. Never
+  `catch { /* empty */ }` or `result, _ := ...` without a comment explaining why.
+- **Don't return null / don't return zero-as-sentinel.** TS: union types or throw. Go: `(T, bool)`
+  or `(T, error)`. Python: `raise` or return empty collection — never `None` as "empty".
+- **Wrap third-party APIs** in your own error types so callers match on one thing, not five.
 
-See `references/error-handling.md`.
+**For deeper guidance and examples, open `references/error-handling.md`.**
 
 ### Boundaries (Ch. 8)
 
@@ -107,7 +143,7 @@ See `references/error-handling.md`.
 - **Learning tests:** write tests against the third-party API to pin down its behavior and catch changes on upgrade.
 - **Depend on code you control** at internal boundaries.
 
-See `references/boundaries.md`.
+**For deeper guidance and examples, open `references/boundaries.md`.**
 
 ### Unit Tests (Ch. 9)
 
@@ -118,7 +154,7 @@ See `references/boundaries.md`.
 - **Test code is first-class.** Apply the same quality bar as production code.
 - **Domain-specific testing language.** Build helpers so tests read like specifications.
 
-See `references/unit-tests.md`.
+**For deeper guidance and examples, open `references/unit-tests.md`.**
 
 ### Classes (Ch. 10)
 
@@ -129,7 +165,7 @@ See `references/unit-tests.md`.
 - **Open-Closed Principle:** open to extension (subclass, compose) but closed to modification.
 - **Dependency Inversion:** depend on abstractions, not concretions.
 
-See `references/classes.md`.
+**For deeper guidance and examples, open `references/classes.md`.**
 
 ### Systems (Ch. 11)
 
@@ -138,7 +174,7 @@ See `references/classes.md`.
 - **Cross-cutting concerns** (logging, transactions, security) via aspects or decorators, not scattered code.
 - **Grow systems incrementally.** Start with the simplest architecture; refactor as needs emerge.
 
-See `references/systems.md`.
+**For deeper guidance and examples, open `references/systems.md`.**
 
 ### Concurrency (Ch. 13)
 
@@ -148,7 +184,7 @@ See `references/systems.md`.
 - **Understand your library** — `ExecutorService`, `ConcurrentHashMap`, channels. Don't reinvent.
 - **Know the models:** Producer-Consumer, Readers-Writers, Dining Philosophers.
 
-See `references/concurrency.md`.
+**For deeper guidance and examples, open `references/concurrency.md`.**
 
 ### Code Smells and Heuristics (Ch. 17)
 
@@ -156,7 +192,7 @@ A checklist of specific anti-patterns to scan for during review: comments smells
 function smells (too many arguments, dead parameters, flag args), general smells (duplication, magic
 numbers, inconsistency, artificial coupling), and test smells (insufficient, disabled, redundant).
 
-See `references/smells-and-heuristics.md`.
+**For deeper guidance and examples, open `references/smells-and-heuristics.md`.**
 
 ## Review Checklist
 
@@ -199,6 +235,16 @@ When reviewing code, walk down this list in order:
 - **Language-specific syntax or idioms** — use the language's style skill (e.g. `devpilot-google-go-style`).
 - **Project-specific conventions** — those belong in `CLAUDE.md`.
 - **Mechanical formatting** — run the formatter; don't reason about spaces.
-- **When Clean Code conflicts with language idioms** — idioms win (e.g. Go prefers error returns over exceptions;
-  Go constructor convention is `New`, not banned by this skill even though Clean Code dislikes prefixes).
+- **When Clean Code conflicts with language idioms** — idioms win. See Conflict Resolution above for
+  the concrete table.
+
+### Languages with no dedicated style skill
+
+For Python, Rust, Java, C#, or anything else without a loaded `devpilot-*-style` skill:
+1. Apply this skill's **principles** (naming, SRP, flag args, null returns, DRY).
+2. For **mechanism** questions (error handling, accessor naming, concurrency primitives, test
+   framework), follow that language's community idiom — do NOT transplant Java/Go/TS conventions.
+3. Consult the Conflict Resolution table above for the common languages; for others, default to
+   the language's own style guide (PEP 8, Rustfmt + Clippy, etc.) over Clean Code's mechanism-level
+   advice.
 
