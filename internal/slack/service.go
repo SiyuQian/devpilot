@@ -18,20 +18,24 @@ const (
 )
 
 func init() {
-	auth.Register(NewSlackService())
+	auth.Register(NewService())
 }
 
-type SlackService struct{}
+// Service implements the auth.Service interface for Slack.
+type Service struct{}
 
-func NewSlackService() *SlackService {
-	return &SlackService{}
+// NewService returns a new Slack auth service.
+func NewService() *Service {
+	return &Service{}
 }
 
-func (s *SlackService) Name() string {
+// Name returns the service name ("slack").
+func (s *Service) Name() string {
 	return "slack"
 }
 
-func (s *SlackService) Login() error {
+// Login runs the interactive Slack OAuth flow and stores credentials.
+func (s *Service) Login() error {
 	fmt.Println("Slack Login")
 	fmt.Println("===========")
 	fmt.Println()
@@ -81,7 +85,8 @@ func (s *SlackService) Login() error {
 	return nil
 }
 
-func (s *SlackService) Logout() error {
+// Logout removes stored Slack credentials.
+func (s *Service) Logout() error {
 	if err := auth.Remove(s.Name()); err != nil {
 		return err
 	}
@@ -89,12 +94,13 @@ func (s *SlackService) Logout() error {
 	return nil
 }
 
-func (s *SlackService) IsLoggedIn() bool {
+// IsLoggedIn reports whether Slack credentials are stored locally.
+func (s *Service) IsLoggedIn() bool {
 	_, err := auth.Load(s.Name())
 	return err == nil
 }
 
-func (s *SlackService) oauthConfig() auth.OAuthConfig {
+func (s *Service) oauthConfig() auth.OAuthConfig {
 	creds, _ := auth.Load(s.Name())
 	return auth.OAuthConfig{
 		ProviderName: "slack",

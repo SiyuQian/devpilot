@@ -1,3 +1,5 @@
+// Package slack provides a minimal Slack Web API client and the
+// devpilot CLI commands that drive it.
 package slack
 
 import (
@@ -12,22 +14,27 @@ import (
 
 const defaultBaseURL = "https://slack.com/api"
 
+// Client is a minimal Slack Web API client.
 type Client struct {
 	botToken   string
 	baseURL    string
 	httpClient *http.Client
 }
 
+// Option configures a Client.
 type Option func(*Client)
 
+// WithBaseURL overrides the Slack API base URL. It is primarily used in tests.
 func WithBaseURL(u string) Option {
 	return func(c *Client) { c.baseURL = u }
 }
 
+// WithHTTPClient overrides the HTTP client used to make requests.
 func WithHTTPClient(hc *http.Client) Option {
 	return func(c *Client) { c.httpClient = hc }
 }
 
+// NewClient returns a Client that authenticates with the given Slack bot token.
 func NewClient(botToken string, opts ...Option) *Client {
 	c := &Client{
 		botToken:   botToken,
@@ -40,6 +47,7 @@ func NewClient(botToken string, opts ...Option) *Client {
 	return c
 }
 
+// Channel represents a Slack conversation (channel or DM).
 type Channel struct {
 	ID   string `json:"id"`
 	Name string `json:"name"`
@@ -67,6 +75,7 @@ type conversationsOpenResponse struct {
 	} `json:"channel"`
 }
 
+// ListConversations returns all public, non-archived channels visible to the bot.
 func (c *Client) ListConversations() ([]Channel, error) {
 	var all []Channel
 	cursor := ""
@@ -105,6 +114,8 @@ func (c *Client) ListConversations() ([]Channel, error) {
 	return all, nil
 }
 
+// ResolveChannel looks up a channel by name (with or without a leading "#")
+// and returns its Slack channel ID.
 func (c *Client) ResolveChannel(name string) (string, error) {
 	name = strings.TrimPrefix(name, "#")
 
@@ -119,9 +130,11 @@ func (c *Client) ResolveChannel(name string) (string, error) {
 		}
 	}
 
-	return "", fmt.Errorf("Channel not found: %s", name)
+	return "", fmt.Errorf("channel not found: %q", name)
 }
 
+// OpenConversation opens a direct-message channel with the given user ID and
+// returns the resulting channel ID.
 func (c *Client) OpenConversation(userID string) (string, error) {
 	params := url.Values{
 		"users": {userID},
@@ -143,6 +156,7 @@ func (c *Client) OpenConversation(userID string) (string, error) {
 	return resp.Channel.ID, nil
 }
 
+// PostMessage posts text to the given Slack channel ID.
 func (c *Client) PostMessage(channelID, text string) error {
 	params := url.Values{
 		"channel": {channelID},

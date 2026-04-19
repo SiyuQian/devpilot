@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// RegisterCommands adds the "slack" command group to the given parent command.
 func RegisterCommands(parent *cobra.Command) {
 	slackCmd := &cobra.Command{
 		Use:   "slack",

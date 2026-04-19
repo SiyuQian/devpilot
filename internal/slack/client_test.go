@@ -235,7 +235,7 @@ func TestHTTPError(t *testing.T) {
 }
 
 func TestServiceName(t *testing.T) {
-	svc := NewSlackService()
+	svc := NewService()
 	if svc.Name() != "slack" {
 		t.Fatalf("expected 'slack', got '%s'", svc.Name())
 	}
@@ -245,7 +245,7 @@ func TestServiceIsLoggedIn(t *testing.T) {
 	restore := auth.OverrideConfigDir(t.TempDir())
 	defer restore()
 
-	svc := NewSlackService()
+	svc := NewService()
 	// Without credentials saved, should return false
 	if svc.IsLoggedIn() {
 		t.Fatal("expected IsLoggedIn to return false without credentials")
