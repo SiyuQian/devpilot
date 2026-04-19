@@ -67,6 +67,24 @@ path flat, attach context, never swallow errors, never signal absence with a zer
 - **Rule of thumb:** if "not found" is a normal branch in the caller's logic → `bool`. If "not found"
   likely indicates a bug or infrastructure problem → `error`.
 
+### Python: `raise` vs return `[]` / `None` — which to use
+
+- **`raise`** when the input is malformed, invariants are violated, or the operation can't produce
+  a sensible value (e.g. `d is None` when a list was expected, parsing fails, file missing). The
+  caller shouldn't have to silently absorb these.
+- **Return `[]` / `{}` / empty iterator** when "no results" is a legitimate, non-exceptional
+  outcome of a filter or query over well-formed input. Empty is a valid value; `None` is not.
+- **Never return `None` to mean "empty"** — callers write `if result is not None and len(result)...`
+  defensively, and the distinction between "absent" and "empty" blurs.
+- **Rule of thumb:** was the *input* wrong? → `raise`. Was the *output* just empty? → `[]`.
+
+### Flag-argument smell in Python keyword-only parameters
+
+A keyword-only `bool` (`def f(*, verbose: bool = False)`) is still a flag argument and still a
+smell — the call site `f(..., verbose=True)` reads better than `f(..., True)`, but the function
+still does two things. Prefer separate functions or pass a strategy/enum. Keyword-only is a
+readability fix at the call site, not an absolution of the underlying smell.
+
 ## Quick Reference — Principles by Category
 
 ### Naming (Ch. 2)
@@ -238,11 +256,14 @@ When reviewing code, walk down this list in order:
 - You need "and" to describe what a function/class does.
 - You're adding a comment to explain a variable name.
 - You're about to copy-paste more than 3 lines.
-- A function is longer than a screen.
+- A function exceeds ~20 lines **and** you can still extract a named sub-function from it. (Pure
+  size alone isn't the flag — see Functions: *"size is a tripwire, not a verdict."*)
 - A class has methods that use disjoint sets of fields.
 - A test name starts with `test1`, `test2`, …
-- A parameter is a `boolean` flag.
-- You're returning `null` or checking `== null`.
+- A parameter is a `boolean` flag (including Python keyword-only bools).
+- You're returning `null`/`None`/zero-as-sentinel or checking `== null`.
+- **Composite smell:** a single function that violates CQS *and* has a flag arg *and* does
+  multiple things *and* returns null. Don't patch one dimension — redesign.
 
 ## When NOT to Use This Skill
 
