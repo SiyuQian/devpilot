@@ -53,11 +53,23 @@ consumer draining its own queue) is far safer than threads sharing state.
 
 ## Know Your Library
 
-Use proven primitives. Don't invent your own:
-- Thread-safe collections (`ConcurrentHashMap`, etc.)
-- `ExecutorService`, `ForkJoinPool`
-- Concurrent queues, semaphores, latches
-- Reactive streams, channels, actors
+Use proven primitives. Don't invent your own.
+
+**Go:**
+- `sync.Mutex`, `sync.RWMutex`, `sync.WaitGroup`, `sync.Once`, `sync/atomic`.
+- Channels (`chan T`) and `context.Context` for cancellation.
+- `errgroup.Group` for fan-out/fan-in with error propagation.
+- Buffered channels as bounded queues for producer/consumer.
+
+**TypeScript / Node.js:**
+- `Promise.all` / `Promise.allSettled` for concurrent awaits.
+- `AbortController` / `AbortSignal` for cancellation (the ctx equivalent).
+- `Worker` / `MessageChannel` for true parallelism.
+- `p-limit`, `p-queue` for bounded concurrency.
+
+**TS note:** Node is single-threaded by default — most "concurrency" bugs are actually
+interleaving across `await` points, not classical races. The same *care* applies: don't assume
+state is unchanged across an `await`.
 
 Understand their guarantees. A lot of "weird" concurrency bugs come from misusing these (e.g., using
 a thread-safe Map inside a non-atomic check-then-act).
@@ -87,17 +99,29 @@ method is individually thread-safe (check-then-act over two methods).
 Synchronization is expensive and error-prone. Lock only what must be locked; release as fast as
 possible.
 
-```java
-// Bad — the entire method is synchronized, blocking way more than needed
-public synchronized void process(Data data) {
-    expensiveLocalComputation(data);
-    appendToSharedList(data);
+```go
+// ❌ Lock held for the entire method — blocks other goroutines during the expensive computation
+func (p *Processor) Process(data Data) {
+    p.mu.Lock()
+    defer p.mu.Unlock()
+    expensiveLocalComputation(data)   // no shared state touched
+    p.shared = append(p.shared, data) // this is the only part that needs the lock
 }
 
-// Better
-public void process(Data data) {
-    expensiveLocalComputation(data);
-    synchronized (this) { appendToSharedList(data); }
+// ✅ Narrow the critical section
+func (p *Processor) Process(data Data) {
+    expensiveLocalComputation(data)
+    p.mu.Lock()
+    p.shared = append(p.shared, data)
+    p.mu.Unlock()
+}
+```
+
+```ts
+// TypeScript — don't hold "locks" (promise-chained mutexes) across heavy work either
+async process(data: Data) {
+  const computed = await expensiveLocalComputation(data);   // no shared state
+  await this.mutex.runExclusive(() => this.shared.push(computed)); // only append is guarded
 }
 ```
 

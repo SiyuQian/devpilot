@@ -12,26 +12,41 @@ Hiding implementation is about abstraction, not just adding getters/setters. A c
 abstract interfaces that let users manipulate the essence of the data without knowing its
 representation.
 
-```java
-// Bad — concrete, exposes Cartesian implementation
-public class Point {
-    public double x;
-    public double y;
+```ts
+// ❌ Concrete — exposes Cartesian implementation
+class Point {
+  constructor(public x: number, public y: number) {}
 }
 
-// Good — abstract, could be Cartesian or polar underneath
-public interface Point {
-    double getX();
-    double getY();
-    void setCartesian(double x, double y);
-    double getR();
-    double getTheta();
-    void setPolar(double r, double theta);
+// ✅ Abstract — could be Cartesian or polar underneath
+interface Point {
+  x(): number;
+  y(): number;
+  setCartesian(x: number, y: number): void;
+  r(): number;
+  theta(): number;
+  setPolar(r: number, theta: number): void;
 }
 ```
 
-Don't expose the data. Express it in abstract terms. Serious thought is required for the best way to
-represent the data an object contains. Mindless getters/setters are the worst option.
+```go
+// In Go you'd typically choose one shape and commit.
+// Data-structure Point — exposed fields, no methods:
+type Point struct{ X, Y float64 }
+
+// Object Point — behavior-owning, no exposed coordinates:
+type Point interface {
+    X() float64
+    Y() float64
+    SetCartesian(x, y float64)
+    R() float64
+    Theta() float64
+    SetPolar(r, theta float64)
+}
+```
+
+Don't expose the data *and* expose methods that compute on it (hybrid). Pick one role.
+Mindless getters/setters over public fields is the worst of both worlds.
 
 ## Data/Object Anti-Symmetry
 
@@ -62,39 +77,42 @@ A method `f` of a class `C` should only call methods of:
 
 ### Train Wrecks
 
-```java
-final String outputDir = ctxt.getOptions().getScratchDir().getAbsolutePath();
-```
-This is a train wreck because it looks like a sequence of coupled train cars. Split it:
-```java
-Options opts = ctxt.getOptions();
-File scratchDir = opts.getScratchDir();
-final String outputDir = scratchDir.getAbsolutePath();
+```ts
+// ❌ Chain reaches through three objects' internals
+const outputDir = ctx.getOptions().getScratchDir().getAbsolutePath();
+
+// Splitting it doesn't fix the violation, only the formatting
+const opts = ctx.getOptions();
+const scratchDir = opts.getScratchDir();
+const outputDir = scratchDir.getAbsolutePath();
 ```
 
-Both forms violate Demeter if `ctxt`, `Options`, and `ScratchDir` are **objects**. If they're **data
-structures** (simple public fields), Demeter doesn't apply — data structures expose their data by
-design.
-
-### Hybrids Violate Demeter
-
-```java
-final String outputDir = ctxt.options.scratchDir.absolutePath;
+```go
+// Same pattern in Go with methods:
+outputDir := ctx.Options().ScratchDir().AbsolutePath()
 ```
-If these are fields (data structures), fine. If they're objects with methods hidden behind getters,
-it's a wreck.
+
+If `ctx`, `Options`, and `ScratchDir` are **objects** (they own behavior), this violates Demeter.
+If they're **data structures** (plain fields), Demeter doesn't apply — data structures exist to be
+navigated. The language override at the top of this file matters: Go's struct field access like
+`ctx.options.scratchDir.absolutePath` is fine for pure data carriers.
 
 ### Hiding Structure
 
 Don't navigate the structure. Ask the object to **do** something for you.
 
-```java
-// Navigating structure (violation)
-String outFile = outputDir + "/" + className.replace('.', '/') + ".class";
-FileOutputStream fout = new FileOutputStream(outFile);
+```ts
+// ❌ Caller knows how scratch files are built
+const outFile = `${outputDir}/${className.replace(/\./g, "/")}.class`;
+const fout = fs.createWriteStream(outFile);
 
-// Telling the object what to do
-BufferedOutputStream bos = ctxt.createScratchFileStream(classFileName);
+// ✅ Tell, don't ask
+const out = ctx.createScratchFileStream(classFileName);
+```
+
+```go
+// Same in Go — move the "how" onto the owner
+out, err := ctx.CreateScratchFileStream(className)
 ```
 
 The caller doesn't need to know *how* the scratch file is created.

@@ -9,15 +9,33 @@ Construction is a very different process from use. **Main()** (or a factory / mo
 should be the only code that knows how objects are constructed; the rest of the system should assume
 objects are already connected and ready.
 
-```java
-// Bad — lazy init pollutes business logic
-public Service getService() {
-    if (service == null) service = new MyServiceImpl(new DbConnection(url));
-    return service;
+```ts
+// ❌ Lazy init pollutes business logic with construction decisions
+class OrderService {
+  private service?: Service;
+  getService(): Service {
+    if (!this.service) this.service = new MyServiceImpl(new DbConnection(url));
+    return this.service;
+  }
 }
 
-// Good — construction happens once, at startup, in Main/factory
-public Service getService() { return service; }
+// ✅ Construction happens once at startup; runtime code just uses it
+class OrderService {
+  constructor(private readonly service: Service) {}
+}
+```
+
+```go
+// ❌ Go equivalent of the smell — package-level lazy singleton with hard deps
+var svc *MyServiceImpl
+func GetService() *MyServiceImpl {
+    if svc == nil { svc = NewMyServiceImpl(NewDB(url)) }
+    return svc
+}
+
+// ✅ Assemble in main; consumers take the dependency they need
+type OrderService struct{ svc Service }
+func NewOrderService(s Service) *OrderService { return &OrderService{svc: s} }
 ```
 
 ### Lazy Initialization Is a Smell at the Business Layer
@@ -32,19 +50,36 @@ public Service getService() { return service; }
 ## Dependency Injection
 
 Inversion of Control applied to dependencies. Objects don't create their collaborators — they
-receive them. A DI container (Spring, Guice, or just hand-wired main()) assembles the graph.
+receive them. A DI container (Inversify, NestJS, or just hand-wired `main()`/root wiring) assembles
+the graph.
 
-```java
-// Concrete dependency - hard to test, hard to change
-public class EmailSender {
-    private SmtpClient client = new SmtpClient("localhost", 25);
+```ts
+// ❌ Concrete dependency baked in — hard to test, hard to swap
+class EmailSender {
+  private client = new SmtpClient("localhost", 25);
 }
 
-// Injected - test with stub, swap in main()
-public class EmailSender {
-    private final MailClient client;
-    public EmailSender(MailClient client) { this.client = client; }
+// ✅ Inject — stub in tests, configure in main
+class EmailSender {
+  constructor(private readonly client: MailClient) {}
 }
+```
+
+```go
+// ❌ Same smell in Go
+type EmailSender struct { client *smtp.Client }
+func NewEmailSender() *EmailSender {
+    return &EmailSender{client: smtp.Dial("localhost:25")}
+}
+
+// ✅ Accept the collaborator; wire it in main
+type MailClient interface {
+    Send(ctx context.Context, msg Mail) error
+}
+type EmailSender struct { client MailClient }
+func NewEmailSender(c MailClient) *EmailSender { return &EmailSender{client: c} }
+// Note: per devpilot-google-go-style, MailClient is defined in the CONSUMER package (where
+// EmailSender lives), not next to the concrete smtp.Client implementation.
 ```
 
 ## Scaling Up
@@ -65,23 +100,44 @@ these concerns across business logic is brittle and obscures intent.
 **AOP**, **Proxies**, and **Decorators** let you apply these concerns uniformly without modifying
 each business class:
 
-```java
-// Without aspects - every service method begins and ends with tx boilerplate
-public void transfer() {
-    tx.begin();
-    try { ... tx.commit(); }
-    catch (Exception e) { tx.rollback(); throw e; }
+```ts
+// ❌ Every service method repeats transaction boilerplate
+async transfer() {
+  await tx.begin();
+  try { /* ... */ await tx.commit(); }
+  catch (err) { await tx.rollback(); throw err; }
 }
 
-// With aspects / decorators - the service method is just business
-@Transactional
-public void transfer() { ... }
+// ✅ TypeScript decorator (or NestJS interceptor) keeps the method pure business
+@Transactional()
+async transfer() { /* ... */ }
+```
+
+```go
+// Go has no decorators. Use higher-order functions / middleware instead.
+func Transactional(db *sql.DB, fn func(ctx context.Context, tx *sql.Tx) error) func(context.Context) error {
+    return func(ctx context.Context) error {
+        tx, err := db.BeginTx(ctx, nil)
+        if err != nil { return err }
+        if err := fn(ctx, tx); err != nil {
+            _ = tx.Rollback()
+            return err
+        }
+        return tx.Commit()
+    }
+}
+
+// Business method stays focused
+transfer := Transactional(db, func(ctx context.Context, tx *sql.Tx) error {
+    // just business
+    return nil
+})
 ```
 
 Common mechanisms:
-- Java Proxies / Dynamic Proxies.
-- AOP frameworks (Spring AOP, AspectJ).
-- Functional composition (middleware chains).
+- TypeScript decorators + reflection (NestJS, TypeORM).
+- Functional composition / middleware chains (Express, Fastify, Go's `http.Handler` middleware).
+- Proxies / wrappers around the concrete implementation.
 
 ## Test Drive the System Architecture
 

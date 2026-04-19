@@ -16,14 +16,20 @@ highest-leverage thing you can do for readability.
 
 The name should answer: *why* does it exist, *what* does it do, *how* is it used?
 
-```java
-// Bad
-int d; // elapsed time in days
+```ts
+// ❌ Bad
+const d: number = ...; // elapsed time in days
 
-// Good
-int elapsedTimeInDays;
-int daysSinceCreation;
-int fileAgeInDays;
+// ✅ Good
+const elapsedTimeInDays = ...;
+const daysSinceCreation = ...;
+const fileAgeInDays = ...;
+```
+
+```go
+// Same in Go
+var elapsedTimeInDays int
+var daysSinceCreation int
 ```
 
 If you need a comment to explain the name, the name is wrong.
@@ -42,7 +48,7 @@ If you need a comment to explain the name, the name is wrong.
 - Don't number-series names: `a1`, `a2`, `a3`.
 - If two things are genuinely different, the names should reflect *how* they differ.
 
-```java
+```ts
 // Noise — what's the difference?
 getActiveAccount();
 getActiveAccounts();
@@ -75,11 +81,18 @@ Verbs or verb phrases: `postPayment`, `deletePage`, `save`.
 Accessors, mutators, predicates: `getName`, `setName`, `isPosted` (Java/TypeScript).
 **In Go:** drop the `Get` prefix — `Name()`, `SetName(...)`, `Posted()` / `IsPosted()`.
 
-Overloaded constructors → use static factory methods with descriptive names:
-```java
-Complex fulcrum = Complex.FromRealNumber(23.0);
-// beats
-Complex fulcrum = new Complex(23.0);
+Multiple ways to construct → use named factory functions:
+
+```ts
+// TypeScript — static factory methods
+const fulcrum = Complex.fromRealNumber(23.0);
+// beats an overloaded constructor where the call site doesn't hint at which variant
+```
+
+```go
+// Go — constructor functions named for the input they accept
+fulcrum := complex.FromReal(23.0)
+// beats a single complex.New(x, y float64) where callers forget which is real/imaginary
 ```
 
 ## Pick One Word per Concept

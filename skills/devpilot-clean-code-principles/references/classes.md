@@ -34,11 +34,17 @@ First rule: small. Second rule: **smaller than that**.
 
 Measured not in lines but in **responsibilities**.
 
-```java
-// Too many responsibilities
-public class SuperDashboard extends JFrame implements MetaDataUser {
-    // 70 public methods, does everything
+```ts
+// ❌ Too many responsibilities — name is already a warning
+class SuperDashboard extends BaseView implements MetaDataUser {
+  // 70 public methods; does everything from layout to persistence
 }
+```
+
+```go
+// Go smell: one package that tries to be everything
+package superdashboard  // does layout, persistence, metadata, rendering, …
+// Split by responsibility; the name `super*` is itself a code smell.
 ```
 
 **The name is your first clue.** If you can't name a class in 25 words without "if", "and", "or",
@@ -87,22 +93,44 @@ minimized**.
 Classes should be **open to extension but closed to modification**. Achieve this by extending
 (subclass, compose, plug in) rather than modifying existing code.
 
-```java
-// Bad — adding a new report type means editing this class
-public class Reporter {
-    public String report(ReportType type) {
-        switch (type) {
-            case PDF: return renderPdf();
-            case HTML: return renderHtml();
-            // add another case every time
-        }
+```ts
+// ❌ Adding a new report type means editing this class every time
+class Reporter {
+  report(type: ReportType): string {
+    switch (type) {
+      case ReportType.Pdf:  return this.renderPdf();
+      case ReportType.Html: return this.renderHtml();
+      // add another case here every time
     }
+  }
 }
 
-// Good — new report type = new class, no changes to existing code
-public interface Report { String render(); }
-public class PdfReport implements Report { ... }
-public class HtmlReport implements Report { ... }
+// ✅ New report type = new class, existing code untouched
+interface Report { render(): string; }
+class PdfReport  implements Report { render() { ... } }
+class HtmlReport implements Report { render() { ... } }
+```
+
+```go
+// Go equivalent — same pattern, consumer-defined interface
+type Report interface {
+    Render() string
+}
+
+type PDFReport  struct{ /* ... */ }
+func (r PDFReport) Render() string  { /* ... */ }
+
+type HTMLReport struct{ /* ... */ }
+func (r HTMLReport) Render() string { /* ... */ }
+
+// Factory — a single switch is fine at the construction boundary.
+func NewReport(kind string) (Report, error) {
+    switch kind {
+    case "pdf":  return PDFReport{}, nil
+    case "html": return HTMLReport{}, nil
+    default:     return nil, fmt.Errorf("unknown report kind %q", kind)
+    }
+}
 ```
 
 ### Isolating from Change

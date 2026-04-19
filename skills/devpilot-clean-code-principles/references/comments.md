@@ -15,12 +15,19 @@ the reader.
 
 ## Let the Code Speak
 
-```java
-// Check to see if the employee is eligible for full benefits
-if ((employee.flags & HOURLY_FLAG) && (employee.age > 65)) ...
+```ts
+// ❌ Comment compensates for unclear predicate
+if ((employee.flags & HOURLY_FLAG) !== 0 && employee.age > 65) ...
 
-// Better
+// ✅ Extract a named method; no comment needed
 if (employee.isEligibleForFullBenefits()) ...
+```
+
+```go
+// Same in Go — extract a method that names the intent
+if employee.IsEligibleForFullBenefits() {
+    ...
+}
 ```
 
 ## Good Comments
@@ -30,47 +37,65 @@ Copyright headers required by policy or license.
 
 ### Informative Comments
 When the information can't live in the code itself:
-```java
+```ts
 // format matched kk:mm:ss EEE, MMM dd, yyyy
-Pattern p = Pattern.compile("\\d*:\\d*:\\d* \\w*, \\w* \\d*, \\d*");
+const timestampPattern = /\d*:\d*:\d* \w*, \w* \d*, \d*/;
 ```
-(Even better: extract to a well-named constant.)
+
+```go
+// format matched kk:mm:ss EEE, MMM dd, yyyy
+var timestampPattern = regexp.MustCompile(`\d*:\d*:\d* \w*, \w* \d*, \d*`)
+```
+(Even better: extract to a well-named constant instead of a regex literal.)
 
 ### Explanation of Intent
 When the *why* isn't obvious:
-```java
-// We're running many threads on purpose to make sure the queue handles contention.
-for (int i = 0; i < 2500; i++) new Thread(...).start();
+```go
+// We run many goroutines on purpose to make sure the queue handles contention.
+for i := 0; i < 2500; i++ {
+    go producer.send(ctx, payload)
+}
 ```
 
 ### Clarification
 Translating obscure return values or parameters you can't rename (e.g. library code):
-```java
-assertTrue(a.compareTo(a) == 0); // a == a
+```go
+if got := a.CompareTo(a); got != 0 { // a == a
+    t.Errorf("self-compare = %d, want 0", got)
+}
 ```
 Risk: the comment might be wrong. Prefer making the code clear.
 
 ### Warning of Consequences
-```java
-// Don't run unless you have some time to kill.
-public void _testWithReallyBigFile() { ... }
+```go
+// Don't run unless you have time to kill.
+func TestWithReallyBigFile(t *testing.T) {
+    if testing.Short() { t.Skip("skipping large-file test in -short mode") }
+    ...
+}
 ```
 
 ### TODO Comments
 Acceptable if they have a ticket reference or owner. Review them periodically.
-```java
+```ts
+// TODO(#1234): replace with new API after v2 rollout
+```
+
+```go
 // TODO(#1234): replace with new API after v2 rollout
 ```
 
 ### Amplification
 Amplify the importance of something that might seem inconsequential:
-```java
-// The trim is real important. It removes the starting spaces
-// that could cause the item to be recognized as another list.
+```ts
+// The trim is important — it strips leading spaces that would otherwise
+// cause this item to be parsed as a nested list.
+const item = listItem.trimStart();
 ```
 
-### Public API Javadoc / Godoc / Docstrings
-Required for documented public APIs. Write carefully; they're the contract.
+### Public API Doc Comments (Godoc / TSDoc)
+**Go:** every exported identifier gets a doc comment starting with the name. Non-negotiable.
+**TypeScript:** TSDoc on public library APIs; internal exported symbols in a private module don't need them if names are clear. Write carefully — they're the contract.
 
 ## Bad Comments
 
@@ -78,10 +103,10 @@ Required for documented public APIs. Write carefully; they're the contract.
 A comment that you wrote just because you felt you should. If it's unclear to the reader, it's noise.
 
 ### Redundant Comments
-```java
-// Utility method that returns when this.closed is true. Throws an exception otherwise.
-public synchronized void waitForClose(final long timeoutMillis) throws Exception {
-    if (!closed) { ... }
+```ts
+// Utility method that returns when this.closed is true. Throws otherwise.
+async waitForClose(timeoutMillis: number): Promise<void> {
+  if (!this.closed) { ... }
 }
 ```
 The code already says this. The comment takes longer to read than the method.
@@ -98,34 +123,36 @@ clear code instead.
 `// 2008-03-14: Fixed bug in...`. Version control is the journal. Delete.
 
 ### Noise Comments
-```java
-/** Default constructor. */
-protected AnnualDateRule() { }
-
+```ts
 /** The day of the month. */
-private int dayOfMonth;
+private dayOfMonth: number;
+
+/** Default constructor. */
+constructor() {}
 ```
+Both say nothing the code doesn't already say. Delete.
 
 ### Don't Use a Comment When You Can Use a Function or Variable
 
-```java
+```ts
+// ❌ Comment explaining a dense expression
 // does the module from the global list <mod> depend on the subsystem we are part of?
-if (smodule.getDependSubsystems().contains(subSysMod.getSubSystem())) ...
+if (smodule.dependSubsystems().includes(subSysMod.subsystem())) ...
 
-// Better
-ArrayList moduleDependees = smodule.getDependSubsystems();
-String ourSubSystem = subSysMod.getSubSystem();
-if (moduleDependees.contains(ourSubSystem)) ...
+// ✅ Explanatory variables — no comment needed
+const moduleDependees = smodule.dependSubsystems();
+const ourSubsystem = subSysMod.subsystem();
+if (moduleDependees.includes(ourSubsystem)) ...
 ```
 
 ### Position Markers
-```java
+```ts
 // Actions //////////////////////////////////
 ```
 Tolerable very occasionally. Usually, noise.
 
 ### Closing Brace Comments
-```java
+```ts
 } // end for
 } // end while
 } // end main
@@ -133,7 +160,7 @@ Tolerable very occasionally. Usually, noise.
 If your function is so long you need these, shorten the function.
 
 ### Attributions and Bylines
-```java
+```ts
 /* Added by Rick */
 ```
 VCS knows. Delete.

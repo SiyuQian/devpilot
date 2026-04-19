@@ -22,23 +22,30 @@ are a smell.
 ### Vertical Openness Between Concepts
 
 Blank lines between groups of related lines signal transitions of thought:
-```java
-package fitnesse.wikitext.widgets;
 
-import java.util.regex.*;
+```go
+package widgets
 
-public class BoldWidget extends ParentWidget {
-    public static final String REGEXP = "'''.+?'''";
-    private static final Pattern pattern = Pattern.compile("'''(.+?)'''", ...);
+import "regexp"
 
-    public BoldWidget(ParentWidget parent, String text) {
-        super(parent);
-        Matcher match = pattern.matcher(text);
-        match.find();
-        addChildWidgets(match.group(1));
+const boldRegexp = `'''.+?'''`
+
+var boldPattern = regexp.MustCompile(`'''(.+?)'''`)
+
+type BoldWidget struct{ parent *ParentWidget }
+
+func NewBoldWidget(parent *ParentWidget, text string) *BoldWidget {
+    w := &BoldWidget{parent: parent}
+    if m := boldPattern.FindStringSubmatch(text); m != nil {
+        w.addChildWidgets(m[1])
     }
+    return w
 }
 ```
+
+Notice the blank lines between `package`/`import`/const/var/type/func — each section is its own
+thought. TypeScript follows the same convention with blank lines between imports, top-level
+constants, and class/function declarations.
 
 ### Vertical Density
 
@@ -71,21 +78,24 @@ General → specific. Top → bottom. The reader shouldn't need to jump around.
 ### Horizontal Openness and Density
 
 Space around operators for separation:
-```java
-int lineSize = line.length();
+```ts
+const lineSize = line.length;
 totalChars += lineSize;
 lineWidthHistogram.addLine(lineSize, lineCount);
 ```
 
 No space between function name and its open parenthesis:
-```java
+```ts
 measureLine(line);  // function is a unit with its args
 ```
 
 Tighter binding for higher-precedence operators:
-```java
+```ts
 b*b - 4*a*c
 ```
+
+**In Go, `gofmt` decides horizontal formatting for you — trust it.** In TypeScript, Prettier /
+ESLint plays the same role.
 
 ### Horizontal Alignment
 
@@ -95,20 +105,27 @@ becomes a maintenance burden. Just use single spaces.
 ### Indentation
 
 Make the hierarchy visible. Never collapse scopes onto one line:
-```java
-// Bad
-public class CommentWidget extends TextWidget { public static final String REGEXP = "..."; public CommentWidget(...) { super(...); } }
+```ts
+// ❌ Bad
+class CommentWidget extends TextWidget { static REGEXP = "..."; constructor() { super(); } }
 
-// Good: actually indent.
+// ✅ Actually indent.
 ```
 
-### Dummy Scopes
+### Empty Loops
 
-Occasionally you'll write an empty loop body. Make the semicolon visible on its own line:
-```java
-while (dis.read(buf, 0, readBufferSize) != -1)
-    ;
+If you genuinely need an empty loop body, make it explicit:
+
+```ts
+while (await stream.read(buf) !== -1) { /* drain */ }
 ```
+
+```go
+for dis.Read(buf) != io.EOF {
+    // drain
+}
+```
+Don't leave an empty-looking line that readers might misread.
 
 ## Team Rules
 

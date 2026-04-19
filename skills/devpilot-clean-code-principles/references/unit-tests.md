@@ -42,12 +42,42 @@ The single most important quality: **readability**. A good test reads like a spe
 
 **Build a testing DSL.** Extract helpers so the test body says *what*, not *how*:
 
-```java
-public void testGetPageHieratchyAsXml() throws Exception {
-    makePages("PageOne", "PageOne.ChildOne", "PageTwo");
-    submitRequest("root", "type:pages");
-    assertResponseIsXML();
-    assertResponseContains("<name>PageOne</name>", "<name>PageTwo</name>", "<name>ChildOne</name>");
+```ts
+// TypeScript — helpers hide HTTP/framework noise
+test("getPageHierarchyAsXml returns nested pages", async () => {
+  await makePages("PageOne", "PageOne.ChildOne", "PageTwo");
+  const res = await submitRequest("root", "type:pages");
+  expectXML(res);
+  expectContains(res, "<name>PageOne</name>", "<name>PageTwo</name>", "<name>ChildOne</name>");
+});
+```
+
+```go
+// Go — table-driven; cmp.Diff gives clear failure messages
+func TestPageHierarchyAsXML(t *testing.T) {
+    tests := []struct {
+        name  string
+        pages []string
+        want  []string
+    }{
+        {
+            name:  "nested pages",
+            pages: []string{"PageOne", "PageOne.ChildOne", "PageTwo"},
+            want:  []string{"<name>PageOne</name>", "<name>PageTwo</name>", "<name>ChildOne</name>"},
+        },
+    }
+    for _, tc := range tests {
+        t.Run(tc.name, func(t *testing.T) {
+            makePages(t, tc.pages...)
+            res := submitRequest(t, "root", "type:pages")
+            assertXML(t, res)
+            for _, frag := range tc.want {
+                if !strings.Contains(res.Body, frag) {
+                    t.Errorf("missing %q in response", frag)
+                }
+            }
+        })
+    }
 }
 ```
 
@@ -57,9 +87,17 @@ No API noise. No HTTP framework details. Just the test's intent.
 
 A controversial guideline: aim for **a single concept per test**, ideally a single assert.
 
-```java
-public void testGetPageHierarchyAsXml() { ... }
-public void testGetPageHierarchyHasRightTags() { ... }
+```ts
+test("getPageHierarchyAsXml returns a document", () => { ... });
+test("getPageHierarchyAsXml includes all named pages", () => { ... });
+```
+
+```go
+// Go sub-tests make one-concept-per-test natural
+func TestGetPageHierarchy(t *testing.T) {
+    t.Run("returns a document", func(t *testing.T) { ... })
+    t.Run("includes all named pages", func(t *testing.T) { ... })
+}
 ```
 
 When a test fails, you know exactly what's broken. Tests are independent.
