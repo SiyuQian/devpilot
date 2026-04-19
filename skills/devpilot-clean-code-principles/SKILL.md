@@ -13,9 +13,11 @@ Distilled from Robert C. Martin's *Clean Code: A Handbook of Agile Software Craf
 incorporating contributions from Kent Beck, Ward Cunningham, Michael Feathers, and others.
 
 This skill captures **language-agnostic** principles for writing code that is easy to read, change,
-and extend. When a language-specific style guide is loaded (e.g. Google Go Style), follow that guide
-for syntax-level decisions; use this skill for higher-level judgment about naming, function design,
-abstractions, and code smells.
+and extend. When a language-specific style guide is loaded (e.g. Google Go Style), it takes
+precedence on syntax and idiom; this skill is still authoritative on higher-level judgment (naming
+intent, function design, abstractions, code smells). If no language-specific skill is loaded, the
+Conflict Resolution table below encodes the defaults — they are not "placeholders," they are the
+rulings to apply.
 
 ## Core Principles
 
@@ -54,6 +56,17 @@ If **no language-specific skill is loaded** for the code you're reviewing, apply
 **Spirit of Clean Code survives the mechanism.** Whichever error mechanism you use: keep the happy
 path flat, attach context, never swallow errors, never signal absence with a zero value.
 
+### Go: `(T, bool)` vs `(T, error)` — which to return
+
+- **`(T, bool)`** when absence is an expected, non-exceptional outcome that the caller is designed
+  to handle: map lookups (`v, ok := m[k]`), cache probes, parsing "is this a recognized variant?"
+- **`(T, error)`** when the operation can fail for reasons the caller can't predict or should log:
+  I/O, network, parsing untrusted input, DB queries. If the caller might want to distinguish *why*
+  it failed, use `error`.
+- **Both** (`(T, bool, error)`) is a smell — pick the dominant dimension.
+- **Rule of thumb:** if "not found" is a normal branch in the caller's logic → `bool`. If "not found"
+  likely indicates a bug or infrastructure problem → `error`.
+
 ## Quick Reference — Principles by Category
 
 ### Naming (Ch. 2)
@@ -68,7 +81,7 @@ path flat, attach context, never swallow errors, never signal absence with a zer
 - **Initialism casing (`ID`, `URL`, `HTTP`)** matters in Go — never `Id`, `Url`, `Http` on exported names.
 - Don't **encode types** in names (`strName`, `m_user`) — modern IDEs show types.
 
-**For deeper guidance and examples, open `references/naming.md`.**
+**Open `references/naming.md` when:** arguing about a specific name (is `accountList` disinforming? is `Processor` a weasel word?), resolving package-name vs type-name stuttering, or deciding between multiple factory-function names.
 
 ### Functions (Ch. 3)
 
@@ -86,7 +99,7 @@ path flat, attach context, never swallow errors, never signal absence with a zer
   way, don't pyramid. See Conflict Resolution for which mechanism to use.
 - **DRY.** Duplication is the root of most maintenance pain.
 
-**For deeper guidance and examples, open `references/functions.md`.**
+**Open `references/functions.md` when:** a function exceeds ~20 lines and you're deciding whether to split, evaluating an argument list of 3+ params, deciding between throw vs early-return, or looking for the full error-code-vs-exception comparison with both TS and Go examples.
 
 ### Comments (Ch. 4)
 
@@ -101,7 +114,7 @@ path flat, attach context, never swallow errors, never signal absence with a zer
 - **Bad comments:** redundant (`// increment i`), misleading, mandated-by-policy noise, journal
   entries, commented-out code (delete it — VCS remembers).
 
-**For deeper guidance and examples, open `references/comments.md`.**
+**Open `references/comments.md` when:** weighing whether a specific comment is "good" (intent, warning, TODO) or "bad" (redundant, journal, noise), or if someone wants to add a position marker / closing-brace comment.
 
 ### Formatting (Ch. 5)
 
@@ -111,7 +124,7 @@ path flat, attach context, never swallow errors, never signal absence with a zer
 - **Dependent functions should be near.** Caller above callee when possible.
 - **Team style trumps personal preference.** Pick one, enforce with formatter.
 
-**For deeper guidance and examples, open `references/formatting.md`.**
+**Open `references/formatting.md` when:** debating file size / vertical openness, deciding where instance variables live, or the team doesn't yet have a formatter config.
 
 ### Objects and Data Structures (Ch. 6)
 
@@ -120,7 +133,7 @@ path flat, attach context, never swallow errors, never signal absence with a zer
 - **Law of Demeter:** a method should only call methods of its class, its parameters, objects it
   creates, or its direct fields — not navigate through chains (`a.getB().getC().doStuff()`).
 
-**For deeper guidance and examples, open `references/objects-and-data.md`.**
+**Open `references/objects-and-data.md` when:** deciding "is this type data or object?", reviewing a deep chain like `a.b().c().d()`, or weighing whether to expose struct fields vs add methods.
 
 ### Error Handling (Ch. 7)
 
@@ -135,7 +148,7 @@ path flat, attach context, never swallow errors, never signal absence with a zer
   or `(T, error)`. Python: `raise` or return empty collection — never `None` as "empty".
 - **Wrap third-party APIs** in your own error types so callers match on one thing, not five.
 
-**For deeper guidance and examples, open `references/error-handling.md`.**
+**Open `references/error-handling.md` when:** the code returns `null`/zero-as-sentinel, wraps a third-party library's errors, or you're choosing between throw / Result / (T, error) / Null Object. Has full TS + Go side-by-side examples.
 
 ### Boundaries (Ch. 8)
 
@@ -143,7 +156,7 @@ path flat, attach context, never swallow errors, never signal absence with a zer
 - **Learning tests:** write tests against the third-party API to pin down its behavior and catch changes on upgrade.
 - **Depend on code you control** at internal boundaries.
 
-**For deeper guidance and examples, open `references/boundaries.md`.**
+**Open `references/boundaries.md` when:** third-party types are leaking across your codebase, you're wrapping an external API, or considering learning tests for a library upgrade.
 
 ### Unit Tests (Ch. 9)
 
@@ -154,7 +167,7 @@ path flat, attach context, never swallow errors, never signal absence with a zer
 - **Test code is first-class.** Apply the same quality bar as production code.
 - **Domain-specific testing language.** Build helpers so tests read like specifications.
 
-**For deeper guidance and examples, open `references/unit-tests.md`.**
+**Open `references/unit-tests.md` when:** a test asserts many unrelated things, the test suite is flaky or slow, you're designing a test DSL, or weighing mocks vs fakes.
 
 ### Classes (Ch. 10)
 
@@ -165,7 +178,7 @@ path flat, attach context, never swallow errors, never signal absence with a zer
 - **Open-Closed Principle:** open to extension (subclass, compose) but closed to modification.
 - **Dependency Inversion:** depend on abstractions, not concretions.
 
-**For deeper guidance and examples, open `references/classes.md`.**
+**Open `references/classes.md` when:** splitting a god class, debating SRP boundaries, applying OCP (new report type, new strategy), or reviewing a `Manager`/`Processor` suspect.
 
 ### Systems (Ch. 11)
 
@@ -174,7 +187,7 @@ path flat, attach context, never swallow errors, never signal absence with a zer
 - **Cross-cutting concerns** (logging, transactions, security) via aspects or decorators, not scattered code.
 - **Grow systems incrementally.** Start with the simplest architecture; refactor as needs emerge.
 
-**For deeper guidance and examples, open `references/systems.md`.**
+**Open `references/systems.md` when:** removing lazy singletons, wiring up DI, introducing cross-cutting concerns (transactions, logging, auth), or deciding between aspects/decorators vs middleware.
 
 ### Concurrency (Ch. 13)
 
@@ -184,7 +197,7 @@ path flat, attach context, never swallow errors, never signal absence with a zer
 - **Understand your library** — `ExecutorService`, `ConcurrentHashMap`, channels. Don't reinvent.
 - **Know the models:** Producer-Consumer, Readers-Writers, Dining Philosophers.
 
-**For deeper guidance and examples, open `references/concurrency.md`.**
+**Open `references/concurrency.md` when:** introducing goroutines/async, narrowing a critical section, debugging a flaky test that may be a race, or designing graceful shutdown.
 
 ### Code Smells and Heuristics (Ch. 17)
 
@@ -192,20 +205,21 @@ A checklist of specific anti-patterns to scan for during review: comments smells
 function smells (too many arguments, dead parameters, flag args), general smells (duplication, magic
 numbers, inconsistency, artificial coupling), and test smells (insufficient, disabled, redundant).
 
-**For deeper guidance and examples, open `references/smells-and-heuristics.md`.**
+**Open `references/smells-and-heuristics.md` when:** doing a PR review scan, you suspect a smell but can't name it, or investigating duplication / dead code / feature envy / inappropriate statics.
 
 ## Review Checklist
 
 When reviewing code, walk down this list in order:
 
 1. **Names** — Do they reveal intent? Any disinformation, noise words, or encodings?
-2. **Functions** — Any >20 lines? Flag args? >3 params? Doing more than one thing?
+2. **Functions** — Any >20 lines doing more than one thing? Flag args? >3 params?
 3. **Duplication** — Copy-pasted logic? Parallel `switch`es on the same type?
-4. **Comments** — Any that could be replaced by a rename or extraction?
-5. **Error handling** — Null returned/passed? Error codes? try-blocks without clear scope?
-6. **Classes** — Does each have a single responsibility? Any `Manager`/`Processor`/`Util`?
-7. **Tests** — One concept per test? Fast and independent? Cover edge cases?
-8. **Boundaries** — Third-party types leaking across the codebase?
+4. **Comments** — Any inline comments that could be replaced by a rename or extraction?
+5. **Doc comments on exports** — Are godoc / TSDoc / docstrings present on public APIs? (Required in Go; expected on public library surfaces in TS/Python.)
+6. **Error handling** — Null/zero-as-sentinel returned or passed? Errors swallowed? Nested error pyramids instead of flat happy path?
+7. **Classes/types** — Does each have a single responsibility? Any `Manager`/`Processor`/`Util`?
+8. **Tests** — One concept per test? Fast and independent? Cover edge cases?
+9. **Boundaries** — Third-party types leaking across the codebase?
 
 ## Common Mistakes
 
@@ -237,6 +251,10 @@ When reviewing code, walk down this list in order:
 - **Mechanical formatting** — run the formatter; don't reason about spaces.
 - **When Clean Code conflicts with language idioms** — idioms win. See Conflict Resolution above for
   the concrete table.
+- **Security, correctness, performance, and concurrency bugs** — out of scope. Clean Code covers
+  *readability* and *maintainability*, not SQL injection, XSS, auth, data races, or algorithmic
+  correctness. A reviewer should combine this skill with security and correctness checks, not
+  substitute it for them.
 
 ### Languages with no dedicated style skill
 
