@@ -1,11 +1,10 @@
 ---
 name: devpilot-clean-code-principles
 description: >
-  Use when writing, reviewing, or refactoring code in any language and judging quality —
-  naming, function size, comments, error handling, class design, test quality, or code smells.
-  Triggers on requests like "is this clean?", "review this code", "refactor this", "improve readability",
-  "too complex", "code smell", or when reviewing a PR without a language-specific style skill.
+  Use when writing, reviewing, or refactoring code and judging quality at the level of naming,
+  function size, comments, error handling, class design, test quality, or code smells.
   Language-agnostic; defer to language-specific style skills (e.g. devpilot-google-go-style) when they conflict.
+license: Complete terms in LICENSE.txt
 ---
 
 # Clean Code Principles
@@ -203,8 +202,3 @@ When reviewing code, walk down this list in order:
 - **When Clean Code conflicts with language idioms** — idioms win (e.g. Go prefers error returns over exceptions;
   Go constructor convention is `New`, not banned by this skill even though Clean Code dislikes prefixes).
 
-## Real-World Impact
-
-- Reduced defect density in refactored modules (Martin cites multiple case studies).
-- Faster onboarding: new engineers productive in days, not weeks, when naming and structure are consistent.
-- Lower cost of change: SRP + DI mean features land in one place, not scattered across the codebase.

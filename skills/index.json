@@ -9,8 +9,9 @@
     },
     {
       "name": "devpilot-clean-code-principles",
-      "description": "Use when writing, reviewing, or refactoring code in any language and judging quality — naming, function size, comments, error handling, class design, test quality, or code smells. Language-agnostic; defer to language-specific style skills when they conflict.",
+      "description": "Use when writing, reviewing, or refactoring code and judging quality at the level of naming, function size, comments, error handling, class design, test quality, or code smells. Language-agnostic; defer to language-specific style skills when they conflict.",
       "files": [
+        "LICENSE.txt",
         "references/boundaries.md",
         "references/classes.md",
         "references/comments.md",

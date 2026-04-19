@@ -103,6 +103,11 @@ if (attributeExists("username")) {
 
 ## Prefer Exceptions to Returning Error Codes
 
+> **Language override:** Go, Rust, and Zig use explicit error returns. Follow the language's style
+> skill. The principle below — don't force nested conditionals on callers — still applies via
+> early-return guards.
+
+
 Error codes force the caller to deal with error handling immediately and nest `if`s:
 ```java
 if (deletePage(page) == E_OK) {

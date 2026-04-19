@@ -1,5 +1,10 @@
 # Error Handling (Clean Code, Ch. 7)
 
+> **Language override:** Clean Code's exception-first stance reflects Java. Go, Rust, and Zig use
+> explicit error returns idiomatically — when a language-specific style skill is loaded, follow it.
+> The *spirit* of this chapter (keep the happy path flat, attach context, don't discard errors, don't
+> return null/sentinels) still applies regardless of mechanism.
+
 Error handling is important, but if it obscures logic, it's wrong.
 
 ## Use Exceptions Rather Than Return Codes
