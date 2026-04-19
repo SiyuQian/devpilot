@@ -44,14 +44,14 @@ This skill and a language-specific style skill may disagree. **Language idiom al
 
 If **no language-specific skill is loaded** for the code you're reviewing, apply these defaults:
 
-| Topic | Go default | TypeScript default | Python default | Source of truth |
-|---|---|---|---|---|
-| Error mechanism | `(T, error)` returns | `throw` + `try/catch` | `raise` + `try/except` | language idiom, not Clean Code |
-| Accessor naming | no `Get` prefix (`User.Name()`) | `getName()` or property accessors | `name` property | language idiom |
-| Doc comments on exports | **required** (godoc) | TSDoc for public APIs only | docstrings expected | language idiom |
-| Null handling | `(T, bool)` or `(T, error)` — never zero-as-sentinel | avoid `null`; use union types | avoid returning `None` for "empty" | Clean Code (don't return null) + language form |
-| Class vs composition | structs + packages (no classes) | classes OK | classes OK | language shape |
-| Test assertion style | no assertion libs; `cmp.Diff` + `t.Errorf` | Jest `expect` | `pytest` assertions | language community norm |
+| Topic | Go default | TypeScript default | Source of truth |
+|---|---|---|---|
+| Error mechanism | `(T, error)` returns | `throw` + `try/catch` | language idiom, not Clean Code |
+| Accessor naming | no `Get` prefix (`User.Name()`) | `getName()` or property accessors | language idiom |
+| Doc comments on exports | **required** (godoc) | TSDoc for public APIs only | language idiom |
+| Null handling | `(T, bool)` or `(T, error)` — never zero-as-sentinel | avoid `null`; use union types | Clean Code (don't return null) + language form |
+| Class vs composition | structs + packages (no classes) | classes OK | language shape |
+| Test assertion style | no assertion libs; `cmp.Diff` + `t.Errorf` | Jest `expect` | language community norm |
 
 **Spirit of Clean Code survives the mechanism.** Whichever error mechanism you use: keep the happy
 path flat, attach context, never swallow errors, never signal absence with a zero value.
@@ -66,24 +66,6 @@ path flat, attach context, never swallow errors, never signal absence with a zer
 - **Both** (`(T, bool, error)`) is a smell — pick the dominant dimension.
 - **Rule of thumb:** if "not found" is a normal branch in the caller's logic → `bool`. If "not found"
   likely indicates a bug or infrastructure problem → `error`.
-
-### Python: `raise` vs return `[]` / `None` — which to use
-
-- **`raise`** when the input is malformed, invariants are violated, or the operation can't produce
-  a sensible value (e.g. `d is None` when a list was expected, parsing fails, file missing). The
-  caller shouldn't have to silently absorb these.
-- **Return `[]` / `{}` / empty iterator** when "no results" is a legitimate, non-exceptional
-  outcome of a filter or query over well-formed input. Empty is a valid value; `None` is not.
-- **Never return `None` to mean "empty"** — callers write `if result is not None and len(result)...`
-  defensively, and the distinction between "absent" and "empty" blurs.
-- **Rule of thumb:** was the *input* wrong? → `raise`. Was the *output* just empty? → `[]`.
-
-### Flag-argument smell in Python keyword-only parameters
-
-A keyword-only `bool` (`def f(*, verbose: bool = False)`) is still a flag argument and still a
-smell — the call site `f(..., verbose=True)` reads better than `f(..., True)`, but the function
-still does two things. Prefer separate functions or pass a strategy/enum. Keyword-only is a
-readability fix at the call site, not an absolution of the underlying smell.
 
 ## Quick Reference — Principles by Category
 
@@ -123,8 +105,8 @@ readability fix at the call site, not an absolution of the underlying smell.
 
 - **Inline/explanatory comments are a near-failure.** Every one is an admission the code couldn't
   speak. Rename or extract first.
-- **Godoc / TSDoc / docstrings on exported APIs are REQUIRED, not a smell.** Go enforces this for
-  every exported symbol; TS/Python do it for public library surfaces. This is the opposite of
+- **Godoc / TSDoc on exported APIs are REQUIRED, not a smell.** Go enforces this for
+  every exported symbol; TS does it for public library surfaces. This is the opposite of
   the "comments are failure" rule — doc comments *are* the contract.
 - **Don't comment bad code — rewrite it.**
 - **Good inline comments:** legal headers, intent that isn't derivable from code, warnings of
@@ -156,14 +138,14 @@ readability fix at the call site, not an absolution of the underlying smell.
 ### Error Handling (Ch. 7)
 
 - **Keep happy path flat.** TS: `throw` + one `try/catch` at the boundary. Go: early-return
-  `if err != nil { return err }` guards. Python: `raise` + `try/except`. **Match language idiom; see
-  Conflict Resolution.** Never nest error checks into a pyramid.
+  `if err != nil { return err }` guards. **Match language idiom; see Conflict Resolution.** Never
+  nest error checks into a pyramid.
 - **Scaffold the error boundary first** — write `try/catch` or the error-return scope before the
   happy path.
 - **Provide context.** TS: subclass `Error` with fields. Go: `fmt.Errorf("op: %w", err)`. Never
   `catch { /* empty */ }` or `result, _ := ...` without a comment explaining why.
 - **Don't return null / don't return zero-as-sentinel.** TS: union types or throw. Go: `(T, bool)`
-  or `(T, error)`. Python: `raise` or return empty collection — never `None` as "empty".
+  or `(T, error)`.
 - **Wrap third-party APIs** in your own error types so callers match on one thing, not five.
 
 **Open `references/error-handling.md` when:** the code returns `null`/zero-as-sentinel, wraps a third-party library's errors, or you're choosing between throw / Result / (T, error) / Null Object. Has full TS + Go side-by-side examples.
@@ -233,7 +215,7 @@ When reviewing code, walk down this list in order:
 2. **Functions** — Any >20 lines doing more than one thing? Flag args? >3 params?
 3. **Duplication** — Copy-pasted logic? Parallel `switch`es on the same type?
 4. **Comments** — Any inline comments that could be replaced by a rename or extraction?
-5. **Doc comments on exports** — Are godoc / TSDoc / docstrings present on public APIs? (Required in Go; expected on public library surfaces in TS/Python.)
+5. **Doc comments on exports** — Are godoc / TSDoc present on public APIs? (Required in Go; expected on public library surfaces in TS.)
 6. **Error handling** — Null/zero-as-sentinel returned or passed? Errors swallowed? Nested error pyramids instead of flat happy path?
 7. **Classes/types** — Does each have a single responsibility? Any `Manager`/`Processor`/`Util`?
 8. **Tests** — One concept per test? Fast and independent? Cover edge cases?
@@ -260,7 +242,7 @@ When reviewing code, walk down this list in order:
   size alone isn't the flag — see Functions: *"size is a tripwire, not a verdict."*)
 - A class has methods that use disjoint sets of fields.
 - A test name starts with `test1`, `test2`, …
-- A parameter is a `boolean` flag (including Python keyword-only bools).
+- A parameter is a `boolean` flag.
 - You're returning `null`/`None`/zero-as-sentinel or checking `== null`.
 - **Composite smell:** a single function that violates CQS *and* has a flag arg *and* does
   multiple things *and* returns null. Don't patch one dimension — redesign.
@@ -279,7 +261,7 @@ When reviewing code, walk down this list in order:
 
 ### Languages with no dedicated style skill
 
-For Python, Rust, Java, C#, or anything else without a loaded `devpilot-*-style` skill:
+For Rust, Java, C#, or anything else without a loaded `devpilot-*-style` skill:
 1. Apply this skill's **principles** (naming, SRP, flag args, null returns, DRY).
 2. For **mechanism** questions (error handling, accessor naming, concurrency primitives, test
    framework), follow that language's community idiom — do NOT transplant Java/Go/TS conventions.
