@@ -8,6 +8,25 @@
       ]
     },
     {
+      "name": "devpilot-clean-code-principles",
+      "description": "Use when writing, reviewing, or refactoring code in any language and judging quality — naming, function size, comments, error handling, class design, test quality, or code smells. Language-agnostic; defer to language-specific style skills when they conflict.",
+      "files": [
+        "references/boundaries.md",
+        "references/classes.md",
+        "references/comments.md",
+        "references/concurrency.md",
+        "references/error-handling.md",
+        "references/formatting.md",
+        "references/functions.md",
+        "references/naming.md",
+        "references/objects-and-data.md",
+        "references/smells-and-heuristics.md",
+        "references/systems.md",
+        "references/unit-tests.md",
+        "SKILL.md"
+      ]
+    },
+    {
       "name": "devpilot-confluence-reviewer",
       "description": "Review Atlassian Confluence pages and leave comments (both inline and page-level).",
       "files": [
