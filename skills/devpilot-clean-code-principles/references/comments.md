@@ -1,5 +1,10 @@
 # Comments (Clean Code, Ch. 4)
 
+> **Language override:** Go *requires* a doc comment on every exported (capitalized) identifier,
+> starting with the name: `// User represents …`, `// Save writes …`. Clean Code's "comments are a
+> failure" stance applies to **inline/explanatory** comments that compensate for unclear code, not
+> to API documentation. Godoc/TSDoc/JSDoc on exported surface is mandatory, not a smell.
+
 > Don't comment bad code — rewrite it. — Brian Kernighan & P.J. Plauger
 
 Comments are, at best, a necessary evil. They compensate for our failure to express ourselves in

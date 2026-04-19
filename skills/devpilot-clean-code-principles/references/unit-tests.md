@@ -1,5 +1,10 @@
 # Unit Tests (Clean Code, Ch. 9)
 
+> **Language override — Go:** Do **not** use assertion libraries (testify, gomega). Use `cmp.Diff`
+> and `t.Errorf`/`t.Fatalf` with descriptive messages. Test helpers call `t.Helper()`; `Test*`
+> functions do not. Table-driven tests with named fields are the norm. See
+> `devpilot-google-go-style` for details.
+
 The Agile and TDD movements made unit tests routine. But **having tests isn't enough** — the tests
 themselves need to be clean.
 

@@ -1,5 +1,12 @@
 # Concurrency (Clean Code, Ch. 13)
 
+> **Language override — Go:** Prefer **synchronous** functions; let callers add concurrency
+> (goroutines) if needed. `context.Context` is always the **first parameter**, never stored in a
+> struct. Use channels, `sync.WaitGroup`, and `sync.Mutex` from the standard library — don't
+> reinvent them. Make goroutine lifetimes obvious; never start one without a clear exit path.
+> See `devpilot-google-go-style` for Go-specific patterns.
+
+
 > Objects are abstractions of processing. Threads are abstractions of schedule.
 
 Concurrency is a **decoupling strategy** — it separates *what* gets done from *when* it gets done.

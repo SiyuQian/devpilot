@@ -1,5 +1,11 @@
 # Objects and Data Structures (Clean Code, Ch. 6)
 
+> **Language override — Go:** Go structs are closer to *data structures* than *objects* by design.
+> Accessing public fields directly is idiomatic; not every field needs a getter/setter. The
+> **data vs. object** distinction still matters — decide per type which role it plays and don't
+> mix. Law of Demeter still applies to types that own behavior (methods), not to plain structs
+> used as data carriers.
+
 ## Data Abstraction
 
 Hiding implementation is about abstraction, not just adding getters/setters. A class should expose

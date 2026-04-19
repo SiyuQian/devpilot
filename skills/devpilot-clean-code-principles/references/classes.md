@@ -1,5 +1,17 @@
 # Classes (Clean Code, Ch. 10)
 
+> **Language override — Go:** Go has no classes. Apply the principles in this chapter at the
+> **package** and **struct** level:
+> - *Small, single responsibility* → one package per concept; one struct per concept. `Manager`,
+>   `Util`, `Helper` packages and types are banned.
+> - *High cohesion* → struct methods should use most of the struct's fields; otherwise split the
+>   struct or move the method.
+> - *Open-Closed* → accept interfaces defined in the **consumer** package; let new implementations
+>   plug in without modifying existing code. (Per `devpilot-google-go-style`, **do not** define
+>   interfaces alongside their implementations.)
+> - *Dependency Inversion* → constructors return concrete types; consumers define the minimal
+>   interfaces they need.
+
 ## Class Organization
 
 Standard ordering (Java convention):

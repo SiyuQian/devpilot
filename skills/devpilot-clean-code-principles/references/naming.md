@@ -1,5 +1,14 @@
 # Meaningful Names (Clean Code, Ch. 2)
 
+> **Language overrides:**
+> - **Go drops the `Get` prefix** on accessors: `User.Name()` not `User.GetName()`. Follow
+>   `devpilot-google-go-style` when writing Go.
+> - **Go uses MixedCaps for exported, mixedCaps for unexported** — no underscores in identifiers.
+>   Filenames and flag names are the only snake_case exceptions.
+> - **Go package names** should be short, lowercase, no underscores, and single-word
+>   (`bytes`, `http`). `Manager`/`Util`-style names are banned in both guides.
+> - **Initialisms keep case consistent in Go**: `URL`, `ID`, `HTTP` — never `Url`, `Id`, `Http`.
+
 Names are everywhere — variables, functions, classes, packages, files. Getting them right is the
 highest-leverage thing you can do for readability.
 
@@ -63,7 +72,8 @@ Avoid weasel words: `Manager`, `Processor`, `Data`, `Info`. They signal unclear 
 
 Verbs or verb phrases: `postPayment`, `deletePage`, `save`.
 
-Accessors, mutators, predicates: `getName`, `setName`, `isPosted`.
+Accessors, mutators, predicates: `getName`, `setName`, `isPosted` (Java/TypeScript).
+**In Go:** drop the `Get` prefix — `Name()`, `SetName(...)`, `Posted()` / `IsPosted()`.
 
 Overloaded constructors → use static factory methods with descriptive names:
 ```java
