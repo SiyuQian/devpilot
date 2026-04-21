@@ -104,6 +104,10 @@
       "name": "devpilot-pr-review",
       "description": "Review a pull request using an 'Unknown Unknowns' framing, focused on the behavior the PR introduces rather than line-level style nits.",
       "files": [
+        "references/example-review.md",
+        "references/rationalizations.md",
+        "references/template.md",
+        "references/unknown-unknowns.md",
         "SKILL.md"
       ]
     },
