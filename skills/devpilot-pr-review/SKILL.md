@@ -9,8 +9,6 @@ description: Use when the user asks to review a pull request, merge request, or 
 
 Most PR review fails by staying inside an already-narrow option set: naming, formatting, "LGTM". This skill pushes the review onto the **behavior** the PR introduces into the system, including behavior neither the author nor the reviewer has noticed yet.
 
-**Core principle:** Answer the five blind-spot questions before writing findings. Those questions exist to surface what the diff alone cannot show.
-
 ## When NOT to Use
 
 - Pure formatting / lint / rename PRs — defer to the relevant style skill.
@@ -29,68 +27,12 @@ State how the code behaves only after opening and reading the relevant files. Wh
 
 ## Workflow
 
-### Step 0 — Load the PR
+1. **Load the PR.** `gh pr view <url> --json title,body,files,baseRefName,author` + `gh pr diff <url>`; or `git diff <base>...HEAD` for a local branch; or read a pasted patch directly. A PR with no stated intent is itself a finding.
+2. **Answer the five blind-spot questions, then trace behavior.** See `references/unknown-unknowns.md` (also covers the paired Behavior Trace step).
+3. **Draft the review.** Render the skeleton in `references/template.md` (includes the severity rubric and version-resolution rules). Apply tone, stance, and language rules from `references/style.md`. Calibrate against `references/example-review.md` on first use.
+4. **Post it.** Commands, post-mode mapping, and skip conditions in `references/posting.md`.
 
-- PR URL → `gh pr view <url> --json title,body,files,baseRefName,author` + `gh pr diff <url>`
-- Local branch → `git diff <base>...HEAD` + `git log <base>..HEAD --oneline`
-- Pasted patch → read directly
-
-Read the PR description and any linked issue. A PR with no stated intent is itself a finding worth surfacing.
-
-### Step 1 — Unknown-Unknowns Sweep
-
-Answer the five blind-spot questions in writing before writing findings. `references/unknown-unknowns.md` has the full questions, the pitfall table per change class, and the output format.
-
-### Step 2 — Behavior Trace
-
-For each meaningful change, trace at least one golden-path input and one edge-case input through the code. Record:
-
-- The observable behavior delta (inputs → outputs, side effects, state).
-- Behavior changes not mentioned in the PR description (new log lines, new DB writes, changed defaults, changed ordering, new error paths).
-- How we would detect a break in production (logs, metrics, errors).
-
-A review that reaches "LGTM" without tracing at least one input through at least one change has not completed Step 2.
-
-### Step 3 — Write the Review
-
-Render the template from `references/template.md`. A fully-filled reference is in `references/example-review.md` — read it the first time you use this skill, and whenever you are calibrating tone or depth.
-
-Write every section (TL;DR, findings, disclaimer, Open Questions, metadata) in the PR's language. Chinese PR → Chinese review, end to end.
-
-**Tone.** Professional prose. Skip emoji, exclamation marks, and softeners like "just a thought" or "maybe". Greet the PR author by their resolved `@handle`.
-
-**Stance.**
-- State system behavior as claims, not questions. Traced claims belong in Behavior Findings; the corresponding question belongs in `Open Questions` only when the code could not answer it.
-- When you see a concrete alternative, name it. Give one sentence on why it is better, and ask the author to confirm the direction.
-- Every finding carries `Confidence: high | medium | low`. Confidence and severity are independent axes.
-
-### Step 4 — Post the Review
-
-Show the user the drafted review, then post. Default flow:
-
-- **GitHub** — `printf '%s' "$review" | gh pr review <url> <mode> --body-file -`
-  - `--request-changes` when any finding is Blocking
-  - `--comment` when findings are only Should-fix / Consider / Nit
-  - `--approve` when there are no findings
-- **GitLab** — `glab mr note <id> --message "$review"`
-- **Inline comments (opt-in)** — use `gh api -X POST /repos/{owner}/{repo}/pulls/{num}/reviews` with `comments[]` entries of `{path, line, side, body}`. Only when the user asks.
-
-Skip posting when the user opts out ("don't post", "dry run", "local only"), the review is on a pasted patch with no real PR, or the PR is already merged or closed. Say so explicitly when skipping.
-
-## Severity rubric
-
-Severity describes *impact if the finding is real*, independent of confidence.
-
-- **Blocking** — would cause data loss, security regression, outage, or silently wrong behavior in production.
-- **Should-fix** — real bug on a reachable code path, missing test for a risky path, or an unhandled pitfall from the sweep.
-- **Consider** — design or maintainability feedback worth the author's attention.
-- **Nit** — style, naming, wording. Bottom of the review.
-
-Report findings at every severity; downstream readers filter.
-
-## Version
-
-The skill itself is unversioned. Every posted review carries the **devpilot binary version** instead. Resolve it at post time via `devpilot --version` (the binary prints e.g. `devpilot version v0.12.2`; take the `vX.Y.Z` token). Fall back to `unknown` when unavailable.
+Before posting, walk the self-check in `references/rationalizations.md`.
 
 ## Cross-References
 
@@ -100,7 +42,11 @@ The skill itself is unversioned. Every posted review carries the **devpilot bina
 
 ## Reference Index
 
-- `references/unknown-unknowns.md` — the five blind-spot questions, pitfall table by change class, output format.
-- `references/template.md` — the review skeleton and per-field rules.
-- `references/example-review.md` — a fully-filled worked example for calibration.
-- `references/rationalizations.md` — common shortcuts with rebuttals, plus the pre-post self-check list.
+| File | What's in it |
+|---|---|
+| `references/unknown-unknowns.md` | The five blind-spot questions, per-change-class pitfall table, paired Behavior Trace step, output format. |
+| `references/template.md` | The review skeleton, per-field rules, version resolution, severity rubric. |
+| `references/style.md` | Language / tone / stance rules for the posted review. |
+| `references/posting.md` | `gh` / `glab` commands, severity-to-mode mapping, skip conditions, inline-comment API. |
+| `references/example-review.md` | Fully-filled worked example for calibration. |
+| `references/rationalizations.md` | Common shortcuts with rebuttals, plus the pre-post self-check list. |

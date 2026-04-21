@@ -64,3 +64,14 @@ Review mode: <request-changes | comment | approve>
   - Zero findings → `--approve`
 
 For a fully-filled reference, see `example-review.md`.
+
+## Severity rubric
+
+Severity describes *impact if the finding is real*, independent of confidence.
+
+- **Blocking** — would cause data loss, security regression, outage, or silently wrong behavior in production.
+- **Should-fix** — real bug on a reachable code path, missing test for a risky path, or an unhandled pitfall from the sweep.
+- **Consider** — design or maintainability feedback worth the author's attention.
+- **Nit** — style, naming, wording. Bottom of the review.
+
+Report findings at every severity; downstream readers filter.

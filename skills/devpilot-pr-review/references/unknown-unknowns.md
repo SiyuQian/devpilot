@@ -53,6 +53,16 @@ What in this PR is being hand-rolled that has a mature option already in the rep
 
 **How to check:** search the repo and `go.mod` / `package.json` for existing utilities. If the dependency is already present, the hand-rolled version is a finding.
 
+## Behavior Trace (paired with the sweep)
+
+After the sweep, trace at least one golden-path input and one edge-case input through the code for each meaningful change. For each change, record:
+
+- The observable behavior delta (inputs → outputs, side effects, state).
+- Behavior changes not mentioned in the PR description (new log lines, new DB writes, changed defaults, changed ordering, new error paths).
+- How we would detect a break in production (logs, metrics, errors).
+
+A review that reaches "LGTM" without tracing at least one input through at least one change has not completed this step.
+
 ## Output format
 
 Each question gets one line in the review's `### Unknown-Unknowns Sweep` section:
