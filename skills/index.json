@@ -101,6 +101,13 @@
       ]
     },
     {
+      "name": "devpilot-pr-review",
+      "description": "Review a pull request using an 'Unknown Unknowns' framing, focused on the behavior the PR introduces rather than line-level style nits.",
+      "files": [
+        "SKILL.md"
+      ]
+    },
+    {
       "name": "devpilot-product-research",
       "description": "Use when the user wants to research market needs, analyze competitors, discover user pain points, or prioritize features for a product.",
       "files": [
