@@ -45,9 +45,11 @@ For each meaningful change, trace at least one golden-path input and one edge-ca
 
 "LGTM" without tracing one input = restart.
 
-## Step 3 — Write the Review
+## Step 3 — Write the Review and Post It
 
 Match the PR's language (Chinese PR → Chinese review).
+
+**Default behavior: post the review to the PR.** Do not stop at printing it in chat.
 
 ```
 ## PR Review: <title / #number>
@@ -76,6 +78,28 @@ Match the PR's language (Chinese PR → Chinese review).
 <style / naming / wording, one line each — never blocking>
 ```
 
+## Step 4 — Post the Review to the PR (Default)
+
+Show the user the drafted review first, then post it. Default flow:
+
+- **GitHub** — post as a PR review (not a loose comment) so severity is explicit:
+  - Findings include ≥1 **Blocking** → `gh pr review <url> --request-changes --body-file -`
+  - Only Should-fix / Consider / Nits → `gh pr review <url> --comment --body-file -`
+  - No findings at all → `gh pr review <url> --approve --body-file -`
+  - Pipe the rendered markdown via stdin (`printf '%s' "$review" | gh pr review ...`) to avoid shell-quoting issues.
+- **GitLab** — `glab mr note <id> --message "$review"` (GitLab has no "request changes" state; severity lives inside the body).
+
+**Do NOT post when:**
+- User explicitly said "don't post" / "just draft" / "local only" / "dry run".
+- Review is on a patch the user pasted into chat (no real PR exists).
+- PR is already merged or closed — tell the user and skip.
+
+If posting is skipped for any reason, say so explicitly so the user knows the review is local-only.
+
+**Inline comments (advanced, opt-in only):** For line-level feedback, use the GitHub review API:
+`gh api -X POST /repos/{owner}/{repo}/pulls/{num}/reviews -f event=... -f body=... -F 'comments[]=...'`
+with each item as `{path, line, side, body}`. Only do this if the user asks for inline comments; otherwise stay with the summary review above.
+
 ## Severity Rubric
 
 - **Blocking** — data loss, security regression, outage, silently wrong behavior. Must fix before merge.
@@ -102,6 +126,8 @@ Prefer few high-signal findings over many mixed-severity ones.
 | "Writing a retry loop / cache / parser here is fine." | Almost always has a mature off-the-shelf option. Do Step 1.5. |
 | "LGTM, nothing jumps out." | If nothing jumps out, you haven't traced an input yet. Do Step 2. |
 | "Findings are mostly naming — let me file them as Should-fix." | Style findings go in Nits. Never Blocking or Should-fix. |
+| "I'll just print the review in chat, user can paste it." | Default is to post. Skip posting only if the user said so, or no real PR exists. |
+| "Blocking finding, but I'll post as `--comment` to be polite." | If it's Blocking, use `--request-changes`. Severity must match the posted review state. |
 
 ## Red Flags — Stop and Restart
 
