@@ -57,14 +57,20 @@ Match the PR's language (Chinese PR → Chinese review).
 - Open with a short, professional greeting addressed to the PR author by their GitHub/GitLab handle (resolved from `gh pr view --json author -q .author.login`, rendered as `@handle`). If the handle cannot be resolved, use "Hi there,".
 - Close with the HTML comment metadata block exactly as shown below. The block is required on every posted review so readers can tell which skill version produced it.
 
+**Stance rules — be declarative, not interrogative, about system behavior:**
+- **Do not post questions about how the system behaves.** If you traced the code and are confident, *state* the behavior as a claim ("This recurses on a 401 from `/refresh` and will stack-overflow"). Do not post "What happens when `/refresh` returns 401?" — that is a question the review exists to answer.
+- **If you have a concrete alternative in mind, propose it.** Do not wait for the author to ask. Name the alternative, give one sentence on why it is better, and ask the author to confirm. Example: "Suggested change: wrap `refreshToken` with `golang.org/x/sync/singleflight` keyed by user ID — this eliminates the concurrent-refresh race at the cost of one extra dep already in `go.mod`. Confirm this direction works for your use case."
+- **Calibrate confidence explicitly.** When you are confident, assert. When you are not, say so and label the finding **Consider** (never Blocking/Should-fix). Use "Confidence: low — verify before acting on this" for findings you cannot fully prove from the diff.
+- **Questions belong in one place only:** a final `### Open Questions` section, reserved for things you genuinely could not determine from the code (e.g. "Is this endpoint called by the mobile client? I did not find callers outside this repo."). If that section is empty, omit it.
+
 ### Skill Version
 
-This skill is currently at **v0.1.0**. Bump this version (and the value in the template below) whenever the template structure, tone rules, or Step 1 questions change in a user-visible way. Treat the version as a stable identifier readers can grep for.
+This skill is currently at **v0.2.0**. Bump this version (and the value in the template below) whenever the template structure, tone rules, stance rules, or Step 1 questions change in a user-visible way. Treat the version as a stable identifier readers can grep for.
 
 ### Template
 
 ```
-<!-- devpilot-pr-review v0.1.0 -->
+<!-- devpilot-pr-review v0.2.0 -->
 Hi @<author-handle>,
 
 Thanks for the change. Review below.
@@ -93,6 +99,9 @@ Thanks for the change. Review below.
 
 ### Nits (optional)
 <style / naming / wording, one line each — never blocking>
+
+### Open Questions (optional — omit if empty)
+<only things you could not determine from the code, one line each>
 
 ---
 
@@ -163,6 +172,9 @@ Prefer few high-signal findings over many mixed-severity ones.
 | "Greeting feels redundant, skipping it." | The greeting is required. It addresses the author by handle and sets tone. |
 | "The version comment is noise, I'll drop it." | The `<!-- devpilot-pr-review vX.Y.Z -->` block is required so readers can attribute and triage the review. |
 | "Disclaimer feels defensive, I'll skip or shorten it." | The automated-review disclaimer is required on every posted review. It protects the author from treating an AI finding as authoritative. |
+| "I'll ask 'what happens when X?' so the author clarifies." | No. If you traced the code, state what happens. Questions about system behavior belong to the reviewer, not the author. |
+| "I have an idea for a better approach but I'll stay neutral." | State the alternative. One sentence on why. Ask the author to confirm the direction — do not hide the recommendation as a vague question. |
+| "Unsure if this is a bug, I'll file it as Should-fix to be safe." | Unsure → Consider, with an explicit "Confidence: low" note. Blocking/Should-fix require confidence. |
 
 ## Red Flags — Stop and Restart
 
@@ -171,5 +183,7 @@ Prefer few high-signal findings over many mixed-severity ones.
 - Comparing two options the author already listed, instead of asking what options they didn't consider.
 - Said "LGTM" without tracing one input through the change.
 - Only looked at files in the diff, never at callers or tests.
+- Asking the author questions about behavior you could have determined by reading the code.
+- Hedging a known-better alternative as a vague question instead of proposing it and asking for confirmation.
 
 All of these mean: back up to Step 1 and restart.
