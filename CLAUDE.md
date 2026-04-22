@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Repo-wide context loaded on every prompt. Keep tight. Detail lives in the linked docs.
 
 ## Project Overview
 
@@ -8,165 +8,48 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repository Structure
 
-Standard Go project layout: `cmd/devpilot/` for the CLI entry point, `internal/` for all packages.
+Standard Go layout: `cmd/devpilot/` entry point, `internal/` packages.
 
 **Package organization rules:**
-- Each `internal/` package is a self-contained domain (e.g. `auth`, `trello`, `taskrunner`)
-- Each domain package owns its own Cobra commands in `commands.go` — there is no central `cli/` routing layer
-- External service clients (API, HTTP) live in the same package as their domain logic
-- Shared project-level config lives in `internal/project/`
+- Each `internal/` package is a self-contained domain (`auth`, `trello`, `taskrunner`, …)
+- Each domain owns its own Cobra commands in `commands.go` — no central `cli/` router
+- External service clients live in the same package as their domain logic
+- Cross-cutting project config lives in `internal/project/`
 
-**Other top-level directories:**
-- `skills/` — Distributable product skills (each `devpilot-<name>/` dir with `SKILL.md`)
-- `.claude/skills/` — Project-local OpenSpec workflow skills (not distributed)
-- `.github/workflows/` — CI/CD (test + release pipelines)
-- `docs/plans/` — Design and implementation plan documents
-- `docs/rejected/` — Rejected/deferred idea records (read by PM skill to avoid re-recommending)
+**Top-level directories:**
+- `skills/` — Distributable skill catalog (`devpilot-<name>/` dirs; register each in `skills/index.json`)
+- `.claude/skills/` — Installed skills for this project + local OpenSpec workflow skills
+- `.github/workflows/` — CI/CD (test + release)
+- `docs/` — Design docs (`plans/`), deferred ideas (`rejected/`), architecture + CLI reference
 
-## Build & Development Commands
+## Golden Principles
 
-```bash
-make build                         # Build binary to bin/devpilot
-make test                          # Run all tests (go test ./...)
-make lint                          # Run golangci-lint (must pass before commit)
-make lint-fix                      # Auto-fix lint issues where possible
-make run ARGS="--help"             # Build and run with arguments
-make clean                         # Remove bin/
-```
+Opinionated taste calls (what a linter can't enforce) live in `GOLDEN_PRINCIPLES.md`. Read it before changes to architecture, public APIs, or shared utilities.
 
-**Important:** Always run `make test` and `make lint` before committing. Both must pass — CI enforces this on every PR.
-
-Run a single test:
-```bash
-go test ./internal/skillmgr/ -run TestInstallSkill   # Single test by name
-go test ./internal/taskrunner/ -v                     # Single package, verbose
-```
-
-### CLI Commands
+## Build & Test
 
 ```bash
-devpilot login trello                # Authenticate with Trello (API key + token)
-devpilot logout trello               # Remove stored credentials
-devpilot status                      # Show authentication status for all services
-
-devpilot init                        # Interactive project setup wizard
-devpilot init -y                     # Accept all defaults
-
-devpilot push <plan.md> --board "Board Name"              # Create Trello card from plan file
-devpilot push <plan.md> --board "Board Name" --list "Ready"  # Specify target list (default: Ready)
-
-devpilot run --board "Board Name"                          # Start autonomous task runner (TUI mode)
-devpilot run --board "Board Name" --no-tui                 # Plain text output (no dashboard)
-devpilot run --board "Board Name" --once --dry-run         # Test with one card, no execution
-devpilot run --board "Board Name" --interval 60            # Poll every 60s (default: 300)
-devpilot run --board "Board Name" --timeout 45             # 45min per-task timeout (default: 30)
-devpilot run --board "Board Name" --review-timeout 0       # Disable auto code review
-
-devpilot sync                                              # Sync OpenSpec changes to board/issues
-devpilot sync --board "Board Name"                         # Override board
-devpilot sync --source github                              # Override source
-
-devpilot gmail summary                                     # Dry run: summarize all unread emails (won't mark as read)
-devpilot gmail summary --channel daily-digest              # Send summary to a Slack channel (marks as read)
-devpilot gmail summary --dm U0123ABCDE                     # Send summary as a DM (marks as read)
-devpilot gmail summary --no-mark-read=false                # Explicitly mark emails as read without sending
-
-devpilot skill add <name>                                  # Install a skill (prompts for project/user level)
-devpilot skill add <name>@<ref>                            # Install at specific git ref
-devpilot skill add <name> --level user                     # Install at user level non-interactively (no prompt)
-devpilot skill add --all                                   # Install every skill in the catalog
-devpilot skill add --all --level project                   # Bulk install at project level, no prompt
-devpilot skill list                                        # List available skills with install status
-devpilot skill list --installed                            # List only installed skills
-
-devpilot review <pr-url>                                   # AI-powered code review, posts to PR as GitHub review
-devpilot review <pr-url> --no-post                         # Review without posting to PR
-devpilot review <pr-url> --model claude-sonnet-4-6-20250514  # Review with custom model
-devpilot review <pr-url> --dry-run                         # Print assembled prompt without executing
-
-devpilot commit                                            # Generate commit message from staged changes
-devpilot readme                                            # Generate or improve README.md
+make build      # → bin/devpilot
+make test       # go test ./...
+make lint       # golangci-lint — must pass before commit
 ```
 
-### Skill Helper Scripts (Python 3)
-
-```bash
-python3 .claude/skills/skill-creator/scripts/init_skill.py      # Scaffold a new skill
-python3 .claude/skills/skill-creator/scripts/package_skill.py    # Package a skill for distribution
-python3 .claude/skills/skill-creator/scripts/quick_validate.py   # Validate skill structure
-```
+Full CLI surface and dev commands: `docs/cli-reference.md`.
 
 ## Architecture
 
-### CLI
+Subsystem detail (runner, TUI, event system, OpenSpec integration, skills): `docs/architecture.md`.
 
-Go CLI using Cobra for subcommand routing. Adding a new service: implement the `Service` interface in `internal/auth/`, register in `service.go`.
+## Agent Harness
 
-### Project Init (`devpilot init`)
-
-Interactive wizard that detects project state and generates missing pieces:
-- Detects: `.devpilot.yaml`, Trello credentials, skills, git repo
-- Generates: board config, gitignore entries, skill installation
-- Task source configuration (Trello/GitHub) can be skipped
-
-### Task Runner (`devpilot run`)
-
-Tasks move through a state machine. Trello uses lists (**Ready** → **In Progress** → **Done** / **Failed**); GitHub Issues use labels (`devpilot` → `in-progress` → closed or `failed`).
-
-1. Polls "Ready" list for cards
-2. Sorts cards by priority (P0 > P1 > P2 labels; default P2)
-3. Moves card to "In Progress"
-4. Creates branch `task/{cardID}-{slug}` from main
-5. Executes plan via `claude -p` with `stream-json` output
-6. Pushes branch, creates PR via `gh`
-7. Optionally runs automated code review via a second `claude -p` invocation
-8. Auto-merges PR (`gh pr merge --squash --auto`)
-9. Moves card to "Done" (with PR link) or "Failed" (with error log path)
-
-Logs per-card output to `~/.config/devpilot/logs/{card-id}.log`.
-
-### OpenSpec Integration
-
-When OpenSpec is installed and `openspec/changes/` exists:
-- `devpilot sync` scans changes and creates/updates Trello cards or GitHub Issues
-- Card title = change directory name (used as `opsx:apply` argument)
-- Card description = full content of proposal.md + tasks.md
-- Runner auto-detects OpenSpec and uses `/opsx:apply <change-name>` instead of raw plan text
-- Supports resumability: interrupted tasks pick up from last unchecked task
-
-### TUI Dashboard
-
-When `devpilot run` launches in a TTY, it displays a real-time Bubble Tea dashboard:
-- **Header**: Board name, runner phase, token stats
-- **Status & Active**: Trello list states + current card info
-- **Tools & Files**: Tool call history with durations + file access tracking
-- **Claude Output**: Scrollable text output
-- **Footer**: Completed task history + errors
-
-Keyboard: `q`/`Ctrl-C` quit, `Tab` switch pane, `j/k/↑/↓` scroll, `g/G` top/bottom.
-
-Falls back to plain text mode when not a TTY or `--no-tui` is set.
-
-### Event System
-
-The runner uses an event-driven architecture:
-- **Runner** emits lifecycle events (`CardStarted`, `CardDone`, `ToolStart`, `TextOutput`, etc.)
-- **EventBridge** parses `claude -p` stream-json output and translates to runner events
-- **TUI** receives events via buffered channel (size 100) and updates the Bubble Tea model
-
-### Skills
-
-Skills are defined by a `SKILL.md` file (YAML frontmatter + markdown body) with optional `references/` and `scripts/` directories. They use progressive disclosure: frontmatter metadata is always in context, body loads on invocation, references load on demand.
-
-**Directory distinction:**
-- `skills/` at the project root — Catalog source code for distributable skills (prefixed `devpilot-<name>/`). This is what gets fetched by `devpilot skill add`.
-- `.claude/skills/` — Where skills are installed in a project (so Claude Code discovers them). Also where project-local OpenSpec workflow skills live.
+How guides + sensors are wired in this repo, and where the current gaps are: `docs/harness.md`. Read this before adding new linters, hooks, skills, or MCP servers — it will tell you where the new control belongs and whether it's actually needed.
 
 ## Key Conventions
 
-- CLI is written in Go with Cobra; tests via `go test ./...`
-- Functional options pattern (`WithXxx()`) for testability in Executor and trello.Client
-- Design docs come in pairs: `{date}-{feature}-design.md` + `{date}-{feature}-plan.md`
+- Cobra commands live with their domain in `commands.go`
+- Functional options (`WithXxx()`) for constructors with any optional parameters
+- Wrap errors with `%w` at layer boundaries: `fmt.Errorf("doing X: %w", err)`
+- Design docs come in pairs: `docs/plans/{YYYY-MM-DD}-{feature}-{design,plan}.md`
+- Table-driven tests with named subtests; no mocks for our own packages
 - Skill helper scripts use Python 3
-- CI/CD: GitHub Actions for tests (`test.yml`) and releases (`release.yml`)
-- When adding, removing, or modifying skills in `skills/`, update `skills/index.json` accordingly (name, description, and file list)
+- When adding/removing/modifying skills in `skills/`, update `skills/index.json`

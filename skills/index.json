@@ -61,6 +61,18 @@
       ]
     },
     {
+      "name": "devpilot-harness-engineering",
+      "description": "Use when setting up a repository for autonomous coding agents, deciding what guardrails, context files, or automation to add so agents can ship reliably without constant human review. Covers guides vs sensors, architectural constraints, agent context organization, depth-first decomposition, and golden-principle GC loops.",
+      "files": [
+        "references/agent-context.md",
+        "references/architectural-constraints.md",
+        "references/depth-first-decomposition.md",
+        "references/golden-principles.md",
+        "references/guides-and-sensors.md",
+        "SKILL.md"
+      ]
+    },
+    {
       "name": "devpilot-learn",
       "description": "Summarize any single article, document, or web page into a standalone HTML digest file with reader-mode styling.",
       "files": [
