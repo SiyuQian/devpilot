@@ -89,11 +89,15 @@ Check whether the changes require updates to project documentation:
 
 Only update docs if the changes genuinely warrant it — don't add noise. If updates are needed, commit them separately (e.g., `docs: update CLAUDE.md with new X command`).
 
-#### C. Archive and sync
+#### C. Sync and archive
 
-1. **Archive the change** — Invoke the `openspec-archive-change` skill for this change. When prompted about syncing delta specs, choose to sync.
+1. **Sync specs first** — Invoke `openspec-sync-specs` to merge delta specs into main specs. Do this while the change is still active so that proposal and design context are available for generating meaningful Purpose sections (not TBD placeholders).
 
-2. **Sync specs** — If the archive skill's sync prompt was skipped for any reason, explicitly invoke `openspec-sync-specs` to ensure main specs reflect all changes.
+2. **Archive the change** — Invoke `openspec-archive-change` to move the change to the archive. When prompted about syncing, skip it — you already synced in step 1.
+
+#### D. Create pull request
+
+Invoke `devpilot-pr-creator` to create a PR for the feature branch. The PR description should reflect the full scope of the change — all chapters, all tasks — since the diff covers everything. Let the PR creator skill handle reading the diff, writing the description, and showing the draft to the user before creating.
 
 3. **Final status** — Display a summary:
 
@@ -105,8 +109,9 @@ Only update docs if the changes genuinely warrant it — don't add noise. If upd
 **Chapters reviewed:** M/M ✓
 **Specs:** Synced to main ✓
 **Docs:** CLAUDE.md updated / README.md updated / No updates needed
+**PR:** <pr-url>
 
-All done. The feature has been implemented with TDD, reviewed chapter-by-chapter, and archived.
+All done. The feature has been implemented with TDD, reviewed chapter-by-chapter, archived, and submitted for review.
 ```
 
 ## Handling edge cases
@@ -125,4 +130,4 @@ All done. The feature has been implemented with TDD, reviewed chapter-by-chapter
 - Every chapter boundary gets a code review, no exceptions
 - Commit frequently — at minimum once per task, plus once for review feedback
 - Keep the user informed of progress (which chapter, which task, review status)
-- Archive and sync are not optional — they ensure the spec stays the source of truth
+- Sync before archive — sync while change context is still available, then archive
