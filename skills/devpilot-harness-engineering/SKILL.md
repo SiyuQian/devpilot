@@ -63,11 +63,62 @@ Controls are either **computational** (deterministic, ms–s, cheap) or **infere
 
 Work top-to-bottom; each step makes the next cheaper.
 
-1. **Architectural constraints** — decide module boundaries, error model, dependency surface before the agent adds a tenth variant of each. See `references/architectural-constraints.md`.
-2. **Agent context** — write a tight AGENTS.md and identify which specialized knowledge belongs in skills vs sub-agents vs tool descriptions. See `references/agent-context.md`.
+1. **Architectural constraints** — decide module boundaries, error model, dependency surface before the agent adds a tenth variant of each. See `references/architecture.md`.
+2. **Agent context** — write a tight AGENTS.md and identify which specialized knowledge belongs in skills vs sub-agents vs tool descriptions. See `references/agents.md`.
 3. **Guides + sensors** — pair each important rule with a mechanical check (linter, test, fitness function). See `references/guides-and-sensors.md`.
-4. **Depth-first decomposition** — size the unit of agent work so one block = one context window = one reviewable PR. See `references/depth-first-decomposition.md`.
+4. **Depth-first decomposition + plan index** — size each block so one = one context window = one reviewable PR, and track what's in flight in a plans index. See `references/depth-first-decomposition.md` for sizing, `references/plans.md` for `PLANS.md` + `docs/exec-plans/` format and the OpenSpec-vs-exec-plan decision.
 5. **Golden principles + GC loop** — encode taste and run a background refactor agent to counter compounding drift. See `references/golden-principles.md`.
+
+## Recommended Repo Layout
+
+A harness-ready repo typically settles into this shape. Root-level `.md` files are **always-on or frequently-loaded** context; `docs/` subtrees are **on-demand** reference the agent reads when a task pulls it in.
+
+```
+AGENTS.md              # always-on preamble (see references/agents.md)
+ARCHITECTURE.md        # on-demand map + invariants (see references/architecture.md)
+PLANS.md               # index of active exec plans (see references/plans.md)
+DESIGN.md              # how we design — taste for non-obvious calls
+FRONTEND.md            # UI conventions (only if the repo has a frontend)
+PRODUCT_SENSE.md       # product bar, user-visible quality rules
+QUALITY_SCORE.md       # how we grade PRs / output
+RELIABILITY.md         # error budgets, on-call, failure-mode posture
+SECURITY.md            # threat model + non-negotiables
+
+docs/
+├── design-docs/       # durable design rationale; paired with exec-plans
+│   ├── index.md
+│   └── <topic>.md
+├── exec-plans/
+│   ├── active/        # one file per in-flight plan
+│   ├── completed/     # archived when done; preserves decision trail
+│   └── tech-debt-tracker.md
+├── generated/         # machine-generated refs (db-schema, API shape) — never hand-edit
+├── product-specs/
+│   ├── index.md
+│   └── <feature>.md
+└── references/        # third-party *-llms.txt dumps (design-system, uv, nixpacks, …)
+```
+
+**What each root file answers:**
+
+| File | Question the agent needs answered |
+|---|---|
+| `AGENTS.md` | What should I remember on *every* task in this repo? |
+| `ARCHITECTURE.md` | What's the shape, and what invariants must I not break? |
+| `DESIGN.md` | When the code could go two ways, which does this team prefer and why? |
+| `FRONTEND.md` | What UI primitives / patterns exist; what's banned? |
+| `PLANS.md` | What are we currently trying to ship, and what's next? |
+| `PRODUCT_SENSE.md` | What makes a change user-worthy here? |
+| `QUALITY_SCORE.md` | How will this PR be judged? |
+| `RELIABILITY.md` | What happens when this breaks in prod; what's my budget? |
+| `SECURITY.md` | What must I never do, regardless of how convenient? |
+
+**Per-file authoring guides (in `references/`):**
+Available now: `agents.md`, `architecture.md`, `plans.md`.
+
+Not yet written: `design.md`, `frontend.md`, `product-sense.md`, `quality-score.md`, `reliability.md`, `security.md` — **add when you've observed agents getting that doc wrong**. Following Hashimoto's rule: the harness grows from observed failures, not speculation.
+
+Not every repo needs every file. `FRONTEND.md` is pointless without a frontend; `RELIABILITY.md` is noise for a CLI tool. But `AGENTS.md` and `ARCHITECTURE.md` are mandatory for any repo with more than trivial agent activity.
 
 ## Red Flags
 

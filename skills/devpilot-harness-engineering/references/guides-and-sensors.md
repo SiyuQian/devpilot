@@ -1,106 +1,97 @@
 # Guides and Sensors
 
-## The Two Control Types
+Use this when deciding how to enforce a rule: where the guide goes, what sensor to pair it with, and at which stage to run it.
 
-A harness is a **cybernetic regulator**: it steers the codebase toward a desired state using two complementary control types.
+## The pairing rule
 
-### Guides (Feedforward)
+Every rule must have both:
 
-Applied *before* the agent acts. They raise the probability of a correct first attempt.
+- **Guide** — steers the agent *before* it acts (AGENTS.md line, skill with good/bad pair, template, tool description).
+- **Sensor** — detects drift *after* it acts (linter, test, fitness function, type check, review agent).
 
-Examples:
-- AGENTS.md / CLAUDE.md conventions
-- Skills with ✅/❌ example pairs
-- Architecture decision records the agent can read
-- Tool descriptions that nudge toward the right choice
-- Templates for common task shapes (new endpoint, new migration)
+Rule with only a guide → decays silently. Rule with only a sensor → agent retries blindly and burns tokens. If you cannot add both, postpone adding the rule.
 
-### Sensors (Feedback)
+## Picking the right sensor — decision table
 
-Applied *after* the agent acts. They detect drift and trigger correction — either by the agent itself or by a human.
-
-Examples:
-- Linters, type checkers, formatters
-- Unit, integration, and fitness tests
-- Build / compile steps
-- LLM-as-judge review agents
-- Runtime observability checks in staging
-
-## The Execution Axis
-
-| | Computational | Inferential |
+| If the rule is about… | Use a sensor of type… | Run it at… |
 |---|---|---|
-| **Speed** | ms – s | s – min |
-| **Cost** | near zero | non-trivial |
-| **Determinism** | high | low |
-| **Example guide** | Code template generator | Skill with natural-language style guide |
-| **Example sensor** | `go vet`, ArchUnit | PR review agent, custom LLM judge |
+| Syntax, formatting, imports | Linter / formatter | pre-commit |
+| Naming or structural patterns | Custom linter / AST check | pre-commit |
+| Module boundaries, cyclic imports | ArchUnit-style test | pre-PR CI |
+| Error wrapping / logging discipline | Custom `go vet` analyzer or lint rule | pre-commit |
+| Type / API shape | Type checker, golden-file API dump test | pre-PR CI |
+| Latency / binary size / resource budget | Perf test with threshold | pre-PR CI |
+| Functional correctness | Unit + integration tests | pre-PR CI |
+| Subjective quality ("is this name clear?") | LLM-judge review agent | post-author, pre-merge |
+| Runtime invariants ("token never logged") | Observability assertion | staging |
 
-Use computational controls wherever possible. Reach for inferential controls only where rules can't be expressed mechanically (e.g., "is this API name clear?").
+Default to the **cheapest** sensor that catches the rule. Promote to an inferential (LLM) sensor only when no mechanical check exists.
 
-## The Three Regulation Categories
-
-### 1. Maintainability Harness (most mature)
-
-Internal code quality — style, structure, naming, duplication.
-
-| Guide | Sensor |
-|---|---|
-| Style skill with examples | Language linter, custom rules |
-| Naming conventions in AGENTS.md | Name-pattern linter |
-| Template for common module layout | Structural test |
-
-### 2. Architecture Fitness Harness (medium maturity)
-
-Performance, module boundaries, dependency hygiene.
-
-| Guide | Sensor |
-|---|---|
-| Layered architecture doc | ArchUnit-style import checks |
-| Latency budget per route | Perf test fails PR on regression |
-| Approved-lib list | Dependency whitelist check |
-
-### 3. Behavior Harness (least mature)
-
-Functional correctness. Current practice: AI-generated tests + manual verification. Known gap.
-
-| Guide | Sensor |
-|---|---|
-| Test-style skill (table-driven, etc.) | Unit + integration tests |
-| Approved test fixtures | Mutation testing, coverage deltas |
-| Acceptance criteria in the task | E2E in staging |
-
-## Shift Quality Left
-
-Place each control where it's cheapest to fail:
+## Placing the sensor — shift-left ladder
 
 ```
 pre-commit  →  pre-PR CI  →  post-merge CI  →  staging  →  prod
- fastest                                                 slowest
- cheapest                                                dearest
+  cheap                                                    expensive
 ```
 
-A linter in pre-commit is orders of magnitude cheaper than the same issue caught by a human reviewer; a perf regression caught in CI is orders of magnitude cheaper than one caught in production.
+For each sensor, pick the leftmost stage that has the required signal. A rule that *could* run in pre-commit but runs in CI wastes an agent iteration per violation.
 
-## Making Sensors Agent-Readable
+## Guide + sensor recipes by category
 
-The single biggest upgrade to a sensor for agent use: make the error message *actionable by a model*.
+Pick the row that matches the rule type; use both columns.
 
-Instead of:
-> `error: exported function Foo should have comment`
+### Maintainability (style, structure, duplication)
 
-Write:
-> `Exported function 'Foo' is missing a doc comment. Add a comment above the declaration starting with 'Foo ...'. See references/commentary.md for examples.`
+| Guide | Sensor |
+|---|---|
+| Style skill with one good/bad example pair | Language linter with custom rules |
+| Naming conventions as one line in AGENTS.md | Name-pattern linter |
+| Module-layout template in a skill | Structural test asserting directory contract |
 
-The agent now self-corrects on the next turn without human mediation.
+### Architecture fitness (boundaries, budgets, deps)
 
-## Mutation Testing — The Sensor-of-Sensors
+| Guide | Sensor |
+|---|---|
+| `ARCHITECTURE.md` invariant | ArchUnit-style import check |
+| Latency budget line per route in code comment | Perf test failing PR on p95 regression |
+| Approved-lib list in AGENTS.md | Dependency whitelist check in CI |
 
-How do you know your sensors actually catch bugs? Mutation testing introduces small faults and checks that tests fail. Agent-authored test suites are especially prone to testing happy paths only; mutation scores expose this.
+### Behavior (functional correctness)
 
-## Anti-Patterns
+| Guide | Sensor |
+|---|---|
+| Test-style skill (table-driven, naming) | Unit + integration tests |
+| Acceptance criteria in the task block | E2E in staging |
+| Approved fixtures / factories | Mutation testing, coverage delta |
 
-- **Guide without a sensor.** Hope is not a harness.
-- **Sensor without a guide.** The agent retries blindly, burning tokens.
-- **Human-only error text.** Loses the agent-self-correction loop.
-- **Inferential control where computational would do.** Slow, expensive, and non-deterministic for no reason.
+## Writing agent-actionable sensor output
+
+This is the single biggest upgrade. When you add or modify a sensor, rewrite its error message to be a fix instruction, not a diagnosis.
+
+Pattern: **`<what is wrong>. <exact change to make>. <where to look for examples>.`**
+
+| Human-only (bad) | Agent-actionable (good) |
+|---|---|
+| `error: exported function Foo should have comment` | `Exported function 'Foo' is missing a doc comment. Add a comment above the declaration starting with 'Foo '. See references/commentary.md.` |
+| `undefined reference: wrapError` | `Wrap returned errors with fmt.Errorf("doing X: %w", err). See AGENTS.md § Conventions.` |
+| `test failed: expected 200 got 500` | `Handler returned 500 on valid input. Check <file>:<line>. Expected: 200 with {id,status} per acceptance criteria.` |
+
+If you can't rewrite the message at the sensor, wrap it: have CI post-process the output into the actionable form before feeding it back to the agent.
+
+## Self-check before adding a new rule
+
+- [ ] Guide is written *and* reachable in the agent's normal loading path (AGENTS.md, a skill description that matches real triggers, or a tool description).
+- [ ] Sensor exists at the cheapest stage that can run it.
+- [ ] Sensor message tells the agent what to change, not just what broke.
+- [ ] Rule does not duplicate an existing one (grep first).
+- [ ] You can name the observed mistake that motivated this rule (Hashimoto's law).
+
+Any "no" → don't ship the rule yet.
+
+## Red flags on existing rules
+
+- Same rule violated across unrelated PRs → guide is not reaching the agent; move it up the loading path.
+- Sensor fires but agent can't self-correct → message is human-only; rewrite it.
+- Inferential sensor (LLM judge) where a lint would do → remove; it's slow, costly, and non-deterministic.
+- Rule with a guide but no sensor → schedule removal or add the sensor.
+- Mutation score low on critical paths → the sensors themselves are under-tested; AI-written tests often cover happy paths only.
