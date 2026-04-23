@@ -64,11 +64,25 @@
       "name": "devpilot-harness-engineering",
       "description": "Use when setting up a repository for autonomous coding agents, deciding what guardrails, context files, or automation to add so agents can ship reliably without constant human review. Covers guides vs sensors, architectural constraints, agent context organization, depth-first decomposition, and golden-principle GC loops.",
       "files": [
-        "references/agent-context.md",
-        "references/architectural-constraints.md",
+        "references/agents.md",
+        "references/architecture.md",
         "references/depth-first-decomposition.md",
         "references/golden-principles.md",
         "references/guides-and-sensors.md",
+        "references/plans.md",
+        "SKILL.md"
+      ]
+    },
+    {
+      "name": "devpilot-repo-scan",
+      "description": "Use when the user asks to scan, audit, or sweep an entire GitHub repository for issues and file them as tickets. Scans security, edge cases, and testing coverage without assuming business logic; dispatches parallel scanner sub-agents, scores findings 0-100, and files each surviving finding as a labeled GitHub issue.",
+      "files": [
+        "agents/coverage-auditor.md",
+        "agents/edge-case-hunter.md",
+        "agents/security-scanner.md",
+        "references/issue-template.md",
+        "references/labels.md",
+        "references/scoring.md",
         "SKILL.md"
       ]
     },
