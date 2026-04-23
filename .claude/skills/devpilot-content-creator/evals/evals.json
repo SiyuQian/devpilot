@@ -1,0 +1,23 @@
+{
+  "skill_name": "content-creator",
+  "evals": [
+    {
+      "id": 0,
+      "prompt": "Write a blog post about API rate limiting best practices for our developer documentation",
+      "expected_output": "A well-structured blog post in English about API rate limiting, with SEO elements (title, meta description, headings, keyword integration)",
+      "files": []
+    },
+    {
+      "id": 1,
+      "prompt": "帮我们写一篇关于devpilot的博客，主要想让更多人知道我们这个工具",
+      "expected_output": "A Chinese blog post about devpilot, with keyword research targeting relevant Chinese search terms, natural product mentions",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "我想给我们的产品写几篇博客提高SEO，但不知道写什么好",
+      "expected_output": "Topic exploration: should read project context, suggest 3-5 topic angles with reasoning, and ask user to pick before writing",
+      "files": []
+    }
+  ]
+}

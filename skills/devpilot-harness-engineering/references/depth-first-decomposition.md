@@ -1,68 +1,90 @@
 # Depth-First Decomposition
 
-## Principle
+Use this when sizing a task before handing it to an agent, or when reviewing a plan's task list for "too wide, too shallow."
 
-When most code is agent-authored, the human's most valuable act is **breaking the goal down into blocks an agent can finish cleanly**. OpenAI describes their approach as depth-first: larger goals are decomposed into small building blocks (design, code, review, test), and each finished block becomes the scaffolding that unlocks the next.
+## Block vs plan — the hierarchy
 
-The unit of agent work should be a block the agent can:
+- **Block** = one atomic task = one agent session = one PR. This document is about blocks.
+- **Exec plan** = the envelope holding multiple blocks for one feature; has Goal / Non-goals / Design / Tasks / Decisions log / Open questions. Each task inside an exec plan should itself pass the block self-check below.
+- **Plans index** (`PLANS.md`) = one line per active exec plan.
 
-1. Load enough context to do well
-2. Finish in one session without hitting context limits
-3. Verify via sensors (tests / build / lint) before handoff
-4. Hand off with a clear artifact (PR, function, schema)
+So: block shape (Scope/Interfaces/Acceptance/Links/DoD, below) is **per task inside an exec plan**, not an alternative to the exec-plan template.
 
-## What Counts as an "Agent-Sized" Block
+## Block size self-check
 
-| Too small | Right-sized | Too large |
+Run this on the candidate block. Any "no" means resize before starting.
+
+- [ ] Fits in one agent session without hitting context limits
+- [ ] Produces exactly one reviewable artifact (PR, migration, doc)
+- [ ] Has a definition of done a sensor can verify (tests pass, lint clean, fitness green)
+- [ ] Does not require reading more than ~10 files to start
+- [ ] Independent of any block currently in flight (no shared files, no shared state)
+- [ ] Leaves a *merged, functional* slice — not a stub other blocks depend on
+
+## Rule-of-thumb ceilings
+
+Heuristics for "does this still fit in one session." Crossing one is a yellow flag; crossing two is a red flag — split.
+
+| Signal | Ceiling |
+|---|---|
+| Diff size | ~400 lines added + changed |
+| Files touched | ~8 files |
+| Agent wall time to finish | ~30 minutes |
+| New concepts the block introduces | 1 (maybe 2) |
+| External systems a block talks to | 1 |
+
+These are not hard rules; a block that exceeds them may still be right-sized if it's mostly generated code or test fixtures. But "exceeds and feels fine" should be justified in the block's Scope, not assumed.
+
+## Block size by example
+
+| Too small (just do it manually) | Right-sized | Too large (split) |
 |---|---|---|
-| "Rename this var" | "Add endpoint X with handler, tests, and migration" | "Build the billing system" |
-| "Fix one lint error" | "Refactor module Y to use the new error wrapper" | "Rearchitect the data layer" |
+| Rename one variable | Add endpoint X with handler, tests, migration | Build the billing system |
+| Fix one lint error | Refactor module Y to use new error wrapper | Rearchitect the data layer |
+| Update one doc link | Add a new skill with one example + TOC | "Harden the platform" |
 
-Too small: overhead dominates; humans should just do it.
-Too large: agent loses the plot, context fills with noise, PR is unreviewable.
+## Depth-first vs breadth-first — which to pick
 
-## Depth-First, Not Breadth-First
+Default to **depth-first**. Pick breadth-first only when the structural-independence test below passes.
 
-Breadth-first (bad): sketch 20 TODOs across the whole system, launch 20 agents, get 20 half-baked PRs.
+**Depth-first (default):** finish one vertical slice end-to-end (design → code → tests → merge) before starting the next.
 
-Depth-first (good): fully finish one vertical slice — design doc → code → tests → review → merge — and use the merged slice as scaffolding the next slice can lean on.
+**Breadth-first is only safe when all three hold:**
+- [ ] Blocks touch disjoint files and directories
+- [ ] Blocks share no in-memory or on-disk state
+- [ ] Block N does not depend on block N-1's output
 
-Why depth-first wins with agents:
-- Each finished slice becomes **context** the next agent can read
-- Integration problems surface immediately, not at the end
-- Humans review one coherent thing, not 20 overlapping stubs
-- Sensors you build for slice 1 catch regressions in slice 2
+If any fails → serialize.
 
-## The Block Shape
+## Required block shape
 
-A well-shaped block has:
+A block handed to an agent must include:
 
-- **Design note** (human or agent, reviewed by human): scope, interfaces, non-goals
-- **Task statement** with acceptance criteria
-- **Links to the relevant skills / references** (not copies)
-- **Definition of done** that a sensor can check (tests pass, lint clean, fitness test green)
+1. **Scope** — one paragraph, with explicit non-goals.
+2. **Interfaces** — function signatures / schema / endpoint shape, not prose description.
+3. **Acceptance criteria** — concrete, sensor-checkable (e.g., "endpoint returns 200 with `{id,status}` for valid input; 400 otherwise; test coverage >80% on new code").
+4. **Links** (not copies) — to the relevant skills, architecture invariants, and example prior PRs.
+5. **Definition of done** — the exact commands that must pass (`make test && make lint && <fitness-test>`).
 
-## Parallelism, Carefully
+If any of 1–5 is missing, the block is not ready to hand over; refine it first.
 
-Parallel agents are safe when blocks are **genuinely independent**: no shared files, no shared state, no sequential dependency. They are unsafe when blocks touch the same module — merge conflicts, inconsistent patterns, duplicated helpers.
+## Red flags in a task list
 
-Default: depth-first serial. Parallelize only where independence is structural.
+Scan `PLANS.md` or an exec plan for these — any hit means resize.
 
-## In DevPilot Terms
+- Tasks phrased as verbs without objects ("refactor", "cleanup", "investigate")
+- Tasks that say "and" more than once (usually two tasks glued together)
+- Tasks whose definition of done is "looks good" or "it works"
+- A wide list where every task touches the same module (conflict risk → serialize)
+- Tasks that finish by leaving the codebase non-compilable (stub-and-follow-up pattern)
 
-This maps directly onto the DevPilot task-runner model:
+## DevPilot mapping
 
-- A Trello card / GitHub Issue = one block
-- P0 / P1 / P2 labels = depth-first ordering
+In this repo:
+- Trello card / GitHub Issue = one block
+- P0 / P1 / P2 labels = depth-first ordering (finish P0 before starting P1)
 - Branch + PR per block = clean handoff artifact
 - Auto-merge on green CI = sensor-gated completion
-- `openspec` change = pre-approved block shape with design + tasks
+- `openspec` change = pre-approved block with design + tasks
 
-If a card feels too big to hand to the runner, it's not a runner problem — the block isn't sized right yet.
-
-## Anti-Patterns
-
-- **"Just have the agent figure it out."** Decomposition is the human's leverage point; don't outsource it.
-- **Breadth-first tickets.** 20 stubs is 20 problems.
-- **Blocks without a definition of done.** The agent and the sensors disagree on "finished."
-- **Blocks that require reading 30 files to start.** Either the context isn't organized or the block is too big.
+If a card feels too big for the runner, it's the block that's wrong, not the runner.
