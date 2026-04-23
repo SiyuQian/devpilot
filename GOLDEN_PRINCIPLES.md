@@ -121,7 +121,7 @@ Don't invent parallel log locations. One path, one format.
 ## Anti-Principles (Do Not Do)
 
 - **Don't** create a shared `internal/utils/` or `internal/common/` package. If it's truly shared, it has a real name; if it's not, it stays in its home package.
-- **Don't** auto-generate `CLAUDE.md`, `AGENTS.md`, `GOLDEN_PRINCIPLES.md`, or `docs/harness.md`. They're hand-written context; drift is worse than staleness.
+- **Don't** auto-generate `CLAUDE.md`, `AGENTS.md`, `GOLDEN_PRINCIPLES.md`, or `ARCHITECTURE.md`, `PLANS.md`. They're hand-written context; drift is worse than staleness.
 - **Don't** install MCP tools or skills speculatively into `.claude/` without an observed failure they address.
 - **Don't** add a bool flag to a function when an option or a new function would do.
 
