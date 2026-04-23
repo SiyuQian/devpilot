@@ -3,7 +3,7 @@
 Run once per repository before the first scan. Safe to re-run — `gh label create` returns a non-zero exit when a label already exists, so guard with `|| true`.
 
 ```bash
-gh label create repo-scan        --color FBCA04 --description "Filed by devpilot-repo-scan"       || true
+gh label create repo-scan        --color FBCA04 --description "Filed by devpilot-scanning-repos"       || true
 gh label create scan:security    --color B60205 --description "Security category"                 || true
 gh label create scan:edge-case   --color D93F0B --description "Edge-case / robustness category"   || true
 gh label create scan:coverage    --color 0E8A16 --description "Testing-coverage category"         || true

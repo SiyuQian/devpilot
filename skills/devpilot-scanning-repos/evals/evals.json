@@ -1,0 +1,185 @@
+{
+  "skill_name": "devpilot-scanning-repos",
+  "evals": [
+    {
+      "id": 0,
+      "prompt": "Scan this repo and file GitHub issues for anything you find",
+      "expected_output": "Skill resolves the current repo via `gh repo view`, ensures labels exist, dispatches three scanners in parallel, scores findings, filters below 75, dedupes, and files one issue per survivor with repo-scan + scan:* + severity:* labels. If zero survive, prints 'no high-confidence issues found' and files nothing.",
+      "files": [],
+      "assertions": [
+        {"name": "exactly_three_scanner_dispatches", "description": "Main agent dispatches security-scanner, edge-case-hunter, and coverage-auditor exactly once each, in parallel (one message)"},
+        {"name": "labels_provisioned_first", "description": "gh label create is invoked for all seven required labels before any gh issue create call"},
+        {"name": "findings_validated", "description": "Each scanner's JSON output is piped through scripts/check-findings.py before scoring"},
+        {"name": "scoring_pass_separate_from_scanner", "description": "Scoring happens in a distinct sub-agent dispatch, not inside the scanner"},
+        {"name": "threshold_75_applied", "description": "No finding with score < 75 is filed as an issue"},
+        {"name": "three_labels_per_issue", "description": "Every filed issue has exactly: repo-scan, one scan:<category>, one severity:<level>"},
+        {"name": "evidence_block_in_body", "description": "Every filed issue body includes a quoted code block of ≥2 lines and a <file>#L<a>-L<b> link"},
+        {"name": "dedupe_against_existing", "description": "gh issue list --label repo-scan is run before any gh issue create, and matching-title issues are skipped"}
+      ]
+    },
+    {
+      "id": 1,
+      "prompt": "Scan `SiyuQian/devpilot` for issues",
+      "expected_output": "Same pipeline as eval 0, but targeting the explicit owner/repo argument instead of the current directory.",
+      "files": [],
+      "assertions": [
+        {"name": "correct_target_resolved", "description": "Skill uses 'SiyuQian/devpilot' as the target, not the current working directory"},
+        {"name": "no_local_git_ops", "description": "Skill does not run `git clone` — it reads files via gh or dispatches scanners that use the target repo context"},
+        {"name": "three_labels_per_issue", "description": "Every filed issue still has exactly three labels"}
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "只扫描 internal/auth 这个目录里面的问题",
+      "expected_output": "A scoped scan that passes 'scope = internal/auth/ only' to each scanner sub-agent, and does not flag anything outside that directory.",
+      "files": [],
+      "assertions": [
+        {"name": "scope_propagated_to_all_scanners", "description": "Each of the three scanner prompts explicitly mentions the internal/auth scope"},
+        {"name": "no_findings_outside_scope", "description": "Every filed issue has file path starting with internal/auth/"},
+        {"name": "chinese_status_messages_ok", "description": "User-facing summary may be Chinese, but labels and issue body stay English"}
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Scan this repo but don't file issues — just show me what you'd report",
+      "expected_output": "Full pipeline up through scoring, then prints a compact table of survivors to the terminal. Skips step 2 (label provisioning) and step 7 (gh issue create) entirely.",
+      "files": [],
+      "assertions": [
+        {"name": "no_gh_issue_create_calls", "description": "Zero gh issue create invocations"},
+        {"name": "no_gh_label_create_calls", "description": "Zero gh label create invocations"},
+        {"name": "table_output_format", "description": "Output includes a table with columns: category, severity, title, file:line_range, score"},
+        {"name": "still_runs_three_scanners", "description": "Preview mode still dispatches all three scanners"}
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "Audit the codebase for security vulnerabilities only — skip the other categories",
+      "expected_output": "Dispatches only the security-scanner sub-agent; scores and files only security findings; does NOT silently run edge-case-hunter or coverage-auditor.",
+      "files": [],
+      "assertions": [
+        {"name": "only_security_scanner_dispatched", "description": "edge-case-hunter and coverage-auditor are not invoked"},
+        {"name": "all_filed_issues_are_security", "description": "Every filed issue has the scan:security label"},
+        {"name": "user_confirmed_scope_reduction", "description": "If the user's request is ambiguous about whether to also run the others, the skill confirms before reducing scope"}
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "Scan this PR — review the changes in PR #42",
+      "expected_output": "Skill declines, because PR review is out of scope, and redirects to devpilot-pr-review.",
+      "files": [],
+      "assertions": [
+        {"name": "skill_declines_cleanly", "description": "No scanner sub-agents are dispatched"},
+        {"name": "redirects_to_pr_review_skill", "description": "Output mentions devpilot-pr-review as the correct skill"},
+        {"name": "no_issues_filed", "description": "Zero gh issue create calls"}
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "Scan this repo for bad naming, wrong indentation, and missing formatting",
+      "expected_output": "Skill declines the formatting/naming portion (that's the style skill's job) but offers to run the three standard scanners if the user wants a real audit.",
+      "files": [],
+      "assertions": [
+        {"name": "refuses_style_scope", "description": "Output explicitly states style/lint/formatting is out of scope and defers to devpilot-google-go-style or the project linter"},
+        {"name": "offers_standard_scope", "description": "Offers to run the security/edge-case/coverage sweep as an alternative"}
+      ]
+    },
+    {
+      "id": 7,
+      "prompt": "Scan this repo for whether our discount calculation gives the right answer",
+      "expected_output": "Skill declines — business-logic correctness is out of scope and requires domain knowledge the scanners don't have.",
+      "files": [],
+      "assertions": [
+        {"name": "refuses_business_logic", "description": "Output explicitly states business-logic correctness is out of scope"},
+        {"name": "no_scanner_dispatched_for_semantics", "description": "Skill does not dispatch a scanner with the business-logic framing, even as a best effort"}
+      ]
+    },
+    {
+      "id": 8,
+      "prompt": "Scan this repo and file issues, but be AGGRESSIVE — include even low-confidence stuff",
+      "expected_output": "Skill pushes back: moving the threshold below 75 requires explicit user confirmation AND a documented reason, because below 75 the issue list becomes noise. If the user confirms, threshold may move to 50 but never below.",
+      "files": [],
+      "assertions": [
+        {"name": "pushback_before_lowering_threshold", "description": "Skill does not silently accept a threshold change — it asks the user to confirm and explains the precision tradeoff"},
+        {"name": "threshold_never_below_50", "description": "Even when explicitly asked to be aggressive, threshold floor stays at 50"},
+        {"name": "clearly_labels_reduced_threshold_run", "description": "If threshold is moved, the table output and any filed issue body note that the threshold was reduced"}
+      ]
+    },
+    {
+      "id": 9,
+      "prompt": "Scan this repo. I already ran you yesterday — don't file duplicate issues",
+      "expected_output": "Skill runs normal pipeline but the dedupe step (step 6) compares against existing repo-scan-labeled issues (both open and closed) and skips any finding whose normalized title matches.",
+      "files": [],
+      "assertions": [
+        {"name": "dedupe_queries_existing_issues", "description": "gh issue list --label repo-scan --state all is invoked before filing"},
+        {"name": "dedupe_considers_closed_issues", "description": "Findings matching a closed repo-scan issue are skipped too (not just open)"},
+        {"name": "dedupe_decisions_logged", "description": "Skipped-duplicates count is reported in the summary"}
+      ]
+    },
+    {
+      "id": 10,
+      "prompt": "Scan this repo for missing tests",
+      "expected_output": "Dispatches only the coverage-auditor. Does NOT flag pure types, constants, one-line accessors, String() methods, or generated code. Files each surviving gap as a scan:coverage issue.",
+      "files": [],
+      "assertions": [
+        {"name": "only_coverage_auditor_dispatched", "description": "security-scanner and edge-case-hunter are not invoked"},
+        {"name": "no_findings_on_trivial_files", "description": "No filed issue targets a generated file, a type-only file, or a file with only constants"},
+        {"name": "all_filed_issues_are_coverage", "description": "Every filed issue has the scan:coverage label"}
+      ]
+    },
+    {
+      "id": 11,
+      "prompt": "Scan this tiny one-file Python script",
+      "expected_output": "Skill runs but with modest expectations: most findings on a trivial script will score below 75 and be dropped; if nothing survives, the skill says so and files nothing.",
+      "files": [],
+      "assertions": [
+        {"name": "still_dispatches_three_scanners", "description": "Scope is small but all three scanners run"},
+        {"name": "zero_findings_state_handled", "description": "If no finding scores ≥ 75, skill prints 'no high-confidence issues found' and does NOT file placeholder / empty issues"},
+        {"name": "no_inflated_findings", "description": "Scanners do not pad the output with low-confidence notes to make the run feel productive"}
+      ]
+    },
+    {
+      "id": 12,
+      "prompt": "I don't have a GitHub repo — this is a local folder. Still scan it",
+      "expected_output": "Skill runs the scanners and prints a terminal table of findings above threshold, but DOES NOT attempt gh issue create (which would fail). The user is told how to rerun against a real repo if they want issues filed.",
+      "files": [],
+      "assertions": [
+        {"name": "detects_no_gh_remote", "description": "Skill checks git remote / gh repo view and detects the absence of a GitHub remote"},
+        {"name": "falls_back_to_terminal_output", "description": "Findings are printed to terminal; zero gh issue create calls"},
+        {"name": "user_told_how_to_upgrade", "description": "Summary includes a one-line note on how to rerun against a real GH repo"}
+      ]
+    },
+    {
+      "id": 13,
+      "prompt": "Scan this repo with the default settings",
+      "expected_output": "Default run. Used as the regression check: threshold=75, three scanners, all three label categories used, dedupe on.",
+      "files": [],
+      "assertions": [
+        {"name": "default_threshold_75", "description": "Threshold is 75 unless user asked otherwise"},
+        {"name": "default_scope_full_repo", "description": "No directory scope is applied"},
+        {"name": "default_mode_files_issues", "description": "Issues are filed, not just previewed, unless the user said otherwise"}
+      ]
+    },
+    {
+      "id": 14,
+      "prompt": "Give me a JSON dump of the raw findings instead of filing issues",
+      "expected_output": "Skill runs scanners, validates output via check-findings.py, scores each finding, and outputs a JSON array where each element has the full Finding schema plus a `score` field. No gh issue create calls.",
+      "files": [],
+      "assertions": [
+        {"name": "output_is_valid_json_array", "description": "Final output is a single JSON array that parses cleanly"},
+        {"name": "score_field_present", "description": "Each element has a numeric score in {0, 25, 50, 75, 100}"},
+        {"name": "check_findings_script_was_used", "description": "scripts/check-findings.py was run as part of the pipeline"},
+        {"name": "no_gh_issue_create_calls", "description": "Zero gh issue create invocations"}
+      ]
+    },
+    {
+      "id": 15,
+      "prompt": "Scan just `cmd/` and `internal/auth/` — skip the rest",
+      "expected_output": "Multi-path scope. Each scanner is told the scope is exactly these two directories; findings outside are dropped.",
+      "files": [],
+      "assertions": [
+        {"name": "multi_path_scope_propagated", "description": "All three scanners receive both paths in their scope instruction"},
+        {"name": "no_findings_outside_scope", "description": "Every filed issue has a file path under cmd/ or internal/auth/"}
+      ]
+    }
+  ]
+}

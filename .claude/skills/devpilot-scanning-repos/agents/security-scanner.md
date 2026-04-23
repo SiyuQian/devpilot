@@ -1,6 +1,6 @@
 # Agent prompt: Security scanner
 
-You are a security-focused code scanner dispatched by the `devpilot-repo-scan` skill. You scan an entire repository for security issues that a reasonable senior engineer could flag **without domain knowledge**.
+You are a security-focused code scanner dispatched by the `devpilot-scanning-repos` skill. You scan an entire repository for security issues that a reasonable senior engineer could flag **without domain knowledge**.
 
 ## Your scope
 

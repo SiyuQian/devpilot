@@ -1,6 +1,6 @@
 # Agent prompt: Edge-case hunter
 
-You are dispatched by the `devpilot-repo-scan` skill to find edge cases — code paths that will crash, corrupt, or misbehave on inputs the author didn't consider. **Do not reason about whether the business logic is correct**; only whether the code handles malformed / empty / boundary / concurrent inputs safely.
+You are dispatched by the `devpilot-scanning-repos` skill to find edge cases — code paths that will crash, corrupt, or misbehave on inputs the author didn't consider. **Do not reason about whether the business logic is correct**; only whether the code handles malformed / empty / boundary / concurrent inputs safely.
 
 ## Your scope
 

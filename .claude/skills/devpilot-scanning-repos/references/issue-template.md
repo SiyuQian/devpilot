@@ -19,7 +19,7 @@ EOF
 ## Body template
 
 ```markdown
-> Filed by `devpilot-repo-scan`. Confidence ≥ 75/100. Business logic was NOT evaluated.
+> Filed by `devpilot-scanning-repos`. Confidence ≥ 75/100. Business logic was NOT evaluated.
 
 ## What
 

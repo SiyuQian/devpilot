@@ -1,9 +1,22 @@
 ---
-name: devpilot-repo-scan
+name: devpilot-scanning-repos
 description: Use when the user asks to scan, audit, or sweep an entire GitHub repository for issues and file them as tickets — "scan this repo", "audit the codebase", "find bugs/security holes/missing tests", "/repo-scan", "open issues for all the problems you find". Scans security, edge cases, and testing coverage without assuming business logic. Do NOT use for reviewing a single PR (use devpilot-pr-review) or language-specific style review (use devpilot-google-go-style).
 ---
 
 # Repo Scan (Security / Edge Cases / Coverage → GitHub Issues)
+
+## Files in this skill
+
+| File | When to load |
+|---|---|
+| `agents/security-scanner.md` | Step 3 — sub-agent prompt for the security scanner. |
+| `agents/edge-case-hunter.md` | Step 3 — sub-agent prompt for edge-case hunting (no business logic). |
+| `agents/coverage-auditor.md` | Step 3 — sub-agent prompt for test-coverage gap detection. |
+| `references/scoring.md` | Step 4 — full 0/25/50/75/100 rubric + false-positive classes. |
+| `references/issue-template.md` | Step 7 — exact `gh issue create` body and label contract. |
+| `references/labels.md` | Step 2 — one-shot `gh label create` commands. |
+| `scripts/check-findings.py` | Step 3.5 — validates each scanner's JSON output against the schema. |
+| `evals/evals.json` | Test scenarios for skill behavior (not loaded at runtime). |
 
 ## Overview
 
@@ -27,6 +40,7 @@ A whole-repo sweep that dispatches **three parallel specialist sub-agents**, sco
    - `agents/edge-case-hunter.md`
    - `agents/coverage-auditor.md`
    Each returns a list of `Finding` objects (see format below). Scanners are told to emit everything they notice — including low-severity — because filtering happens in step 4, not in the scanner.
+3.5. **Validate scanner output.** Pipe each scanner's JSON array through `python3 scripts/check-findings.py`. It exits non-zero and prints the offending object if any finding is missing a required field, uses an invalid `category`/`severity` enum, or has an empty `evidence` block. Fix (or ask the scanner to re-emit) before scoring.
 4. **Score every finding.** For each finding, dispatch a lightweight scoring sub-agent using the rubric in `references/scoring.md`. Scores are 0, 25, 50, 75, or 100 — the same scale used by the official `/code-review:code-review` command, adapted for repo-wide scans.
 5. **Filter.** Drop every finding with score `< 75`. If zero survive, stop — report "no high-confidence issues found" to the user and do not create issues.
 6. **Deduplicate against existing issues.** Before filing, run `gh issue list --label repo-scan --state all --limit 200 --json title,body,number` and skip findings whose normalized title already matches an open or recently-closed scan issue.
@@ -110,13 +124,6 @@ If any of these is violated, the skill failed — stop and correct before contin
 - **Asking scanners to rank severity *and* confidence.** Confidence is the scoring pass's job; scanners assign severity only.
 - **Forgetting the dedupe step.** Re-running the skill must be idempotent or the user will stop running it.
 
-## Reference index
+## Evaluation
 
-| File | What's in it |
-|---|---|
-| `agents/security-scanner.md` | Sub-agent prompt for the security scanner (authN/Z, injection, secrets, path traversal, crypto misuse, unsafe deserialization, CORS/SSRF, dependency pinning). |
-| `agents/edge-case-hunter.md` | Sub-agent prompt for nil/empty/boundary/concurrency/error-path hunting — no business logic. |
-| `agents/coverage-auditor.md` | Sub-agent prompt that maps production files to test files and flags meaningful gaps. |
-| `references/scoring.md` | Full 0/25/50/75/100 rubric with per-category adjustments and false-positive classes. |
-| `references/issue-template.md` | Exact body template for `gh issue create`, including required sections. |
-| `references/labels.md` | `gh label create` commands to provision labels once per repo. |
+Test scenarios for this skill live in `evals/evals.json`. Each eval gives a prompt, expected output shape, and machine-checkable assertions (e.g. *`exactly_three_scanner_dispatches`*, *`no_business_logic_findings_filed`*, *`all_issues_have_three_labels`*). Run before shipping any change to scanner prompts or the scoring rubric.
