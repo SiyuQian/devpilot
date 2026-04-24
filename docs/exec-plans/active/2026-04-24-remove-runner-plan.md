@@ -117,7 +117,7 @@ Expected: No errors.
 - [ ] **Step 5: Verify `--help` no longer shows deleted commands**
 
 Run: `make build && bin/devpilot --help`
-Expected: Output lists available commands. `run`, `sync`, `review`, `commit`, `readme` are **not** in the list. `init`, `skill`, `login`, `logout`, `status`, `gmail`, `slack`, `trello`, `completion`, `help` are present.
+Expected: Output lists available commands. `run`, `sync`, `review`, `commit`, `readme` are **not** in the list. `init`, `skill`, `login`, `logout`, `status`, `gmail`, `slack`, `push`, `completion`, `help` are present (note: `push` is the command added by the `trello` package; `login/logout/status` come from `auth`).
 
 - [ ] **Step 6: Commit**
 
@@ -960,7 +960,7 @@ Expected: No errors.
 - [ ] **Step 4: Final sanity — `devpilot --help` surface**
 
 Run: `bin/devpilot --help`
-Expected available commands (order may vary): `completion`, `gmail`, `help`, `init`, `login`, `logout`, `push`, `skill`, `slack`, `status`, `trello`. **Not** present: `run`, `sync`, `review`, `commit`, `readme`.
+Expected available commands (order may vary): `completion`, `gmail`, `help`, `init`, `login`, `logout`, `push`, `skill`, `slack`, `status`. **Not** present: `run`, `sync`, `review`, `commit`, `readme`.
 
 - [ ] **Step 5: Final grep sweep — no stray references to deleted packages/skills anywhere except historical archives**
 
