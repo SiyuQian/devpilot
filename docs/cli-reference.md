@@ -74,6 +74,15 @@ devpilot gmail summary --dm U0123ABCDE         # Send summary as a DM (marks as 
 devpilot slack send --channel "#general" --text "hi"   # Send a Slack message
 ```
 
+## Generation
+
+```bash
+devpilot commit                             # Stage changes, generate conventional commit message, confirm, commit
+devpilot commit -m "context for AI"         # Pass extra context to the model
+devpilot commit --model claude-haiku-4-5    # Override model
+devpilot commit --dry-run                   # Print generated message without committing
+```
+
 ## Skill Helper Scripts (Python 3)
 
 ```bash

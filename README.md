@@ -108,6 +108,20 @@ devpilot gmail summary --channel daily-digest
 |---------|-------------|
 | `devpilot slack send --channel "#channel"` | Send a Slack message |
 
+### Generation Commands
+
+| Command | Description |
+|---------|-------------|
+| `devpilot commit` | Generate a conventional commit message from staged changes |
+
+### `devpilot commit` Flags
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `-m, --message` | — | Additional context for AI |
+| `--model` | *(from config)* | Override Claude model |
+| `--dry-run` | `false` | Generate message without committing |
+
 ### `devpilot gmail list` Flags
 
 | Flag | Default | Description |

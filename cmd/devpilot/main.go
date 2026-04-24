@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/siyuqian/devpilot/internal/auth"
+	"github.com/siyuqian/devpilot/internal/generate"
 	"github.com/siyuqian/devpilot/internal/gmail"
 	"github.com/siyuqian/devpilot/internal/initcmd"
 	"github.com/siyuqian/devpilot/internal/skillmgr"
@@ -30,6 +31,7 @@ func main() {
 	trello.RegisterCommands(rootCmd)
 	gmail.RegisterCommands(rootCmd)
 	slack.RegisterCommands(rootCmd)
+	generate.RegisterCommands(rootCmd)
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
