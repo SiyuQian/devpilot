@@ -5,14 +5,10 @@ import (
 	"os"
 
 	"github.com/siyuqian/devpilot/internal/auth"
-	"github.com/siyuqian/devpilot/internal/generate"
 	"github.com/siyuqian/devpilot/internal/gmail"
 	"github.com/siyuqian/devpilot/internal/initcmd"
-	"github.com/siyuqian/devpilot/internal/openspec"
-	"github.com/siyuqian/devpilot/internal/review"
 	"github.com/siyuqian/devpilot/internal/skillmgr"
 	"github.com/siyuqian/devpilot/internal/slack"
-	"github.com/siyuqian/devpilot/internal/taskrunner"
 	"github.com/siyuqian/devpilot/internal/trello"
 	"github.com/spf13/cobra"
 )
@@ -34,10 +30,6 @@ func main() {
 	trello.RegisterCommands(rootCmd)
 	gmail.RegisterCommands(rootCmd)
 	slack.RegisterCommands(rootCmd)
-	taskrunner.RegisterCommands(rootCmd)
-	generate.RegisterCommands(rootCmd)
-	review.RegisterCommands(rootCmd)
-	openspec.RegisterCommands(rootCmd)
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
