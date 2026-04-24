@@ -160,6 +160,21 @@
       ]
     },
     {
+      "name": "devpilot-scanning-repos",
+      "description": "Use when the user asks to scan, audit, or sweep an entire GitHub repository for issues and file them as tickets. Scans security, edge cases, and testing coverage without assuming business logic; dispatches parallel scanner sub-agents, scores findings 0-100, and files each surviving finding as a labeled GitHub issue.",
+      "files": [
+        "agents/coverage-auditor.md",
+        "agents/edge-case-hunter.md",
+        "agents/security-scanner.md",
+        "evals/evals.json",
+        "references/issue-template.md",
+        "references/labels.md",
+        "references/scoring.md",
+        "scripts/check-findings.py",
+        "SKILL.md"
+      ]
+    },
+    {
       "name": "devpilot-trello",
       "description": "Interact with Trello boards, lists, and cards directly from Claude Code.",
       "files": [
