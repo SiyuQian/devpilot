@@ -2,7 +2,7 @@
 
 Active work, newest first. Each entry: status, one-line goal, link.
 
-_No active exec-plans._
+- 2026-04-24 — Remove the runner and sibling AI-wrapping commands; reposition DevPilot as a skill catalog + narrow Go helpers. ([design](docs/exec-plans/active/2026-04-24-remove-runner-design.md))
 
 ## Recently completed
 
