@@ -143,23 +143,6 @@
       ]
     },
     {
-      "name": "devpilot-task-executor",
-      "description": "Executes a task plan autonomously. Used by the devpilot runner to process Trello cards.",
-      "files": [
-        "LICENSE.txt",
-        "SKILL.md"
-      ]
-    },
-    {
-      "name": "devpilot-task-refiner",
-      "description": "Improve Trello card task plans for the devpilot runner.",
-      "files": [
-        "LICENSE.txt",
-        "references/quality-checklist.md",
-        "SKILL.md"
-      ]
-    },
-    {
       "name": "devpilot-scanning-repos",
       "description": "Use when the user asks to scan, audit, or sweep an entire GitHub repository for issues and file them as tickets. Scans security, edge cases, and testing coverage without assuming business logic; dispatches parallel scanner sub-agents, scores findings 0-100, and files each surviving finding as a labeled GitHub issue.",
       "files": [
