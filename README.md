@@ -25,6 +25,14 @@
 
 ### Installation
 
+**Just want the skills?** Install the whole catalog into any project with one command — no devpilot CLI required:
+
+```bash
+npx skills add siyuqian/devpilot
+```
+
+This drops the skills into `.claude/skills/` so Claude Code can pick them up immediately. Use the devpilot CLI below if you also want the Gmail / Slack / Trello helpers.
+
 **From release:**
 ```bash
 curl -sSL https://raw.githubusercontent.com/SiyuQian/devpilot/main/install.sh | sh
