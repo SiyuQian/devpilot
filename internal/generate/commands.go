@@ -10,17 +10,13 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// RegisterCommands attaches the `commit` and `readme` subcommands to parent.
+// RegisterCommands attaches the `commit` subcommand to parent.
 func RegisterCommands(parent *cobra.Command) {
 	commitCmd.Flags().StringP("message", "m", "", "Additional context for AI")
 	commitCmd.Flags().String("model", "", "Override Claude model")
 	commitCmd.Flags().Bool("dry-run", false, "Generate message without committing")
 
-	readmeCmd.Flags().String("model", "", "Override Claude model")
-	readmeCmd.Flags().Bool("dry-run", false, "Generate without writing file")
-
 	parent.AddCommand(commitCmd)
-	parent.AddCommand(readmeCmd)
 }
 
 func resolveModel(cmd *cobra.Command, command string) string {
@@ -46,25 +42,6 @@ var commitCmd = &cobra.Command{
 		defer cancel()
 
 		if err := runCommit(ctx, model, msg, dryRun); err != nil {
-			fmt.Fprintln(os.Stderr, "Error:", err)
-			os.Exit(1)
-		}
-	},
-}
-
-var readmeCmd = &cobra.Command{
-	Use:   "readme",
-	Short: "Generate a README.md using AI",
-	Long:  "Analyzes your project structure and generates a professional README.md using Claude AI.",
-	Args:  cobra.NoArgs,
-	Run: func(cmd *cobra.Command, args []string) {
-		model := resolveModel(cmd, "readme")
-		dryRun, _ := cmd.Flags().GetBool("dry-run") // Ignore error; flag registered above with default
-
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
-		defer cancel()
-
-		if err := runReadme(ctx, model, dryRun); err != nil {
 			fmt.Fprintln(os.Stderr, "Error:", err)
 			os.Exit(1)
 		}
