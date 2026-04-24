@@ -40,12 +40,12 @@ Only cross-cutting config (paths, feature flags, `.devpilot.yaml` shape) belongs
 ## Public API Shape
 
 ### 5. Functional options for any constructor with more than one optional parameter
-New clients, executors, runners expose `NewXxx(required, ...Option)` with `WithYyy(v) Option` helpers.
+New clients expose `NewXxx(required, ...Option)` with `WithYyy(v) Option` helpers.
 
 ✅ `trello.NewClient(apiKey, token, trello.WithHTTPClient(c), trello.WithBaseURL(u))`
 ❌ `trello.NewClient(apiKey, token, httpClient, baseURL, retries, verbose)`
 
-**Why:** testability, forward-compatibility, and our existing `Executor` + `trello.Client` already use this pattern — every new constructor joining them keeps the codebase consistent.
+**Why:** testability, forward-compatibility, and `trello.Client` already uses this pattern — every new constructor joining it keeps the codebase consistent.
 
 ### 6. No positional `bool` parameters in exported functions
 Replace with an option, a named struct field, or a typed enum.
@@ -102,19 +102,6 @@ SKILL.md stays scannable. Detail, API docs, long examples live in `references/*.
 
 ### 16. Rejected ideas are recorded, not deleted
 `docs/rejected/` holds one-pagers for ideas considered and deferred. The PM skill reads this to avoid re-recommending them.
-
----
-
-## Runner & Event System
-
-### 17. Runner events are additive, not mutated
-New event types are new structs implementing the `Event` interface; existing events are never repurposed with a new meaning.
-
-### 18. The TUI is a consumer, never a producer
-The Bubble Tea model reads from the event channel and never writes back. Keyboard input produces `tea.Cmd`s local to the TUI, not runner events.
-
-### 19. Per-card logs to `~/.config/devpilot/logs/{card-id}.log`
-Don't invent parallel log locations. One path, one format.
 
 ---
 
