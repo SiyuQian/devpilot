@@ -16,14 +16,16 @@ make clean                         # Remove bin/
 Run a single test:
 ```bash
 go test ./internal/skillmgr/ -run TestInstallSkill   # Single test by name
-go test ./internal/taskrunner/ -v                     # Single package, verbose
+go test ./internal/skillmgr/ -v                       # Single package, verbose
 ```
 
 ## Authentication & Status
 
 ```bash
 devpilot login trello                # Authenticate with Trello (API key + token)
-devpilot logout trello               # Remove stored credentials
+devpilot login gmail                 # Authenticate with Gmail (OAuth)
+devpilot login slack                 # Authenticate with Slack (OAuth)
+devpilot logout <service>            # Remove stored credentials
 devpilot status                      # Show authentication status for all services
 ```
 
@@ -32,41 +34,6 @@ devpilot status                      # Show authentication status for all servic
 ```bash
 devpilot init                        # Interactive project setup wizard
 devpilot init -y                     # Accept all defaults
-```
-
-## Queueing Work
-
-```bash
-devpilot push <plan.md> --board "Board Name"                 # Create Trello card from plan file
-devpilot push <plan.md> --board "Board Name" --list "Ready"  # Specify target list (default: Ready)
-```
-
-## Running the Autonomous Runner
-
-```bash
-devpilot run --board "Board Name"                          # Start autonomous task runner (TUI mode)
-devpilot run --board "Board Name" --no-tui                 # Plain text output (no dashboard)
-devpilot run --board "Board Name" --once --dry-run         # Test with one card, no execution
-devpilot run --board "Board Name" --interval 60            # Poll every 60s (default: 300)
-devpilot run --board "Board Name" --timeout 45             # 45min per-task timeout (default: 30)
-devpilot run --board "Board Name" --review-timeout 0       # Disable auto code review
-```
-
-## OpenSpec Sync
-
-```bash
-devpilot sync                        # Sync OpenSpec changes to board/issues
-devpilot sync --board "Board Name"   # Override board
-devpilot sync --source github        # Override source
-```
-
-## Gmail Summary
-
-```bash
-devpilot gmail summary                         # Dry run: summarize unread emails (won't mark as read)
-devpilot gmail summary --channel daily-digest  # Send summary to a Slack channel (marks as read)
-devpilot gmail summary --dm U0123ABCDE         # Send summary as a DM (marks as read)
-devpilot gmail summary --no-mark-read=false    # Explicitly mark emails as read without sending
 ```
 
 ## Skills
@@ -81,20 +48,30 @@ devpilot skill list                             # List available skills with ins
 devpilot skill list --installed                 # List only installed skills
 ```
 
-## Code Review
+## Trello
 
 ```bash
-devpilot review <pr-url>                                     # AI-powered code review, posts to PR
-devpilot review <pr-url> --no-post                           # Review without posting to PR
-devpilot review <pr-url> --model claude-sonnet-4-6-20250514  # Review with custom model
-devpilot review <pr-url> --dry-run                           # Print assembled prompt without executing
+devpilot push <plan.md> --board "Board Name"                 # Create Trello card from plan file
+devpilot push <plan.md> --board "Board Name" --list "Ready"  # Specify target list (default: Ready)
 ```
 
-## Misc
+## Gmail
 
 ```bash
-devpilot commit     # Generate commit message from staged changes
-devpilot readme     # Generate or improve README.md
+devpilot gmail list                            # List recent emails
+devpilot gmail list --unread --limit 10        # Filter
+devpilot gmail read <id>                       # Display full email
+devpilot gmail mark-read <id...>               # Mark as read
+devpilot gmail bulk-mark-read --query "..."    # Bulk mark by Gmail query
+devpilot gmail summary                         # Dry run: summarize unread emails (won't mark as read)
+devpilot gmail summary --channel daily-digest  # Send summary to a Slack channel (marks as read)
+devpilot gmail summary --dm U0123ABCDE         # Send summary as a DM (marks as read)
+```
+
+## Slack
+
+```bash
+devpilot slack send --channel "#general" --text "hi"   # Send a Slack message
 ```
 
 ## Skill Helper Scripts (Python 3)
