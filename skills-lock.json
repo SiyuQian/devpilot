@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "skills": {
+    "devpilot-resolve-issues": {
+      "source": "siyuqian/devpilot",
+      "sourceType": "github",
+      "computedHash": "8a81dc34fe40275b4f3a7e451403bac790ac9b8c4ec68fa62003b59d1effcabb"
+    }
+  }
+}
