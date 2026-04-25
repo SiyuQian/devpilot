@@ -42,8 +42,10 @@ You are dispatched by the `devpilot-scanning-repos` skill to find edge cases —
 
 ## How to scan
 
-1. Walk the production source tree. Skip test files, generated files, and vendor directories.
-2. In each file, read every non-trivial function. Ask for each parameter:
+You will receive a path to a manifest file (default `/tmp/devpilot-scan-manifest.txt`). It is the EXCLUSIVE set of files you may read. Do NOT run a fresh `find` or open files outside the manifest. If a finding's file isn't in the manifest, drop it.
+
+1. Read `/tmp/devpilot-scan-manifest.txt`. Filter out `*_test.*`, files under `gen/`, and obvious generated files (header line `// Code generated`).
+2. In each remaining file, read every non-trivial function. Ask for each parameter:
    - What if this is nil / zero / empty / negative / huge / unicode / malformed?
    - Is that case handled, or does it crash / return silently-wrong data?
 3. For each error return: is the error path as correct as the happy path? Look for the pattern `if err != nil { return ... }` where the `...` discards context or returns a partial result.
@@ -58,6 +60,7 @@ Return ONLY a JSON array (no prose) of findings using the repo-scan Finding sche
 [
   {
     "category": "edge-case",
+    "subcategory": "edge/nil-deref",
     "title": "Nil map dereferenced on empty config in internal/project/config.go",
     "severity": "medium",
     "file": "internal/project/config.go",
@@ -76,3 +79,18 @@ Return ONLY a JSON array (no prose) of findings using the repo-scan Finding sche
 - `severity: low` — hardening opportunity; would surprise a reader but needs effort to hit.
 
 Be over-inclusive — filtering happens downstream.
+
+**Context-pressure trailer.** If you can't read every manifest file before exhausting context, append `{"_meta": {"manifest_size": <M>, "files_scanned": <N>, "stopped_reason": "context_budget"}}` as the last element of the JSON array. Never silently truncate.
+
+## Subcategory enum (mandatory)
+
+Every finding MUST set `subcategory` to one of:
+
+- `edge/nil-deref` — nil pointer / nil map / nil interface deref, empty-slice index
+- `edge/bounds-overflow` — off-by-one, integer over/underflow, slice index out of range
+- `edge/error-swallowed` — discarded errors, returned-zero-value-on-error, ignored close errors on writes
+- `edge/concurrency` — data race, deadlock, leaked goroutine, double-close, captured loop var, missing context propagation
+- `edge/resource-leak` — unclosed file / response.Body / DB row / ticker / mutex on error path
+- `edge/input-validation` — unbounded external input flowing into index, length, or `make([]T, n)`
+
+Pick the closest fit. Do NOT invent new subcategories. If nothing fits, drop the finding.

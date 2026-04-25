@@ -26,10 +26,19 @@ Look for, in decreasing priority:
 
 ## How to scan
 
-1. Start with a breadth-first file walk: `find . -type f -name '*.go' -o -name '*.py' -o -name '*.js' -o -name '*.ts' -o -name '*.rb' -o -name '*.java' -o -name '*.rs'` (adjust to the repo). Cap at a reasonable file count; if the repo is huge, focus on `cmd/`, `internal/`, `api/`, `handlers/`, `controllers/`, `auth/`, `crypto/`, `utils/`.
-2. For each high-signal directory, grep for dangerous sinks: `exec.Command`, `os/exec`, `fmt.Sprintf.*SELECT`, `subprocess.run.*shell=True`, `eval(`, `InsecureSkipVerify`, `math/rand`, `yaml.load(`, `pickle.loads`, `http.Get(.*r\\.`.
-3. When a sink is found, **read the surrounding function** to confirm user-controlled input reaches it. A sink with a hardcoded literal is not a finding.
-4. Record the finding in the required format (below).
+You will receive a path to a manifest file (default `/tmp/devpilot-scan-manifest.txt`). It contains one repo-relative path per line and is the EXCLUSIVE set of files you may scan. Do NOT run a fresh `find`. Do NOT open files outside the manifest. If a finding's file isn't in the manifest, drop the finding.
+
+1. **Load the manifest.** `cat /tmp/devpilot-scan-manifest.txt | wc -l` — sanity-check it's non-empty. Read its contents.
+2. **Run the dangerous-sink greps against ONLY the manifest:**
+   ```bash
+   xargs -a /tmp/devpilot-scan-manifest.txt grep -nE \
+     'exec\.Command|os/exec|fmt\.Sprintf.*SELECT|subprocess\.run.*shell=True|eval\(|InsecureSkipVerify|math/rand|yaml\.load\(|pickle\.loads|http\.Get\(.*r\.'
+   ```
+   Per-pattern cap: **40 hits**. If a pattern exceeds 40, prefer hits in files that also appear in the recent-churn list (the orchestrator can provide it via `git log --since=90.days.ago --name-only --pretty=format:`); ancient hits sort lower. Log skipped hits explicitly in your output as `skipped: N additional <pattern> hits not verified` — never silently drop them.
+3. When a sink is in the verify set, **read the surrounding function** to confirm user-controlled input reaches it. A sink with a hardcoded literal is not a finding.
+4. Record the finding in the required format (below). Set `subcategory` from the enum at the bottom of this prompt.
+
+**Hard rules under context pressure:** if your context budget runs out before all manifest files are scanned, stop and emit what you have. As the LAST element of the JSON array, append a single meta object so the orchestrator can see coverage: `{"_meta": {"manifest_size": <M>, "files_scanned": <N>, "patterns_capped": ["exec.Command", ...], "stopped_reason": "context_budget"}}`. The validator skips objects with a `_meta` key. Never silently truncate.
 
 ## Output format
 
@@ -39,6 +48,7 @@ Return ONLY a JSON array. No prose.
 [
   {
     "category": "security",
+    "subcategory": "sec/injection",
     "title": "Shell command built from unvalidated HTTP input in internal/runner/exec.go",
     "severity": "high",
     "file": "internal/runner/exec.go",
@@ -49,6 +59,21 @@ Return ONLY a JSON array. No prose.
   }
 ]
 ```
+
+## Subcategory enum (mandatory, no invention)
+
+Every finding MUST set `subcategory` to one of:
+
+- `sec/injection` — SQL / shell / template / NoSQL / LDAP injection
+- `sec/authn-authz` — missing auth, bypassable role checks, broken session
+- `sec/secrets` — hardcoded keys / tokens / credentials in code or history
+- `sec/crypto` — weak hash, bad RNG, ECB, static IV, JWT alg=none
+- `sec/path-traversal` — `../` injection, zip-slip, archive escape
+- `sec/ssrf-csrf` — SSRF, permissive CORS on private data, missing CSRF
+- `sec/deserialization` — pickle/unsafe yaml/gob from untrusted sources
+- `sec/tls-misconfig` — `InsecureSkipVerify`, plaintext-where-TLS-expected, weak ciphers
+
+If a finding doesn't fit any of these, pick the closest fit OR drop the finding. Do NOT invent a new subcategory.
 
 ## Calibration
 
