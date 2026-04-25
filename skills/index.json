@@ -114,12 +114,13 @@
     },
     {
       "name": "devpilot-resolve-issues",
-      "description": "End-to-end loop that works through open GitHub issues one at a time: triage, self-assign, investigate code, render a REAL / FALSE-POSITIVE / NEEDS-HUMAN verdict, and for REAL issues decompose the fix into 1–3 tasks dispatched as one implementer subagent per task with superpowers:requesting-code-review gating each task, then open a PR with Closes #N. Runs until the issue filter is empty.",
+      "description": "End-to-end loop that works through open GitHub issues one at a time: triage, self-assign, investigate code, render a REAL / FALSE-POSITIVE / NEEDS-HUMAN verdict, and for REAL issues fix in a per-issue git worktree — decompose into 1–3 tasks dispatched as one implementer subagent per task with superpowers:requesting-code-review gating each task, then open a PR with Closes #N. Runs until the issue filter is empty.",
       "files": [
         "references/per-task-review.md",
         "references/subagent-spec.md",
         "references/task-decomposition.md",
         "references/verdict-comments.md",
+        "references/worktree-management.md",
         "SKILL.md"
       ]
     },

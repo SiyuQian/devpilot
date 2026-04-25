@@ -17,11 +17,15 @@ The two reviews are complementary, not redundant. Per-task review is the interna
 For each task that just returned DONE, dispatch the code-reviewer following `superpowers:requesting-code-review`:
 
 ```bash
-# In the controller, between implementer DONE and TodoWrite completed:
+# In the controller, between implementer DONE and TodoWrite completed.
+# Cwd at this point is $WORKTREE — the issue's git worktree. git resolves HEAD
+# against the worktree's branch (fix/issue-<num>-<slug>), not the main checkout.
 
 BASE_SHA=$(git rev-parse HEAD~"$commits_in_this_task")  # commits the implementer made
 HEAD_SHA=$(git rev-parse HEAD)
 ```
+
+The reviewer subagent inherits `$WORKTREE` as cwd, so its `git diff $BASE_SHA..$HEAD_SHA`, file reads, and any `make` invocations apply to this issue's tree — not to the main checkout. Do **not** `cd "$MAIN"` before invoking the reviewer; the SHAs above only resolve correctly inside the worktree.
 
 Dispatch the reviewer with the template fields from `superpowers:requesting-code-review`:
 
