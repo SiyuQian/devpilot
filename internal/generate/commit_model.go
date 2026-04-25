@@ -304,6 +304,15 @@ func (m commitModel) analyzeChanges() tea.Cmd {
 }
 
 func (m commitModel) executeCommit(index int) tea.Cmd {
+	// validatePlan can filter every commit out (e.g. all proposed
+	// commits reference unknown files); without this guard
+	// m.plan.Commits[0] would panic the TUI with 'index out of range
+	// [0] with length 0'.
+	if index < 0 || index >= len(m.plan.Commits) {
+		return func() tea.Msg {
+			return commitExecMsg{index: index, err: fmt.Errorf("no commits to execute: validatePlan filtered the plan down to zero entries")}
+		}
+	}
 	commit := m.plan.Commits[index]
 	return func() tea.Msg {
 		// Reset staging area
