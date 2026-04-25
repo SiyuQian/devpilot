@@ -162,6 +162,151 @@ func TestInstallSkills_InteractiveInstalls(t *testing.T) {
 	}
 }
 
+// gitignoreHasLine reports whether existing contains entry as a line-equal
+// match (after trimming whitespace and a single leading "!"), ignoring blank
+// and comment lines. Used by tests to assert post-call .gitignore content.
+func gitignoreHasLine(existing, entry string) bool {
+	want := strings.TrimSpace(entry)
+	want = strings.TrimPrefix(want, "!")
+	for _, line := range strings.Split(existing, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		line = strings.TrimPrefix(line, "!")
+		if line == want {
+			return true
+		}
+	}
+	return false
+}
+
+func TestEnsureGitignore(t *testing.T) {
+	tests := []struct {
+		name         string
+		initial      string // initial .gitignore contents; empty means file does not exist
+		writeInitial bool   // whether to write initial file at all
+		entries      []string
+		wantPresent  []string // entries that must be present (line-equal) after the call
+		wantAbsent   []string // entries that must NOT have been added by the call (i.e., still absent)
+	}{
+		{
+			name:         "adds entry to missing file",
+			writeInitial: false,
+			entries:      []string{".devpilot/logs/"},
+			wantPresent:  []string{".devpilot/logs/"},
+		},
+		{
+			name:         "adds entry to empty file",
+			writeInitial: true,
+			initial:      "",
+			entries:      []string{".devpilot/logs/"},
+			wantPresent:  []string{".devpilot/logs/"},
+		},
+		{
+			name:         "adds entry when only substring matches exist",
+			writeInitial: true,
+			// The requested entry is a substring of an existing (longer)
+			// line; the buggy substring check would skip adding. The
+			// existing line is NOT a line-equal match, so the entry MUST
+			// be appended.
+			initial:     ".devpilot/logs/extra\n",
+			entries:     []string{".devpilot/logs/"},
+			wantPresent: []string{".devpilot/logs/"},
+		},
+		{
+			name:         "skips entry when exact line match exists",
+			writeInitial: true,
+			initial:      ".devpilot/logs/\n",
+			entries:      []string{".devpilot/logs/"},
+			wantPresent:  []string{".devpilot/logs/"},
+		},
+		{
+			name:         "skips entry when negated line match exists",
+			writeInitial: true,
+			initial:      "!.devpilot/logs/\n",
+			entries:      []string{".devpilot/logs/"},
+			wantPresent:  []string{".devpilot/logs/"},
+		},
+		{
+			name:         "treats lines with surrounding whitespace as equal",
+			writeInitial: true,
+			initial:      "  .devpilot/logs/  \n",
+			entries:      []string{".devpilot/logs/"},
+			wantPresent:  []string{".devpilot/logs/"},
+		},
+		{
+			name:         "ignores comment lines",
+			writeInitial: true,
+			initial:      "# .devpilot/logs/\n",
+			entries:      []string{".devpilot/logs/"},
+			wantPresent:  []string{".devpilot/logs/"},
+		},
+		{
+			name:         "multiple entries partial overlap",
+			writeInitial: true,
+			initial:      "a\n",
+			entries:      []string{"a", "b"},
+			wantPresent:  []string{"a", "b"},
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			path := filepath.Join(dir, ".gitignore")
+			if tc.writeInitial {
+				if err := os.WriteFile(path, []byte(tc.initial), 0644); err != nil {
+					t.Fatalf("WriteFile failed: %v", err)
+				}
+			}
+
+			if err := EnsureGitignore(dir, tc.entries); err != nil {
+				t.Fatalf("EnsureGitignore failed: %v", err)
+			}
+
+			data, err := os.ReadFile(path)
+			if err != nil {
+				t.Fatalf("ReadFile failed: %v", err)
+			}
+			got := string(data)
+
+			for _, want := range tc.wantPresent {
+				if !gitignoreHasLine(got, want) {
+					t.Errorf("entry %q missing from .gitignore; got:\n%s", want, got)
+				}
+			}
+			for _, absent := range tc.wantAbsent {
+				if gitignoreHasLine(got, absent) {
+					t.Errorf("entry %q unexpectedly present in .gitignore; got:\n%s", absent, got)
+				}
+			}
+		})
+	}
+}
+
+// TestEnsureGitignore_DoesNotDuplicateExactMatch asserts the regression-bug
+// counterpart: when an exact line already exists, the file is not modified.
+func TestEnsureGitignore_DoesNotDuplicateExactMatch(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, ".gitignore")
+	initial := ".devpilot/logs/\n"
+	if err := os.WriteFile(path, []byte(initial), 0644); err != nil {
+		t.Fatalf("WriteFile failed: %v", err)
+	}
+
+	if err := EnsureGitignore(dir, []string{".devpilot/logs/"}); err != nil {
+		t.Fatalf("EnsureGitignore failed: %v", err)
+	}
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("ReadFile failed: %v", err)
+	}
+	if string(data) != initial {
+		t.Errorf(".gitignore was modified despite exact match.\nbefore:\n%s\nafter:\n%s", initial, string(data))
+	}
+}
+
 func TestInstallSkills_NoSelection(t *testing.T) {
 	dir := t.TempDir()
 	opts := GenerateOpts{Dir: dir, Interactive: true}
