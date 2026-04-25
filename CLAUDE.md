@@ -1,10 +1,10 @@
 # DevPilot
 
-Go CLI + skill catalog that queues plans in Trello/GitHub Issues and lets a runner execute them via `claude -p`, opening PRs automatically.
+Skill catalog for Claude Code plus a small set of Go-native helpers (Gmail OAuth digests, Slack sending, Trello credential storage) that complement the catalog where a typed OAuth client beats a skill.
 
 ## Repo map
 - `cmd/devpilot/` — entry point
-- `internal/<domain>/` — self-contained domains (`auth`, `trello`, `taskrunner`, …); each owns its Cobra commands in `commands.go`
+- `internal/<domain>/` — self-contained domains (`auth`, `trello`, `gmail`, `slack`, `initcmd`, `skillmgr`, `project`); each owns its Cobra commands in `commands.go`
 - `skills/` — distributable skill catalog (register each in `skills/index.json`)
 - `.claude/skills/` — installed skills for this project
 - `.github/workflows/` — CI (test + release)

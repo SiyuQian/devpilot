@@ -4,48 +4,34 @@
 [![codecov](https://codecov.io/gh/SiyuQian/devpilot/branch/main/graph/badge.svg)](https://codecov.io/gh/SiyuQian/devpilot)
 [![GitHub Downloads](https://img.shields.io/github/downloads/SiyuQian/devpilot/total)](https://github.com/SiyuQian/devpilot/releases)
 
-**Autonomous development workflow automation for [Claude Code](https://claude.ai/code).** Write a plan in markdown, track it in Trello or GitHub Issues, and let DevPilot execute it — creating branches, writing code, opening PRs, running code review, and auto-merging.
+**A skill catalog for [Claude Code](https://claude.ai/code), plus a small set of Go-native helpers for Gmail, Slack, and Trello.** Install curated skills into any project with one command; use the CLI when a typed OAuth client beats a skill (Gmail digests, Slack posting, Trello credential storage).
 
-## How It Works
+## What DevPilot Gives You
 
-Pick your task backend:
-
-**GitHub Issues** (recommended — uses `gh` auth you already have):
-```
-Create Issue with devpilot label → devpilot run --source github → claude -p → Branch + PR
-```
-
-**Trello** (great if your team already uses it):
-```
-Create Trello card → devpilot run --board "My Board" → claude -p → Branch + PR
-```
-
-DevPilot polls your task source, prioritizes by labels (P0/P1/P2), and executes each task via `claude -p`. A real-time TUI dashboard shows tool calls, Claude's output, token usage, and progress. When done, it auto-merges the PR.
-
-## Features
-
-- **GitHub Issues & Trello support** — No vendor lock-in; pick what your team uses
-- **Autonomous execution** — Tasks flow through Ready → In Progress → Done/Failed without human intervention
-- **Priority scheduling** — P0/P1/P2 labels control order; GitHub Issues auto-sorted by creation time within priority
-- **Real-time TUI dashboard** — Bubble Tea terminal UI with tool history, file changes, token stats, and scrollable output
-- **Automated code review** — A second `claude -p` invocation validates the diff before merging
-- **OpenSpec integration** — Sync spec-driven changes to Trello or GitHub Issues
-- **Gmail AI digest** — `devpilot gmail summary` creates Claude-powered email summaries (dry run by default)
-- **Slack integration** — Send summaries to channels or DMs
-- **Project scaffolding** — `devpilot init` detects your stack and generates config, hooks, and skills
+- **A skill catalog.** `devpilot skill add <name>` pulls a curated Claude Code skill into `.claude/skills/`. `devpilot skill list` shows what is available and what is installed. `devpilot init` picks sensible defaults for a new project based on detected stack.
+- **Gmail digest.** `devpilot gmail summary` reads unread mail via OAuth, summarises it with Claude Code, and optionally posts the digest to Slack.
+- **Slack send.** `devpilot slack send` posts a message to a channel or DM with the credentials stored by `devpilot login slack`.
+- **Trello helpers.** `devpilot login trello` stores credentials; `devpilot push` creates a Trello card from a markdown plan file. Skills such as `devpilot-trello` read the same credential store.
 
 ## Getting Started
 
 ### Prerequisites
 
 - [Claude Code](https://docs.anthropic.com/en/docs/claude-code) installed and authenticated
-- [GitHub CLI (`gh`)](https://cli.github.com/) installed and authenticated
-- Git repository initialized in your project
-- *(Trello source only)* [Trello account with API credentials](https://trello.com/power-ups/admin)
-- *(Optional)* Google OAuth for Gmail integration
-- *(Optional)* Slack OAuth for Slack integration
+- Git
+- *(Optional)* Trello account with API credentials for `login trello`
+- *(Optional)* Google OAuth for `gmail *`
+- *(Optional)* Slack OAuth for `slack send` and `gmail summary --channel`
 
 ### Installation
+
+**Just want the skills?** Install the whole catalog into any project with one command — no devpilot CLI required:
+
+```bash
+npx skills add siyuqian/devpilot
+```
+
+This drops the skills into `.claude/skills/` so Claude Code can pick them up immediately. Use the devpilot CLI below if you also want the Gmail / Slack / Trello helpers.
 
 **From release:**
 ```bash
@@ -54,7 +40,7 @@ curl -sSL https://raw.githubusercontent.com/SiyuQian/devpilot/main/install.sh | 
 
 Optionally specify a version or directory:
 ```bash
-curl -sSL https://raw.githubusercontent.com/SiyuQian/devpilot/main/install.sh | sh -s -- --version v0.12.2 --dir ~/.local/bin
+curl -sSL https://raw.githubusercontent.com/SiyuQian/devpilot/main/install.sh | sh -s -- --version v1.0.0 --dir ~/.local/bin
 ```
 
 **From source (Go 1.25+):**
@@ -67,35 +53,20 @@ sudo mv bin/devpilot /usr/local/bin/
 
 Verify: `devpilot --version`
 
-### Quick Start: GitHub Issues (no extra accounts)
+### Quick Start
 
 ```bash
-# Initialize (select "github" for task source)
+# Initialise a project — detects stack, installs a sensible skill set
 devpilot init
 
-# Create an issue with the devpilot label
-gh issue create --title "Add dark mode" --label devpilot
+# Browse and install additional skills
+devpilot skill list
+devpilot skill add devpilot-pr-review
 
-# Run the runner
-devpilot run --source github
-```
-
-DevPilot auto-creates labels (`devpilot`, `in-progress`, `failed`, `P0-critical`, `P1-high`, `P2-normal`).
-
-### Quick Start: Trello
-
-```bash
-# Initialize
-devpilot init
-
-# Authenticate
-devpilot login trello
-
-# Create a Trello card manually with your plan text in the description
-# (or use the Trello API / Trello UI directly)
-
-# Run the runner
-devpilot run --board "Sprint Board"
+# Summarise unread Gmail, send to Slack
+devpilot login gmail
+devpilot login slack
+devpilot gmail summary --channel daily-digest
 ```
 
 ## CLI Reference
@@ -104,10 +75,16 @@ devpilot run --board "Sprint Board"
 
 | Command | Description |
 |---------|-------------|
-| `devpilot init` | Project setup wizard (detects stack, generates config) |
+| `devpilot init` | Project setup wizard (detects stack, generates config, installs starter skills) |
 | `devpilot init -y` | Accept all defaults without prompting |
-| `devpilot run` | Execute tasks from Trello or GitHub Issues |
-| `devpilot sync` | Sync OpenSpec changes to task backend |
+
+### Skill Commands
+
+| Command | Description |
+|---------|-------------|
+| `devpilot skill add <name[@version]>` | Install a skill from the devpilot catalog |
+| `devpilot skill add --all` | Install every skill in the catalog |
+| `devpilot skill list` | List available + installed skills |
 
 ### Service Commands
 
@@ -125,40 +102,33 @@ devpilot run --board "Sprint Board"
 | `devpilot gmail read <id>` | Display full email |
 | `devpilot gmail mark-read <id...>` | Mark as read |
 | `devpilot gmail bulk-mark-read` | Bulk mark by query |
-| `devpilot gmail summary` | AI digest of unread emails (or send to Slack) |
+| `devpilot gmail summary` | AI digest of unread emails (optionally to Slack) |
 
-### Skill Commands
+### Trello Commands
 
 | Command | Description |
 |---------|-------------|
-| `devpilot skill add <name[@version]>` | Install a skill from the devpilot catalog |
-| `devpilot skill list` | List installed skills |
+| `devpilot push <plan.md> --board "Board"` | Create a Trello card from a markdown plan |
+
+### Slack Commands
+
+| Command | Description |
+|---------|-------------|
+| `devpilot slack send --channel "#channel"` | Send a Slack message |
 
 ### Generation Commands
 
 | Command | Description |
 |---------|-------------|
-| `devpilot commit` | Generate conventional commit message from staged changes |
-| `devpilot readme` | Generate or improve README.md |
+| `devpilot commit` | Generate a conventional commit message from staged changes |
 
-### Other Commands
-
-| Command | Description |
-|---------|-------------|
-| `devpilot slack send --channel "#channel"` | Send Slack message |
-
-### `devpilot run` Flags
+### `devpilot commit` Flags
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--source` | `trello` | `trello` or `github` |
-| `--board` | *(required for Trello)* | Trello board name |
-| `--interval` | `300` | Poll interval (seconds) |
-| `--timeout` | `30` | Per-task timeout (minutes) |
-| `--review-timeout` | `10` | Code review timeout (0 to disable) |
-| `--once` | `false` | Run one task and exit |
-| `--dry-run` | `false` | Print actions without executing |
-| `--no-tui` | `false` | Disable TUI dashboard |
+| `-m, --message` | — | Additional context for AI |
+| `--model` | *(from config)* | Override Claude model |
+| `--dry-run` | `false` | Generate message without committing |
 
 ### `devpilot gmail list` Flags
 
@@ -176,96 +146,18 @@ devpilot run --board "Sprint Board"
 | `--dm` | — | Send summary as DM to Slack user ID |
 | `--no-mark-read` | `false` | Preview mode (don't mark emails as read) |
 
-### `devpilot sync` Flags
-
-| Flag | Default | Description |
-|------|---------|-------------|
-| `--source` | *(from config)* | `trello` or `github` |
-| `--board` | *(from config)* | Trello board name (required for Trello) |
-| `--list` | `Ready` | Target list name (Trello only) |
-
-### `devpilot commit` Flags
-
-| Flag | Default | Description |
-|------|---------|-------------|
-| `-m, --message` | — | Additional context for AI |
-| `--model` | *(from config)* | Override Claude model |
-| `--dry-run` | `false` | Generate message without committing |
-
-### `devpilot readme` Flags
-
-| Flag | Default | Description |
-|------|---------|-------------|
-| `--model` | *(from config)* | Override Claude model |
-| `--dry-run` | `false` | Generate without writing file |
-
 ## Configuration
 
 DevPilot stores project config in `.devpilot.yaml`. Initialize with `devpilot init`:
 
 ```yaml
-board: "My Board"          # Default Trello board (or set via env/flag)
-source: github             # Task source: "trello" or "github"
-models:
-  readme: claude-haiku-4-5 # Override model for specific commands
-  commit: claude-opus-4-6
+# Example
+source: github           # Informational only; used by init/future helpers
 ```
-
-## Task Execution
-
-Each task follows a state machine:
-
-**GitHub Issues:**
-```
-open + devpilot → open + in-progress → closed (Done)
-                                      → open + failed
-```
-
-**Trello:**
-```
-Ready → In Progress → Done
-                    → Failed
-```
-
-For each task, DevPilot:
-1. Marks as "In Progress"
-2. Creates branch `task/{id}-{slug}` from main
-3. Runs `claude -p` with the plan (streaming output)
-4. Pushes branch and creates PR via `gh`
-5. Optionally runs automated code review
-6. Auto-merges PR (`gh pr merge --squash --auto`)
-7. Marks as "Done" (with PR link) or "Failed" (with error)
-
-Task logs: `~/.config/devpilot/logs/{task-id}.log`
-
-**GitHub Issues Ordering:** Sorted by priority label (P0 > P1 > P2), then creation time (FIFO within priority). No configuration needed — fully automatic.
-
-### TUI Dashboard
-
-In TTY mode, displays real-time dashboard with:
-- **Header:** Board, runner phase, token stats
-- **Status:** Trello lists or GitHub issue counts
-- **Active Task:** Current card details
-- **Tool History:** Recent tool calls with durations
-- **Files:** Reads and edits
-- **Output:** Claude's text (scrollable)
-- **Footer:** Completed tasks and errors
-
-Keys: `q`/`Ctrl-C` quit, `Tab` switch pane, `j/k/↑/↓` scroll, `g/G` top/bottom
 
 ## Architecture
 
-DevPilot turns markdown plans into shipped code via three systems:
-
-1. **Task Source** — Pluggable interface (Trello API or GitHub Issues) with priority sorting
-2. **Executor** — Wraps `claude -p --output-format stream-json` for real-time structured output
-3. **Event Pipeline** — EventBridge translates stream-json events; TUI and logger consume them
-
-```
-Runner (orchestrator) → TaskSource + Executor → EventBridge → TUI/Logger
-```
-
-All three are decoupled via Go channels, so task execution doesn't block the dashboard.
+See [`ARCHITECTURE.md`](ARCHITECTURE.md).
 
 ## Development
 
@@ -283,17 +175,16 @@ Tests and lint must pass before committing. CI enforces this.
 
 ```bash
 go test ./internal/skillmgr/ -run TestInstallSkill   # Single test by name
-go test ./internal/taskrunner/ -v                     # Single package, verbose
+go test ./internal/gmail/ -v                          # Single package, verbose
 ```
 
 ## Tech Stack
 
 - **Language:** Go 1.25.6
 - **CLI:** [Cobra](https://github.com/spf13/cobra)
-- **TUI:** [Bubble Tea](https://github.com/charmbracelet/bubbletea) + [Lip Gloss](https://github.com/charmbracelet/lipgloss)
-- **AI:** [Claude Code](https://claude.ai/code) headless mode
-- **Task Backends:** [Trello API](https://developer.atlassian.com/cloud/trello/) and [GitHub Issues](https://docs.github.com/en/issues)
-- **Git/CI:** GitHub CLI (`gh`) for PRs and auto-merge
+- **Selector UI:** [Bubble Tea](https://github.com/charmbracelet/bubbletea) + [Lip Gloss](https://github.com/charmbracelet/lipgloss) (skill picker in `devpilot init`)
+- **Skills:** [Claude Code](https://claude.ai/code) skill system
+- **External APIs:** [Trello API](https://developer.atlassian.com/cloud/trello/), [Gmail API](https://developers.google.com/gmail/api), [Slack API](https://api.slack.com/)
 
 ## License
 
