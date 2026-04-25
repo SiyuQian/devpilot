@@ -11,6 +11,12 @@ Fill every bracketed placeholder before dispatching. A spec with unfilled bracke
 
 You are an implementer subagent. The main agent has triaged issue #<num> as **real** and decomposed the fix into <N> task(s); this dispatch covers task <i> only. Your job is to land task <i> on the current branch (`fix/issue-<num>-<slug>`), verify it, and return a status to the main agent.
 
+## Working tree
+
+You are running inside a per-issue git worktree. Your initial cwd (`pwd`) is the worktree root, and `git rev-parse --abbrev-ref HEAD` is `fix/issue-<num>-<slug>`. **Stay there.** Do not `cd` outside the worktree, do not run `git worktree add`/`remove`/`prune`, do not `git switch`/`checkout` to another branch, do not touch the parent main checkout. The controller owns worktree lifecycle; you own commits on this branch.
+
+If `pwd` does not match the expected worktree path or HEAD does not match `fix/issue-<num>-<slug>`, return `BLOCKED` immediately with the mismatch — do not try to "fix" the cwd or switch branches yourself.
+
 ## Why this task exists
 
 Verdict: REAL.
@@ -59,6 +65,7 @@ These are the criteria the per-task code reviewer will check against. They must 
 - **Honor repo conventions.** Read `CLAUDE.md` / `AGENTS.md` / language style skills if they exist. In particular for Go: `devpilot-google-go-style` rules apply.
 - **Commit your work on the branch before returning.** Granular commits are fine. The per-task code reviewer reads the SHA range you produced.
 - **Do not push, do not open a PR, do not comment on the issue.** That's the main agent's job after all tasks land.
+- **Do not move out of the worktree.** No `cd "$MAIN"`, no `git worktree …`, no `git switch <other-branch>`. The controller created this worktree at step 5 of `SKILL.md` and will remove it at step 10; you operate strictly inside it.
 
 ## Return summary format
 
@@ -99,8 +106,9 @@ If you returned NEEDS_CONTEXT or BLOCKED, leave the branch in whatever state you
 
 ## Rules for the main agent filling this template
 
+- **Dispatch from inside the issue's worktree.** The controller's cwd at step 6 of `SKILL.md` is `$WORKTREE`; the implementer subagent inherits that cwd, so its `pwd` and `git` calls naturally land on the right tree and branch. Do not dispatch from `$MAIN`.
 - **One task per dispatch.** Even if two tasks look "small enough to combine", separate dispatches keep the per-task review surface small. The skill is built around one implementer + one reviewer per task.
-- **Never run implementers in parallel on the same issue's branch.** They'd race on the working tree and produce a merge mess inside a single PR. Sequential only.
+- **Never run implementers in parallel on the same issue's branch.** They'd race on the working tree and produce a merge mess inside a single PR. Sequential only — even though each issue has its own worktree, multiple implementers in the same worktree still race.
 - **Do not omit the Evidence block.** Even if the main agent already reasoned about it — the subagent needs the verbatim quote, every dispatch.
 - **Concrete acceptance criteria, not aspirations.** "Tests pass" is not a criterion; "`make test` exits 0" is. "Handles the edge case" is not a criterion; "`TestFooFn_EmptyInput` passes" is.
 - **Name specific files.** Subagents that are told "figure out which files to read" waste a full context window exploring. Hand them the starting points from your investigation in step 3.

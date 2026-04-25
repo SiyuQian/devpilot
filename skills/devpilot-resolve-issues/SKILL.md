@@ -1,6 +1,6 @@
 ---
 name: devpilot-resolve-issues
-description: Use when the user wants to resolve, fix, work through, or burn down open GitHub issues in a repository — "fix all the issues", "resolve these tickets", "work through the repo-scan issues", "clear the backlog", "fix issue #42", "/resolve-issues", "解决所有issue", "修复这些issue", "处理issue backlog". Runs as a loop over matching issues until none remain. Do NOT use for creating issues (use devpilot-scanning-repos) or for reviewing a PR the user already has open (use devpilot-pr-review).
+description: Use when the user wants to resolve, fix, work through, or burn down open GitHub issues in a repository — "fix all the issues", "resolve these tickets", "work through the repo-scan issues", "clear the backlog", "fix issue #42", "/resolve-issues", "解决所有issue", "修复这些issue", "处理issue backlog". Runs as a loop over matching issues until none remain; each REAL issue is fixed in its own `git worktree` so the main checkout stays untouched. Do NOT use for creating issues (use devpilot-scanning-repos) or for reviewing a PR the user already has open (use devpilot-pr-review).
 ---
 
 # Resolve GitHub Issues (Loop Until Done)
@@ -9,6 +9,7 @@ description: Use when the user wants to resolve, fix, work through, or burn down
 
 | File | When to load |
 |---|---|
+| `references/worktree-management.md` | Step 0 (preflight prune) and Step 5 (per-issue create) and the cleanup path — path scheme, create / remove, failure modes. |
 | `references/verdict-comments.md` | Step 4 — exact comment bodies for the three verdicts. |
 | `references/task-decomposition.md` | Step 6a — split a REAL issue into 1–3 tasks. |
 | `references/subagent-spec.md` | Step 6b — the spec handed to each per-task implementer subagent. |
@@ -18,11 +19,13 @@ description: Use when the user wants to resolve, fix, work through, or burn down
 
 End-to-end loop that takes open GitHub issues from triage to reviewed PR, one at a time, until the filter returns no matches. Each issue ends in exactly one of three states: **closed with reason** (false positive), **escalated with questions** (needs human), or **reviewed PR opened** (real). Nothing else is a valid terminal state.
 
-For a REAL issue, the fix itself follows the `superpowers:subagent-driven-development` pattern: decompose into a small number of tasks, dispatch one implementer subagent per task, run `superpowers:requesting-code-review` after each task. The branch and PR are still per-issue (one PR per issue, always), but the work that lands on that branch is gated task-by-task.
+Every REAL issue is fixed in its **own `git worktree`**, not in the main checkout. The main checkout stays on the default branch, untouched, so the user can keep working in it while the loop runs. The fix branch and all its commits live in a sibling directory at `<repo-root>.worktrees/issue-<N>-<slug>/`. See `references/worktree-management.md` for the lifecycle.
+
+For a REAL issue, the fix itself follows the `superpowers:subagent-driven-development` pattern: decompose into a small number of tasks, dispatch one implementer subagent per task, run `superpowers:requesting-code-review` after each task. The worktree, branch, and PR are still per-issue (one worktree, one branch, one PR per issue, always), but the work that lands on that branch is gated task-by-task.
 
 The per-task code review is the **only** review run by this loop. There is no separate published GitHub review — the per-task gate already covered code quality, architecture, testing, requirements, and production readiness on every commit that landed. The PR is opened ready-for-review for human eyes, with `Closes #N` linking back to the issue.
 
-**Core principle:** No fix without a verdict, no task without a fresh implementer, no task complete without code review. Anything else breaks the loop and accrues silent debt.
+**Core principle:** No fix without a verdict, no fix outside a per-issue worktree, no task without a fresh implementer, no task complete without code review. Anything else breaks the loop and accrues silent debt.
 
 ## When NOT to Use
 
@@ -45,7 +48,7 @@ digraph resolve_loop {
   "Verdict" [shape=diamond];
   "Close wontfix + reason" [shape=box];
   "Comment with blockers" [shape=box];
-  "Branch fix/issue-N-slug" [shape=box];
+  "Create worktree + branch (cd into it)" [shape=box];
   "Decompose into 1-3 tasks (TodoWrite)" [shape=box];
   "Next task?" [shape=diamond];
   "Dispatch implementer subagent (one task)" [shape=box];
@@ -56,10 +59,11 @@ digraph resolve_loop {
   "Review clean?" [shape=diamond];
   "Re-dispatch implementer w/ review feedback" [shape=box];
   "Mark task done" [shape=box];
-  "Final verify locally" [shape=box];
+  "Final verify in worktree" [shape=box];
   "Passed?" [shape=diamond];
-  "Escalate NEEDS-HUMAN" [shape=box];
+  "Push draft + escalate NEEDS-HUMAN" [shape=box];
   "devpilot-pr-creator (Closes #N)" [shape=box];
+  "Remove worktree, return to main checkout" [shape=box];
 
   "Select next issue" -> "None?";
   "None?" -> "Summarize, stop" [label="yes"];
@@ -73,28 +77,29 @@ digraph resolve_loop {
   "Close wontfix + reason" -> "Select next issue";
   "Verdict" -> "Comment with blockers" [label="NEEDS-HUMAN"];
   "Comment with blockers" -> "Select next issue";
-  "Verdict" -> "Branch fix/issue-N-slug" [label="REAL"];
-  "Branch fix/issue-N-slug" -> "Decompose into 1-3 tasks (TodoWrite)";
+  "Verdict" -> "Create worktree + branch (cd into it)" [label="REAL"];
+  "Create worktree + branch (cd into it)" -> "Decompose into 1-3 tasks (TodoWrite)";
   "Decompose into 1-3 tasks (TodoWrite)" -> "Next task?";
   "Next task?" -> "Dispatch implementer subagent (one task)" [label="yes"];
   "Dispatch implementer subagent (one task)" -> "Implementer status?";
   "Implementer status?" -> "Provide context, re-dispatch" [label="NEEDS_CONTEXT"];
   "Provide context, re-dispatch" -> "Dispatch implementer subagent (one task)";
   "Implementer status?" -> "Re-dispatch w/ failure or escalate" [label="BLOCKED / verification failed twice"];
-  "Re-dispatch w/ failure or escalate" -> "Escalate NEEDS-HUMAN";
+  "Re-dispatch w/ failure or escalate" -> "Push draft + escalate NEEDS-HUMAN";
   "Implementer status?" -> "Run per-task code review (superpowers:requesting-code-review)" [label="DONE / DONE_WITH_CONCERNS"];
   "Run per-task code review (superpowers:requesting-code-review)" -> "Review clean?";
   "Review clean?" -> "Re-dispatch implementer w/ review feedback" [label="no, ≤2 rounds"];
   "Re-dispatch implementer w/ review feedback" -> "Run per-task code review (superpowers:requesting-code-review)";
-  "Review clean?" -> "Escalate NEEDS-HUMAN" [label="round 3 still failing"];
+  "Review clean?" -> "Push draft + escalate NEEDS-HUMAN" [label="round 3 still failing"];
   "Review clean?" -> "Mark task done" [label="yes"];
   "Mark task done" -> "Next task?";
-  "Next task?" -> "Final verify locally" [label="no, all done"];
-  "Final verify locally" -> "Passed?";
+  "Next task?" -> "Final verify in worktree" [label="no, all done"];
+  "Final verify in worktree" -> "Passed?";
   "Passed?" -> "devpilot-pr-creator (Closes #N)" [label="yes"];
-  "Passed?" -> "Escalate NEEDS-HUMAN" [label="no"];
-  "Escalate NEEDS-HUMAN" -> "Select next issue";
-  "devpilot-pr-creator (Closes #N)" -> "Select next issue";
+  "Passed?" -> "Push draft + escalate NEEDS-HUMAN" [label="no"];
+  "Push draft + escalate NEEDS-HUMAN" -> "Remove worktree, return to main checkout";
+  "devpilot-pr-creator (Closes #N)" -> "Remove worktree, return to main checkout";
+  "Remove worktree, return to main checkout" -> "Select next issue";
 }
 ```
 
@@ -109,16 +114,22 @@ gh repo view --json nameWithOwner,defaultBranchRef   # identify repo + default b
 gh auth status                                        # must be logged in
 gh api user --jq .login                               # who is "me"?
 git rev-parse --abbrev-ref HEAD                       # starting branch
+git rev-parse --show-toplevel                         # main checkout root — save as $MAIN
 git status --porcelain                                # working tree clean?
+git worktree list                                     # see existing worktrees
+git worktree prune                                    # drop metadata for already-deleted worktree dirs
 ```
 
 **Stop and ask the user if:**
 
-- Working tree has uncommitted changes — commit, stash, or abort. You cannot branch safely otherwise.
+- Working tree has uncommitted changes — commit, stash, or abort. The main checkout must be clean before the loop runs.
 - `gh auth status` is not logged in.
 - The repo has zero matching open issues — confirm the filter before looping on nothing.
+- `git worktree list` shows existing worktrees from a prior run with **unpushed commits**. That is in-progress work, not garbage. See `references/worktree-management.md` → "Step 0 — preflight pruning". Default action: leave it alone, ask the user.
 
 **Establish the filter.** Default: `is:open no:assignee` plus the labels the user cares about (e.g., `repo-scan`, `bug`). If the user said "all issues" but there are >20, confirm the scope before starting. Save the filter — the loop reuses it every iteration.
+
+**Save `$MAIN` (the main checkout root).** Every cleanup step `cd`s back to `$MAIN` to remove the per-issue worktree. The loop's "home" cwd is `$MAIN`; it temporarily moves into a worktree for steps 5–9 of each REAL iteration.
 
 ### 1. Select the next issue
 
@@ -130,7 +141,7 @@ gh issue list \
   --json number,title,body,labels,url,author
 ```
 
-If the result is empty → go to step 11 (summarize & stop).
+If the result is empty → go to step 12 (summarize & stop).
 
 ### 2. Assign to self
 
@@ -161,19 +172,32 @@ Read the full issue body. If the issue was filed by `devpilot-scanning-repos` it
 
 **Do not classify as REAL just to "take a shot."** False positives close in 60 seconds; wrong REAL verdicts spawn implementer subagents that produce useless diffs and poison the PR history.
 
-### 5. Branch for the fix
+### 5. Create the per-issue worktree (and the branch inside it)
+
+**The fix branch lives in its own worktree, never in the main checkout.** This is non-negotiable — see "Hard rules" below and `references/worktree-management.md` for the full rationale and failure-mode handling.
+
+Slug: derive from the issue title — kebab-case, 3–5 ASCII words. Example: issue #42 "Sanitize shell input in cmd/devpilot/run.go" → slug `sanitize-shell-input`, branch `fix/issue-42-sanitize-shell-input`, worktree `<repo-root>.worktrees/issue-42-sanitize-shell-input`.
 
 ```bash
-git switch <default-branch>
-git pull --ff-only
-git switch -c "fix/issue-<num>-<short-slug>"
+# From $MAIN. Refresh default branch, then create worktree + branch in one shot.
+git fetch origin "<default-branch>"
+
+WORKTREE="$MAIN.worktrees/issue-<num>-<slug>"
+BRANCH="fix/issue-<num>-<slug>"
+
+git worktree add -b "$BRANCH" "$WORKTREE" "origin/<default-branch>"
+cd "$WORKTREE"
 ```
 
-Slug: derive from the issue title — kebab-case, 3–5 ASCII words. Example: issue #42 "Sanitize shell input in cmd/devpilot/run.go" → `fix/issue-42-sanitize-shell-input`.
+After `cd "$WORKTREE"`, every subsequent step in this iteration (6 implementers, 6c review, 7 verify, 8 PR, 9 issue comment) runs with `cwd = $WORKTREE`. Subagents you dispatch from here **inherit this cwd**, which is exactly what you want — they see the fix branch's working tree natively, no extra `cd` plumbing required.
+
+**Failure handling** (path already exists, branch already exists, fetch failed): see `references/worktree-management.md` → "Failure modes at create time". Never `--force` past these in the autonomous loop; ask the user instead. A forced create on top of in-progress work is the kind of destructive action that requires explicit confirmation.
 
 ### 6. Fix via per-task implementers + per-task code reviews
 
 This is the heart of the skill. Do NOT fix in the main context. The main context is the orchestrator; coding lives in implementer subagents, gating lives in reviewer subagents.
+
+**Cwd contract for this step:** controller stays at `$WORKTREE`. Each dispatched implementer and reviewer subagent inherits that cwd, so their `git`, file paths, and `make` invocations all naturally apply to the issue's worktree. **Never `cd "$MAIN"` mid-step 6** — that would point your tooling at the default branch's working tree and confuse every subsequent dispatch.
 
 #### 6a. Decompose into tasks
 
@@ -208,7 +232,7 @@ Continue to step 7. Do not skip the final local verify even if every per-task re
 
 ### 7. Final verify — yourself, not any subagent's report
 
-Run the project's verification commands **in the main context** on the fix branch:
+Still at `cwd = $WORKTREE`. Run the project's verification commands **in the main context (controller), in the worktree**, on the fix branch:
 
 ```bash
 make test
@@ -218,24 +242,43 @@ make lint
 Or the project-specific equivalents (`go test ./...`, `pnpm test`, `cargo test`). Trust-but-verify: implementer and reviewer subagents can both misreport — innocently or because a test harness is broken.
 
 - Everything passes → step 8.
-- Anything fails → escalate the issue `NEEDS-HUMAN`: push the branch as a draft, comment on the issue with the failing output and the branch URL, unassign, next issue. The per-task reviews already ate the retry budget; don't burn another round here.
+- Anything fails → escalate the issue `NEEDS-HUMAN`: push the branch as a draft (`git push -u origin "$BRANCH"`), comment on the issue with the failing output and the branch URL, unassign, then proceed to step 10 (worktree cleanup) before the next issue. The per-task reviews already ate the retry budget; don't burn another round here.
 
 ### 8. Create the PR
 
-Invoke `devpilot-pr-creator`. Extra constraints this skill adds on top of that skill:
+Still at `cwd = $WORKTREE`. Invoke `devpilot-pr-creator`. Extra constraints this skill adds on top of that skill:
 
 - The PR body MUST contain `Closes #<issue-num>` on its own line so GitHub auto-closes the issue on merge.
 - The PR title should describe the fix, not repeat the issue number.
 - Base branch = repo default, unless the user specified a different stacking target at preflight.
 - Open the PR ready-for-review (not draft). The per-task code-review gate has already run on every commit; there is no separate published review pass to wait for.
 
+`devpilot-pr-creator` runs `git push -u origin "$BRANCH"` itself; after it returns, the branch is on origin and the worktree's job is done.
+
 ### 9. Post the resolution comment on the issue
 
 Post the **Real → PR opened** comment template from `references/verdict-comments.md` on the issue itself (not only the PR), so subscribers see the resolution trail without having to click into the PR. The issue stays open and assigned to you — `Closes #<num>` in the PR body will close it on merge.
 
-### 10. Return to step 1
+### 10. Cleanup — remove the worktree, return to `$MAIN`
 
-### 11. Final summary
+Reached on three paths: PR opened (step 8 success), final-verify failure escalation (step 7 failure after pushing draft), or mid-fix escalation (BLOCKED / round-3 review / second verification fail, after pushing draft). Never reached on FALSE-POSITIVE / NEEDS-HUMAN — those verdicts never created a worktree.
+
+```bash
+cd "$MAIN"
+git worktree remove "$WORKTREE"     # try plain remove first
+# If it fails on gitignored build artifacts (bin/, node_modules/, target/, etc.):
+#   git -C "$WORKTREE" clean -fdX && git worktree remove "$WORKTREE"
+# --force is the last resort; see references/worktree-management.md → "Cleanup policy".
+git worktree prune
+```
+
+If `git worktree remove` (and `clean -fdX` retry) still fails because of modified or untracked **tracked** files that are NOT on origin, **stop and ask the user.** Don't `--force` past unpushed work — `references/worktree-management.md` → "Cleanup policy" walks the full ladder.
+
+After this step the controller is back at `$MAIN`, the worktree directory is gone, and `git worktree list` no longer shows the issue's entry. Ready for the next iteration.
+
+### 11. Return to step 1
+
+### 12. Final summary
 
 When the loop terminates, print:
 
@@ -281,8 +324,13 @@ The loop ends when **any** of these is true — not before:
 9. **Never open a PR without `Closes #N`.** The issue will stay open forever and the loop will re-pick it.
 10. **Never push to `main` / the default branch.** Always work on `fix/issue-<num>-...`.
 11. **Never fix in the main context.** Implementation lives in implementer subagents; review lives in `superpowers:code-reviewer` subagents. The main context orchestrates only.
+12. **Every REAL issue is fixed in its own `git worktree`, never in the main checkout.** No exceptions: not for "tiny" fixes, not when worktree creation is "annoying", not when "the main checkout is already clean." The main checkout is the user's working environment; the loop never owns it. Worktree create at step 5, cleanup at step 10. See `references/worktree-management.md`.
+13. **One worktree per issue, one branch per worktree, sequential issues.** Reusing a worktree across issues, or creating two worktrees for the same issue, both break the cleanup contract and leak branches. Sequential at the issue level — even though worktrees are physically isolated, this skill processes one issue at a time. Parallelizing across issues is a future change, not a license to skip.
+14. **Never `--force` past a worktree-create or worktree-remove failure in autonomous mode.** Both failure modes (path collision on create, modified/untracked files on remove) usually indicate someone's in-progress work or a real disk problem. Stop and ask the user; `--force` is reserved for cases where you have *verified* (`git status`, `git log origin/$BRANCH..HEAD`) that the work is already on origin.
 
 ## Red flags — STOP and reset
+
+**Meta-rationalization:** almost every entry below is a costume for the same pressure: *"the queue is piling up,"* *"this one is special,"* *"the user is asleep,"* *"it'd be faster."* If your reasoning leans on queue depth, time pressure, or the user's absence to justify deviating from a rule, that's the trap — not the situation. The cost of one rule-violating shortcut is never that one issue; it's that the loop forgets the rule the next time.
 
 | Thought | What's actually happening |
 |---|---|
@@ -301,6 +349,11 @@ The loop ends when **any** of these is true — not before:
 | "The implementer said tests pass, so I don't need to run them at step 7" | Subagents misreport. Run the commands yourself. |
 | "I'll skip `Closes #N` since the PR title mentions the issue" | Title text doesn't autolink. Without the magic word the issue stays open. |
 | "I'll assign and then un-assign later if I don't fix it" | Unassign in the same iteration the verdict demands it (FALSE-POSITIVE / NEEDS-HUMAN). Dangling assignments leak. |
+| "Just one issue this run — I'll skip the worktree dance and branch in the main checkout" | The main checkout is the user's. The loop never owns it. Worktree create is two commands; the cost of skipping is the user's editor / dev server colliding with your fix branch the moment you `cd` away. |
+| "Worktree create failed with 'already exists' — I'll `git worktree remove --force` and retry" | "Already exists" usually means an in-progress branch from a prior run, not garbage. Inspect `git worktree list` and the branch's commits before any `--force`. |
+| "I'll create the worktree but stay in `$MAIN` and pass `-C "$WORKTREE"` to git" | Then every subagent gets the wrong cwd and tries to operate on the main checkout. `cd "$WORKTREE"` once at step 5 and stay there until step 10. |
+| "Cleanup is bookkeeping; I'll batch it at the end of the loop" | A loop that processes 10 issues should never have 10 worktrees alive. Cleanup is per-iteration. Batching cleanup is hoarding state across iterations the loop is not designed to hold. |
+| "`git stash` in the main checkout is the same idea as a worktree" | It is not. Stash leaves HEAD on the fix branch with unrelated work on top — the exact pollution worktrees exist to prevent. |
 
 ## Common mistakes
 
@@ -310,13 +363,16 @@ The loop ends when **any** of these is true — not before:
 - **Marking a task `completed` before the per-task review returned clean.** TodoWrite is the gate; flip it only after the reviewer says so.
 - **Skipping `superpowers:requesting-code-review` for "small" tasks.** There is no "small" exception. The minimum is 1 task + 1 review per REAL issue.
 - **Picking up issues assigned to others.** Even if they look abandoned — leave a comment asking, move on.
-- **Creating a fix branch off a stale default branch.** Always `git pull --ff-only` first.
+- **Creating the worktree off a stale default branch.** Always `git fetch origin <default-branch>` before `git worktree add`.
+- **Forgetting to `cd "$WORKTREE"` after `git worktree add`.** Then every subagent dispatched in step 6 inherits `$MAIN` as cwd, not the worktree, and operates on the wrong tree.
+- **Skipping cleanup at step 10.** The loop is built around per-iteration cleanup. Stale worktrees pile up across iterations and confuse the next preflight.
 - **Letting the loop run over issues the user didn't scope to.** Honor the filter you agreed on in preflight. If new issues appear, they get the next `/resolve-issues` run.
 
 ## Cross-references
 
 - One implementer per task + per-task code review pattern → `superpowers:subagent-driven-development` (this skill is its specialization for the resolve-issues loop).
 - Per-task review subagent dispatch → `superpowers:requesting-code-review`.
+- Worktree path scheme, create / remove commands, preflight pruning, failure modes → `references/worktree-management.md`.
 - Splitting an issue into tasks → `references/task-decomposition.md`.
 - Per-task implementer prompt → `references/subagent-spec.md`.
 - Per-task review invocation and gating → `references/per-task-review.md`.
@@ -338,5 +394,8 @@ A correct run produces:
 8. The loop terminated on empty filter, user interrupt, or the three-strike escalation — not arbitrarily after N issues.
 9. Final summary was printed with per-issue disposition AND per-task stats.
 10. No push to the default branch occurred.
+11. **Every REAL issue ran inside its own `<repo-root>.worktrees/issue-<N>-<slug>` worktree.** No fix branch ever lived in the main checkout.
+12. **Every worktree created during the run was removed before the loop terminated.** `git worktree list` after the loop finishes shows no leftover `issue-*` entries from this run.
+13. The main checkout's HEAD and working tree are unchanged from the loop's starting state (still on the default branch, still clean).
 
 If any is violated, the skill failed — correct before continuing.
