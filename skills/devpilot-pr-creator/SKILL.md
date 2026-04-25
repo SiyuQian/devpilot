@@ -25,29 +25,57 @@ must come from code you read, not from branch names or assumptions.
 | Draft | `--draft` | `--draft` |
 | Push | `git push -u origin HEAD` | `git push -u origin HEAD` |
 
+## Worktree / autonomous invocation
+
+Detect both up front — they change preflight rules.
+
+```bash
+git rev-parse --git-dir            # contains "/worktrees/" → you are in a linked worktree
+git worktree list                  # confirms which worktree is which
+```
+
+**You are in autonomous mode** when this skill was invoked by a parent skill (e.g. `devpilot-resolve-issues`, `devpilot-auto-feature`) rather than directly by a human. In autonomous mode:
+- The "stop and ask the user" gates below become "return control to the parent with the question" — never deadlock waiting for human input that isn't coming.
+- Replace "show the draft to the user before creating" with "include the draft in your final response" so the parent skill can surface it.
+- Do not `cd` out of the worktree; the parent owns cwd.
+
+**Base branch.** Always diff and log against `origin/<default-branch>` (typically `origin/main`), not local `main`. In a worktree the local `main` ref may be stale or absent. Run `git fetch origin <default-branch>` before reading the diff so the comparison is honest.
+
 ## Preflight Checks
 
 Before anything else, run these in parallel:
 
 ```bash
-git remote get-url origin          # detect platform (github.com → gh, gitlab.com → glab)
-git rev-parse --abbrev-ref HEAD    # current branch
-git status                         # uncommitted changes?
-git log <base>..HEAD --oneline     # commits ahead of base
-gh pr list --head <branch>         # existing PR? (or glab mr list --source-branch)
+git remote get-url origin                    # detect platform (github.com → gh, gitlab.com → glab)
+git rev-parse --abbrev-ref HEAD              # current branch
+git rev-parse --git-dir                      # worktree detection (see above)
+git fetch origin <default-branch> --quiet    # refresh base ref
+git status                                   # working tree state
+git log origin/<default-branch>..HEAD --oneline   # commits ahead of base
+git diff --name-only origin/<default-branch>...HEAD  # files in the PR
+git ls-remote --heads origin <branch>        # branch already on origin?
+gh pr list --head <branch>                   # existing PR? (or glab mr list --source-branch)
 ```
 
-**Stop and ask the user if:**
+**Stop and ask the user if** (in autonomous mode, return the question to the parent instead of blocking):
 - Current branch is `main`/`master` — you cannot PR from main into main. Ask if they want to create a feature branch first. **Never** use `git reset`, `git push --force`, or any history rewriting on main — not even as an "option." If the work is already pushed to main, tell the user the PR opportunity has passed for this change.
-- There are uncommitted changes — ask if they want to commit first or exclude them.
+- **There are modified or staged changes to files that ALSO appear in the PR diff** — the working tree disagrees with what you're about to PR; ask whether to commit first or exclude.
 - There are no commits ahead of base — nothing to PR.
 - There's already an open PR for this branch — switch to **update flow** (see below).
+
+**Do NOT block on:** untracked files, or modified files outside the PR diff. These are common in worktrees (test artifacts, scratch logs, leftovers from a parent agent) and are already excluded from `origin/<base>...HEAD`. Note them in your report and proceed.
+
+**Branch already on origin, but no open PR** (common after a draft-escalation push from `devpilot-resolve-issues`):
+1. Only enter this branch if `git ls-remote --heads origin <branch>` returned a SHA. If it was empty, skip — `git push -u origin HEAD` will create the remote ref normally.
+2. `git fetch origin <branch>` — see if remote has commits you don't.
+3. If `git log HEAD..origin/<branch>` is non-empty, stop — the remote diverged. Reconcile by inspecting; never force-push.
+4. Otherwise `git push -u origin HEAD` will fast-forward (or be a no-op). Then create the PR normally.
 
 ## Read the Diff (Required)
 
 ```bash
-git diff <base>...HEAD             # full diff
-git log <base>..HEAD --oneline     # commit history
+git diff origin/<default-branch>...HEAD   # full diff (always vs origin, not local)
+git log origin/<default-branch>..HEAD --oneline
 ```
 
 **You MUST read and understand the actual changes before writing the description.**
@@ -103,7 +131,7 @@ If no project template exists, **read ONE template** based on what you found in 
 - Leave "For Reviewers (human)" items unchecked — those are for humans
 - For bug fixes, describe the bug, root cause, and fix separately
 
-**Show the draft to the user before creating or updating.** Let them edit the title and body.
+**Show the draft to the user before creating or updating.** Let them edit the title and body. In autonomous mode (invoked by a parent skill), include the draft inline in your final response instead — the parent will surface it.
 
 ## Create and Report
 
@@ -156,6 +184,9 @@ glab mr update <number> --draft=false  # GitLab
 | Leaving irrelevant sections as "N/A" | Remove the section entirely |
 | Force-pushing main to create a retroactive branch | Never offer this as an option. If work is on main and pushed, the PR opportunity has passed |
 | Creating duplicate PR for branch with existing PR | Check `gh pr list --head <branch>` first — update instead |
+| Blocking on untracked/unstaged files unrelated to the PR | Only block when the dirty files appear in `origin/<base>...HEAD`. Untracked debris in a worktree is common and already excluded |
+| Diffing against local `main` in a worktree | Local `main` may be stale or absent in a worktree — always use `origin/<default-branch>` |
+| Force-pushing because the branch already exists on origin | Fetch first; if remote diverged, reconcile, never force. Fast-forward push is fine |
 | Appending to PR description instead of rewriting | Re-read the full diff and write a cohesive description covering all commits |
 
 ## Tips
