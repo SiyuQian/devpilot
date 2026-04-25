@@ -131,31 +131,44 @@ func startCallbackServer(state string, useTLS bool, port int) (net.Listener, *ht
 	resultCh := make(chan callbackResult, 1)
 
 	mux := http.NewServeMux()
+	// non-blocking: only the first result wins; later invocations are dropped to avoid blocking Shutdown
 	mux.HandleFunc("/callback", func(w http.ResponseWriter, r *http.Request) {
 		if errParam := r.URL.Query().Get("error"); errParam != "" {
 			w.Header().Set("Content-Type", "text/html")
 			_, _ = fmt.Fprintf(w, "<html><body><h2>Authorization denied.</h2><p>You can close this window.</p></body></html>")
-			resultCh <- callbackResult{err: ErrAuthDenied}
+			select {
+			case resultCh <- callbackResult{err: ErrAuthDenied}:
+			default:
+			}
 			return
 		}
 
 		if r.URL.Query().Get("state") != state {
 			w.Header().Set("Content-Type", "text/html")
 			http.Error(w, "Invalid state parameter", http.StatusBadRequest)
-			resultCh <- callbackResult{err: errors.New("oauth: invalid state parameter (possible CSRF)")}
+			select {
+			case resultCh <- callbackResult{err: errors.New("oauth: invalid state parameter (possible CSRF)")}:
+			default:
+			}
 			return
 		}
 
 		code := r.URL.Query().Get("code")
 		if code == "" {
 			http.Error(w, "Missing authorization code", http.StatusBadRequest)
-			resultCh <- callbackResult{err: errors.New("oauth: missing authorization code in callback")}
+			select {
+			case resultCh <- callbackResult{err: errors.New("oauth: missing authorization code in callback")}:
+			default:
+			}
 			return
 		}
 
 		w.Header().Set("Content-Type", "text/html")
 		_, _ = fmt.Fprintf(w, "<html><body><h2>Authorization successful!</h2><p>You can close this window.</p></body></html>")
-		resultCh <- callbackResult{code: code}
+		select {
+		case resultCh <- callbackResult{code: code}:
+		default:
+		}
 	})
 
 	srv := &http.Server{Handler: mux}

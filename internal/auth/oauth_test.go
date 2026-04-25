@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
@@ -143,6 +144,75 @@ func TestCallbackServerTLS(t *testing.T) {
 	}
 	if result.code != "tlscode" {
 		t.Errorf("expected code 'tlscode', got %q", result.code)
+	}
+}
+
+func TestCallbackServerDoubleInvocation(t *testing.T) {
+	// Regression test for issue #77: a second request to /callback must not
+	// block on the buffered resultCh, otherwise srv.Shutdown deadlocks
+	// waiting for the in-flight handler to return.
+	tests := []struct {
+		name        string
+		secondQuery string
+	}{
+		{name: "second_success", secondQuery: "code=second&state=double-invoke"},
+		{name: "second_invalid_state", secondQuery: "code=second&state=wrong"},
+		{name: "second_denied", secondQuery: "error=access_denied"},
+		{name: "second_missing_code", secondQuery: "state=double-invoke"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			state := "double-invoke"
+			listener, srv, resultCh, err := startCallbackServer(state, false, 0)
+			if err != nil {
+				t.Fatalf("startCallbackServer() error: %v", err)
+			}
+
+			port := callbackPort(listener)
+			client := &http.Client{Timeout: 2 * time.Second}
+
+			// First request: a valid success that should populate resultCh.
+			firstURL := fmt.Sprintf("http://localhost:%d/callback?code=first&state=%s", port, state)
+			resp, err := client.Get(firstURL)
+			if err != nil {
+				t.Fatalf("first GET error: %v", err)
+			}
+			_ = resp.Body.Close()
+
+			// Drain the result channel as StartFlow would.
+			select {
+			case result := <-resultCh:
+				if result.err != nil {
+					t.Fatalf("first call: unexpected error: %v", result.err)
+				}
+				if result.code != "first" {
+					t.Fatalf("first call: expected code 'first', got %q", result.code)
+				}
+			case <-time.After(2 * time.Second):
+				t.Fatal("first call: timed out waiting for resultCh")
+			}
+
+			// Second request: must complete within the client timeout instead
+			// of blocking forever on the buffered channel send.
+			secondURL := fmt.Sprintf("http://localhost:%d/callback?%s", port, tc.secondQuery)
+			resp2, err := client.Get(secondURL)
+			if err != nil {
+				t.Fatalf("second GET (should not block): %v", err)
+			}
+			_ = resp2.Body.Close()
+			if resp2.StatusCode != http.StatusOK && resp2.StatusCode != http.StatusBadRequest {
+				t.Errorf("second call: expected 200 or 400, got %d", resp2.StatusCode)
+			}
+
+			// Shutdown must not deadlock. Use a tight context so a regression
+			// (handler still blocked on send) surfaces as a context deadline.
+			shutdownCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+			defer cancel()
+			if err := srv.Shutdown(shutdownCtx); err != nil {
+				t.Fatalf("srv.Shutdown blocked or errored: %v", err)
+			}
+		})
 	}
 }
 
