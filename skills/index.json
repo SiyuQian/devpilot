@@ -114,17 +114,20 @@
     },
     {
       "name": "devpilot-resolve-issues",
-      "description": "End-to-end loop that works through open GitHub issues one at a time: triage, self-assign, investigate code, render a REAL / FALSE-POSITIVE / NEEDS-HUMAN verdict, fix real issues via subagent-driven-development, open a PR with Closes #N, then run devpilot-pr-review against it. Runs until the issue filter is empty.",
+      "description": "End-to-end loop that works through open GitHub issues one at a time: triage, self-assign, investigate code, render a REAL / FALSE-POSITIVE / NEEDS-HUMAN verdict, and for REAL issues decompose the fix into 1–3 tasks dispatched as one implementer subagent per task with superpowers:requesting-code-review gating each task, then open a PR with Closes #N. Runs until the issue filter is empty.",
       "files": [
+        "references/per-task-review.md",
         "references/subagent-spec.md",
+        "references/task-decomposition.md",
         "references/verdict-comments.md",
         "SKILL.md"
       ]
     },
     {
       "name": "devpilot-pr-review",
-      "description": "Review a pull request using an 'Unknown Unknowns' framing, focused on the behavior the PR introduces rather than line-level style nits.",
+      "description": "Review a pull request via two paired passes — an 'Unknown Unknowns' behavior sweep and a code/architecture/testing/requirements/production-readiness checklist — with every per-line finding posted as an inline review comment so the author can act on each one in place.",
       "files": [
+        "references/checklist.md",
         "references/example-review.md",
         "references/posting.md",
         "references/rationalizations.md",

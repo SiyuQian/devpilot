@@ -1,6 +1,8 @@
 # The Unknown-Unknowns Sweep
 
-Five questions that push a review past naming/formatting nits and onto the behavior the PR introduces. Answer all five before writing findings. "N/A, because X" is a valid answer; a silently skipped question is not.
+The first of two passes the review runs (the second is the quality checklist in `checklist.md`). Five questions that push a review past naming/formatting nits and onto the behavior the PR introduces. Answer all five before writing findings. "N/A, because X" is a valid answer; a silently skipped question is not.
+
+The five-line summary lives in the **review body**. Specific issues this pass surfaces — a concrete caller affected, a particular pitfall realized in this code — become **inline comments** anchored to the offending line (see `template.md` → "Inline comment template").
 
 ## 1. Local pattern fit
 
@@ -65,7 +67,7 @@ A review that reaches "LGTM" without tracing at least one input through at least
 
 ## Output format
 
-Each question gets one line in the review's `### Unknown-Unknowns Sweep` section:
+Each question gets one line in the body's `### Unknown-Unknowns Sweep` section:
 
 ```
 1. Local pattern fit: <finding or "matches convention in X">
@@ -74,3 +76,5 @@ Each question gets one line in the review's `### Unknown-Unknowns Sweep` section
 4. Stale-training check: <finding or "N/A">
 5. Hand-rolled vs. off-the-shelf: <finding or "N/A">
 ```
+
+A question that names a concrete defect (e.g. "blast radius: every call through `RoundTrip` is affected, including `internal/api/users.go:42`") is also a finding — write it once in the sweep summary, then attach an inline comment to each affected line so the author can act on it.

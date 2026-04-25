@@ -86,7 +86,7 @@ Leave this comment on the issue after `devpilot-pr-creator` returns the PR URL, 
 ```markdown
 > Triaged by `devpilot-resolve-issues`. Verdict: **real**. PR opened: <pr-url>
 
-Review with `devpilot-pr-review` has run on the PR. Closing this issue will happen automatically on merge via `Closes #<num>`.
+The fix landed task-by-task with `superpowers:requesting-code-review` gating every task. Closing this issue will happen automatically on merge via `Closes #<num>`.
 ```
 
 No labels change on the issue. `Closes #<num>` in the PR body does the closing on merge.
