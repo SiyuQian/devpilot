@@ -130,6 +130,27 @@ func ConfigureGitHubSource(opts GenerateOpts) error {
 	return nil
 }
 
+// gitignoreContains reports whether existing already declares entry as a
+// gitignore line. Comparison is line-by-line (not substring): each line is
+// trimmed of whitespace and a single leading "!" (gitignore's negate prefix);
+// blank and comment lines are skipped. The entry is normalized the same way
+// for symmetry, so callers can pass "!foo" or "foo" interchangeably.
+func gitignoreContains(existing, entry string) bool {
+	want := strings.TrimSpace(entry)
+	want = strings.TrimPrefix(want, "!")
+	for _, line := range strings.Split(existing, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		line = strings.TrimPrefix(line, "!")
+		if line == want {
+			return true
+		}
+	}
+	return false
+}
+
 // EnsureGitignore ensures that the given entries exist in .gitignore.
 func EnsureGitignore(dir string, entries []string) error {
 	gitignorePath := filepath.Join(dir, ".gitignore")
@@ -141,7 +162,7 @@ func EnsureGitignore(dir string, entries []string) error {
 
 	var toAdd []string
 	for _, entry := range entries {
-		if !strings.Contains(existing, entry) {
+		if !gitignoreContains(existing, entry) {
 			toAdd = append(toAdd, entry)
 		}
 	}
