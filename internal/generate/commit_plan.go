@@ -110,6 +110,17 @@ func validatePlan(plan commitPlan, stagedFiles []string) (commitPlan, []string) 
 	}
 	plan.Commits = nonEmpty
 
+	// If validation removed every commit, fall back to a single commit so
+	// downstream consumers (e.g. commitModel.executeCommit) keep their
+	// "plan.Commits is non-empty" invariant. This can happen when every
+	// commit references only unknown files and every staged file is
+	// already in Excluded.
+	if len(plan.Commits) == 0 {
+		fallback := fallbackPlan("", stagedFiles)
+		plan.Commits = fallback.Commits
+		warnings = append(warnings, "plan validation removed all commits; falling back to a single commit")
+	}
+
 	return plan, warnings
 }
 
