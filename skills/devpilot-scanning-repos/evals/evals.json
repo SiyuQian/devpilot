@@ -8,11 +8,15 @@
       "files": [],
       "assertions": [
         {"name": "exactly_three_scanner_dispatches", "description": "Main agent dispatches security-scanner, edge-case-hunter, and coverage-auditor exactly once each, in parallel (one message)"},
-        {"name": "labels_provisioned_first", "description": "gh label create is invoked for all seven required labels before any gh issue create call"},
+        {"name": "labels_provisioned_first", "description": "gh label create is invoked for the full taxonomy (3 categories + 18 subcategories + 3 severities + 2 confidences) before any gh issue create call; area/* labels are created lazily at filing time"},
+        {"name": "manifest_built_before_dispatch", "description": "Step 2.5 produces /tmp/devpilot-scan-manifest.txt before scanners are dispatched, capped at 800 paths (or 2000 with --full)"},
+        {"name": "scanners_consume_manifest", "description": "Each of the three scanners is given the manifest path and does not run a fresh `find` of the whole tree"},
+        {"name": "scoring_is_batched", "description": "Scoring uses batches of up to 25 findings per scoring sub-agent dispatch, not one dispatch per finding"},
+        {"name": "dedupe_paginates", "description": "Step 6 uses --limit 1000 and paginates with created:< when the page is full; never relies on --limit 200"},
         {"name": "findings_validated", "description": "Each scanner's JSON output is piped through scripts/check-findings.py before scoring"},
         {"name": "scoring_pass_separate_from_scanner", "description": "Scoring happens in a distinct sub-agent dispatch, not inside the scanner"},
         {"name": "threshold_75_applied", "description": "No finding with score < 75 is filed as an issue"},
-        {"name": "three_labels_per_issue", "description": "Every filed issue has exactly: repo-scan, one scan:<category>, one severity:<level>"},
+        {"name": "three_labels_per_issue", "description": "Every filed issue has exactly five labels: scan/<category>, one matching sec/*|edge/*|cov/* subcategory, severity/<level>, confidence/<score>, and one auto-derived area/<top-level-dir>"},
         {"name": "evidence_block_in_body", "description": "Every filed issue body includes a quoted code block of ≥2 lines and a <file>#L<a>-L<b> link"},
         {"name": "dedupe_against_existing", "description": "gh issue list --label repo-scan is run before any gh issue create, and matching-title issues are skipped"}
       ]
@@ -25,7 +29,7 @@
       "assertions": [
         {"name": "correct_target_resolved", "description": "Skill uses 'SiyuQian/devpilot' as the target, not the current working directory"},
         {"name": "no_local_git_ops", "description": "Skill does not run `git clone` — it reads files via gh or dispatches scanners that use the target repo context"},
-        {"name": "three_labels_per_issue", "description": "Every filed issue still has exactly three labels"}
+        {"name": "three_labels_per_issue", "description": "Every filed issue still has exactly five labels per the new contract"}
       ]
     },
     {
@@ -58,7 +62,7 @@
       "files": [],
       "assertions": [
         {"name": "only_security_scanner_dispatched", "description": "edge-case-hunter and coverage-auditor are not invoked"},
-        {"name": "all_filed_issues_are_security", "description": "Every filed issue has the scan:security label"},
+        {"name": "all_filed_issues_are_security", "description": "Every filed issue has the scan/security label"},
         {"name": "user_confirmed_scope_reduction", "description": "If the user's request is ambiguous about whether to also run the others, the skill confirms before reducing scope"}
       ]
     },
@@ -110,8 +114,8 @@
       "expected_output": "Skill runs normal pipeline but the dedupe step (step 6) compares against existing repo-scan-labeled issues (both open and closed) and skips any finding whose normalized title matches.",
       "files": [],
       "assertions": [
-        {"name": "dedupe_queries_existing_issues", "description": "gh issue list --label repo-scan --state all is invoked before filing"},
-        {"name": "dedupe_considers_closed_issues", "description": "Findings matching a closed repo-scan issue are skipped too (not just open)"},
+        {"name": "dedupe_queries_existing_issues", "description": "gh issue list with a search covering label:scan/security,scan/edge-case,scan/coverage,repo-scan and state=all is invoked before filing (legacy repo-scan label included for backward-compat dedupe)"},
+        {"name": "dedupe_considers_closed_issues", "description": "Findings matching a closed scan-filed issue are skipped too (not just open), under either the new scan/* labels or the legacy repo-scan label"},
         {"name": "dedupe_decisions_logged", "description": "Skipped-duplicates count is reported in the summary"}
       ]
     },
@@ -123,7 +127,7 @@
       "assertions": [
         {"name": "only_coverage_auditor_dispatched", "description": "security-scanner and edge-case-hunter are not invoked"},
         {"name": "no_findings_on_trivial_files", "description": "No filed issue targets a generated file, a type-only file, or a file with only constants"},
-        {"name": "all_filed_issues_are_coverage", "description": "Every filed issue has the scan:coverage label"}
+        {"name": "all_filed_issues_are_coverage", "description": "Every filed issue has the scan/coverage label"}
       ]
     },
     {

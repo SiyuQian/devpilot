@@ -5,16 +5,24 @@ Exactly one `gh issue create` per surviving finding. Use this body verbatim, fil
 ## `gh` invocation
 
 ```bash
+# Derive area label from the first path segment of the finding's file
+area_label="area/$(echo "<finding-file>" | cut -d/ -f1 | tr '/' '-')"
+gh label create "$area_label" --color FEF2C0 --description "Auto-derived from finding file path" || true
+
 gh issue create \
-  --title "[repo-scan:<category>] <title>" \
-  --label "repo-scan,scan:<category>,severity:<severity>" \
+  --title "[scan/<category>] <title>" \
+  --label "scan/<category>,<subcategory>,severity/<severity>,confidence/<score>,$area_label" \
   --body "$(cat <<'EOF'
 <see body template below>
 EOF
 )"
 ```
 
-`<category>` ∈ `security`, `edge-case`, `coverage`. `<severity>` ∈ `high`, `medium`, `low`. The title prefix makes these trivially filterable in the issue list and in notifications.
+- `<category>` ∈ `security`, `edge-case`, `coverage`.
+- `<subcategory>` is one of `sec/*`, `edge/*`, `cov/*` matching the category — see `references/labels.md` for the full enum. The scanner emits the subcategory in its finding (see Finding schema); the orchestrator does NOT pick freely.
+- `<severity>` ∈ `high`, `medium`, `low`.
+- `<score>` ∈ `75`, `100` (output of the scoring pass; sub-75 findings are already filtered).
+- The title prefix `[scan/<category>]` keeps issues trivially filterable in notifications even when labels aren't visible.
 
 ## Body template
 
@@ -43,10 +51,11 @@ https://github.com/<owner>/<repo>/blob/<full-sha>/<path>#L<start>-L<end>
 
 ## Metadata
 
-- Category: `<category>`
+- Category: `<category>` / `<subcategory>`
 - Severity: `<severity>`
+- Area: `<area/...>`
 - Scanner: `<security-scanner | edge-case-hunter | coverage-auditor>`
-- Scored: `<score>/100`
+- Scored: `<score>/100` (`confidence/<score>`)
 
 ---
 
@@ -57,6 +66,6 @@ https://github.com/<owner>/<repo>/blob/<full-sha>/<path>#L<start>-L<end>
 
 - **Use `git rev-parse HEAD` for the SHA in the link** so the link survives future commits. Insert it literally into the body; do not use `$(...)` shell substitution inside the heredoc.
 - **Never** include the full scanner output or the full scoring justification in the body. The template is the contract with the maintainer; extra content degrades scannability.
-- **Labels are mandatory** — always three of them: `repo-scan`, `scan:<category>`, `severity:<severity>`.
+- **Labels are mandatory** — always exactly five: `scan/<category>`, one matching subcategory (`sec/*` | `edge/*` | `cov/*`), `severity/<level>`, `confidence/<score>`, and one auto-derived `area/<top-level-dir>`. See `references/labels.md`.
 - **One issue per finding.** Do NOT batch findings into a single issue, even for the same file.
 - **Do not auto-assign** the issue. Let the maintainer triage.

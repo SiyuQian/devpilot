@@ -1,10 +1,18 @@
 # Scoring rubric
 
-After each scanner returns its findings, dispatch ONE lightweight sub-agent per finding with this prompt. The agent returns a single number in `{0, 25, 50, 75, 100}` plus a one-line justification.
+Findings are scored in **batches of up to 25** per sub-agent dispatch. The per-finding fan-out (one dispatch per finding) does not scale past ~50 findings — empirically observed on large-repo runs where scanners returned 200+ findings. Group by category, send one batch per dispatch.
 
 Keep the scoring agent isolated from the scanner agents — it must evaluate each finding on its own merits, not be anchored by the scanner's framing.
 
-## Scoring-agent prompt (paste verbatim)
+## Batched scoring prompt (paste verbatim)
+
+> You are scoring a batch of code-scan findings for confidence. The input is a JSON array of `Finding` objects. Return ONLY a JSON array of `{"index": <int>, "score": <int>, "reason": "<one sentence>"}` aligned with the input order. Use the scale below.
+>
+> For each finding: read the cited file at `line_range`, evaluate against the rubric, assign a score in `{0, 25, 50, 75, 100}`. Do NOT skip findings; if you can't read a file, score it 25 with reason "could not verify".
+
+(Per-finding rubric is identical to the single-finding version below.)
+
+## Single-finding prompt (legacy — for spot rescoring)
 
 > You are evaluating a single code-scan finding for confidence. Read the finding, read the file cited in `file` around `line_range`, and assign a score using this scale. Return ONLY `{"score": <int>, "reason": "<one sentence>"}`.
 >
