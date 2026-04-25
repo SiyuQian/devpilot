@@ -24,6 +24,8 @@ Flag:
 
 ## How to scan
 
+You will receive a path to a manifest file (default `/tmp/devpilot-scan-manifest.txt`). The manifest enumerates production files the orchestrator chose to scan. You may read test files for any production file in the manifest (those won't be in the manifest themselves), but findings can only target manifest paths.
+
 1. Build a map of production files to candidate test files:
    - Go: `foo.go` → `foo_test.go` in the same package.
    - JS/TS: `foo.ts` → `foo.test.ts` / `foo.spec.ts` nearby or under `__tests__/`.
@@ -40,6 +42,7 @@ Return ONLY a JSON array:
 [
   {
     "category": "coverage",
+    "subcategory": "cov/no-test-file",
     "title": "No tests for authentication middleware in internal/auth/middleware.go",
     "severity": "high",
     "file": "internal/auth/middleware.go",
@@ -58,3 +61,16 @@ Return ONLY a JSON array:
 - `severity: low` — stale or incomplete test file; code works today but is drifting.
 
 Be over-inclusive. The scoring pass filters.
+
+**Context-pressure trailer.** If the manifest is larger than you can audit, append `{"_meta": {"manifest_size": <M>, "files_scanned": <N>, "stopped_reason": "context_budget"}}` as the last element of the JSON array.
+
+## Subcategory enum (mandatory)
+
+Every finding MUST set `subcategory` to one of:
+
+- `cov/no-test-file` — exported file has no companion `*_test.*` anywhere in the repo
+- `cov/error-paths` — happy path tested, error branches have no assertions
+- `cov/integration-seam` — boundary between two packages (auth+handler, etc.) has no test
+- `cov/stale-test` — production file churned recently (`git log --since=90.days.ago`), test file did not
+
+Pick the closest fit. Do NOT invent new subcategories. If nothing fits, drop the finding.
