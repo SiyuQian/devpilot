@@ -108,6 +108,79 @@ func TestValidatePlan_MissingFile(t *testing.T) {
 	}
 }
 
+func TestValidatePlan_FallbackOnEmpty(t *testing.T) {
+	cases := []struct {
+		name        string
+		plan        commitPlan
+		staged      []string
+		wantFiles   []string
+		wantMessage string
+	}{
+		{
+			name: "all commit files unknown and only staged file excluded",
+			plan: commitPlan{
+				Commits: []commitEntry{
+					{Message: "feat: ghost", Files: []string{"ghost.go"}},
+				},
+				Excluded: []excludedFile{
+					{File: "real.go", Reason: "Contains secrets"},
+				},
+			},
+			staged:      []string{"real.go"},
+			wantFiles:   []string{"real.go"},
+			wantMessage: "chore: update files",
+		},
+		{
+			name: "multiple commits all reference unknown files and all staged files excluded",
+			plan: commitPlan{
+				Commits: []commitEntry{
+					{Message: "feat: a", Files: []string{"ghost1.go"}},
+					{Message: "feat: b", Files: []string{"ghost2.go"}},
+				},
+				Excluded: []excludedFile{
+					{File: "x.go", Reason: "secret"},
+					{File: "y.go", Reason: "secret"},
+				},
+			},
+			staged:      []string{"x.go", "y.go"},
+			wantFiles:   []string{"x.go", "y.go"},
+			wantMessage: "chore: update files",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			validated, warnings := validatePlan(tc.plan, tc.staged)
+
+			if len(validated.Commits) != 1 {
+				t.Fatalf("expected exactly 1 fallback commit, got %d", len(validated.Commits))
+			}
+			if validated.Commits[0].Message != tc.wantMessage {
+				t.Errorf("expected fallback message %q, got %q", tc.wantMessage, validated.Commits[0].Message)
+			}
+			if len(validated.Commits[0].Files) != len(tc.wantFiles) {
+				t.Fatalf("expected %d files in fallback commit, got %d", len(tc.wantFiles), len(validated.Commits[0].Files))
+			}
+			for i, f := range tc.wantFiles {
+				if validated.Commits[0].Files[i] != f {
+					t.Errorf("file[%d]: expected %q, got %q", i, f, validated.Commits[0].Files[i])
+				}
+			}
+
+			foundFallbackWarning := false
+			for _, w := range warnings {
+				if strings.Contains(w, "falling back") || strings.Contains(w, "fallback") {
+					foundFallbackWarning = true
+					break
+				}
+			}
+			if !foundFallbackWarning {
+				t.Errorf("expected a warning mentioning fallback, got %v", warnings)
+			}
+		})
+	}
+}
+
 func TestTruncateDiff_SmallDiff(t *testing.T) {
 	diff := "diff --git a/file.go b/file.go\n--- a/file.go\n+++ b/file.go\n@@ -1 +1 @@\n-old\n+new\n"
 	result := truncateDiff(diff)
