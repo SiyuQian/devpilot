@@ -60,7 +60,7 @@ Return ONLY a JSON array (no prose) of findings using the repo-scan Finding sche
 [
   {
     "category": "edge-case",
-    "subcategory": "edge/nil-deref",
+    "subcategory": "edge:nil-deref",
     "title": "Nil map dereferenced on empty config in internal/project/config.go",
     "severity": "medium",
     "file": "internal/project/config.go",
@@ -86,11 +86,11 @@ Be over-inclusive — filtering happens downstream.
 
 Every finding MUST set `subcategory` to one of:
 
-- `edge/nil-deref` — nil pointer / nil map / nil interface deref, empty-slice index
-- `edge/bounds-overflow` — off-by-one, integer over/underflow, slice index out of range
-- `edge/error-swallowed` — discarded errors, returned-zero-value-on-error, ignored close errors on writes
-- `edge/concurrency` — data race, deadlock, leaked goroutine, double-close, captured loop var, missing context propagation
-- `edge/resource-leak` — unclosed file / response.Body / DB row / ticker / mutex on error path
-- `edge/input-validation` — unbounded external input flowing into index, length, or `make([]T, n)`
+- `edge:nil-deref` — nil pointer / nil map / nil interface deref, empty-slice index
+- `edge:bounds-overflow` — off-by-one, integer over/underflow, slice index out of range
+- `edge:error-swallowed` — discarded errors, returned-zero-value-on-error, ignored close errors on writes
+- `edge:concurrency` — data race, deadlock, leaked goroutine, double-close, captured loop var, missing context propagation
+- `edge:resource-leak` — unclosed file / response.Body / DB row / ticker / mutex on error path
+- `edge:input-validation` — unbounded external input flowing into index, length, or `make([]T, n)`
 
 Pick the closest fit. Do NOT invent new subcategories. If nothing fits, drop the finding.

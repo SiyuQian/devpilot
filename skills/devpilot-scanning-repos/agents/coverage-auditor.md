@@ -42,7 +42,7 @@ Return ONLY a JSON array:
 [
   {
     "category": "coverage",
-    "subcategory": "cov/no-test-file",
+    "subcategory": "cov:no-test-file",
     "title": "No tests for authentication middleware in internal/auth/middleware.go",
     "severity": "high",
     "file": "internal/auth/middleware.go",
@@ -68,9 +68,9 @@ Be over-inclusive. The scoring pass filters.
 
 Every finding MUST set `subcategory` to one of:
 
-- `cov/no-test-file` — exported file has no companion `*_test.*` anywhere in the repo
-- `cov/error-paths` — happy path tested, error branches have no assertions
-- `cov/integration-seam` — boundary between two packages (auth+handler, etc.) has no test
-- `cov/stale-test` — production file churned recently (`git log --since=90.days.ago`), test file did not
+- `cov:no-test-file` — exported file has no companion `*_test.*` anywhere in the repo
+- `cov:error-paths` — happy path tested, error branches have no assertions
+- `cov:integration-seam` — boundary between two packages (auth+handler, etc.) has no test
+- `cov:stale-test` — production file churned recently (`git log --since=90.days.ago`), test file did not
 
 Pick the closest fit. Do NOT invent new subcategories. If nothing fits, drop the finding.
