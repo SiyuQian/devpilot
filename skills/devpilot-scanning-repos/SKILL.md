@@ -34,7 +34,14 @@ A whole-repo sweep that dispatches **three parallel specialist sub-agents**, sco
 ## Workflow
 
 1. **Resolve target.** Accept `owner/repo`, a clone URL, or "this repo" (use `gh repo view --json nameWithOwner`). Verify with `gh repo view`.
-2. **Ensure labels exist.** Create (idempotently) the full label taxonomy: `scan/<category>` × 3, all `sec/*` / `edge/*` / `cov/*` subcategories, `severity/<level>` × 3, `confidence/75`, `confidence/100`. `area/*` labels are created lazily at filing time (one per first-path-segment encountered). See `references/labels.md` for the exact `gh label create` block — paste it verbatim.
+2. **Reconcile labels — reuse what the repo already has, only create what's missing.** Do NOT blindly paste a `gh label create` block. The procedure:
+   1. **Snapshot existing labels:** `gh label list --limit 200 --json name,description > /tmp/devpilot-existing-labels.json`. If the count returned equals the limit, raise `--limit` and re-run until the result is shorter than the limit.
+   2. **For each label the skill needs** (the full taxonomy lives in `references/labels.md`): check whether the repo already has a *suitable* label for the same purpose. "Suitable" means same semantic intent, not just same name. A repo label `security` or `type:security` covers `scan:security`; `bug` does NOT cover `edge:nil-deref` (too generic). The match rule: the existing label's name OR description clearly maps onto the canonical purpose listed in `references/labels.md`. When in doubt, do NOT reuse — false reuse poisons triage queries.
+   3. **Build a name-mapping table** for this run: `canonical_name → label_to_apply` (either the canonical `type:value` name, or the suitable existing repo label). The orchestrator uses this mapping when filing issues in step 7.
+   4. **Only create the labels that have no suitable existing match.** Use the canonical `type:value` form. See `references/labels.md` for the exact `gh label create` invocation per label (colors and descriptions). Skip any label already mapped to an existing repo label.
+   5. **Print the reconciliation summary** to the user before continuing: `N reused, M created, list of each` — so they can spot a wrong reuse before issues get filed.
+
+   `area:*` labels follow the same rule but are reconciled lazily at filing time (step 7): for each finding, check the snapshot for an existing area-ish label covering the same top-level dir before creating `area:<dir>`.
 2.5. **Build a shared file manifest.** The orchestrator does ONE walk and hands a sampled file list to all three scanners. Scanners MUST NOT re-walk — they may only read paths in the manifest. See "Scaling for large repos" below for the algorithm. The manifest is a plain text file written to `/tmp/devpilot-scan-manifest.txt`, one repo-relative path per line. Default cap: **800 files**. Override with `--full` (raises to 2000) or `--scope <dir>` (manifest = `find <dir>` capped at 800).
 3. **Dispatch scanners in parallel.** In ONE message, launch three sub-agents using the prompts in `agents/`:
    - `agents/security-scanner.md`
@@ -46,11 +53,11 @@ A whole-repo sweep that dispatches **three parallel specialist sub-agents**, sco
 5. **Filter.** Drop every finding with score `< 75`. If zero survive, stop — report "no high-confidence issues found" to the user and do not create issues.
 6. **Deduplicate against existing issues.** Before filing, query existing scan issues. Use a search that covers BOTH the new taxonomy and the legacy `repo-scan` label (so re-runs against repos scanned under the old label set still dedupe correctly):
    ```bash
-   gh issue list --search 'label:scan/security,scan/edge-case,scan/coverage,repo-scan in:title' \
+   gh issue list --search 'label:scan:security,scan:edge-case,scan:coverage,repo-scan in:title' \
      --state all --limit 1000 --json title,number,state
    ```
-   Normalize titles by lower-casing, stripping the `[scan/<category>]` / `[repo-scan:<category>]` prefix, and collapsing whitespace before comparing. Skip findings whose normalized title matches an existing issue. If `--limit 1000` returns exactly 1000, paginate with `--search "... created:<<date-of-oldest>"` until empty.
-7. **File issues.** One `gh issue create` per surviving finding, using the template in `references/issue-template.md`. Labels: always exactly five — `scan/<category>` + matching subcategory + `severity/<level>` + `confidence/<score>` + auto-derived `area/<top-level-dir>`. Create the `area/*` label idempotently right before the issue.
+   Normalize titles by lower-casing, stripping the `[scan:<category>]` / `[repo-scan:<category>]` prefix, and collapsing whitespace before comparing. Skip findings whose normalized title matches an existing issue. If `--limit 1000` returns exactly 1000, paginate with `--search "... created:<<date-of-oldest>"` until empty.
+7. **File issues.** One `gh issue create` per surviving finding, using the template in `references/issue-template.md`. Labels: always exactly five — apply the labels from the step-2 mapping table for `scan:<category>`, the matching subcategory, `severity:<level>`, `confidence:<score>`, plus an `area:<top-level-dir>` resolved lazily here. For the area label: first check `/tmp/devpilot-existing-labels.json` for a suitable existing label (e.g. repo already has `area-cmd` or `cmd` covering the dir) and reuse it; only run `gh label create area:<dir>` when no suitable repo label exists.
 8. **Summarize.** Print a compact table to the user: `[category] [severity] title → #issue-number`.
 
 ## Finding format
@@ -60,7 +67,7 @@ Every scanner returns a JSON array of objects with exactly these fields:
 ```json
 {
   "category": "security | edge-case | coverage",
-  "subcategory": "sec/injection | sec/authn-authz | sec/secrets | sec/crypto | sec/path-traversal | sec/ssrf-csrf | sec/deserialization | sec/tls-misconfig | edge/nil-deref | edge/bounds-overflow | edge/error-swallowed | edge/concurrency | edge/resource-leak | edge/input-validation | cov/no-test-file | cov/error-paths | cov/integration-seam | cov/stale-test",
+  "subcategory": "sec:injection | sec:authn-authz | sec:secrets | sec:crypto | sec:path-traversal | sec:ssrf-csrf | sec:deserialization | sec:tls-misconfig | edge:nil-deref | edge:bounds-overflow | edge:error-swallowed | edge:concurrency | edge:resource-leak | edge:input-validation | cov:no-test-file | cov:error-paths | cov:integration-seam | cov:stale-test",
   "title": "<≤80 chars, imperative — e.g. 'Sanitize shell input in cmd/devpilot/run.go'>",
   "severity": "high | medium | low",
   "file": "<path relative to repo root>",
@@ -71,7 +78,7 @@ Every scanner returns a JSON array of objects with exactly these fields:
 }
 ```
 
-`subcategory` must match `category` (`sec/*` for security, `edge/*` for edge-case, `cov/*` for coverage). See `references/labels.md` for the fixed enum — scanners do NOT invent new subcategory values. If a finding doesn't fit any subcategory, the scanner picks the closest fit OR drops the finding.
+`subcategory` must match `category` (`sec:*` for security, `edge:*` for edge-case, `cov:*` for coverage). See `references/labels.md` for the fixed enum — scanners do NOT invent new subcategory values. If a finding doesn't fit any subcategory, the scanner picks the closest fit OR drops the finding.
 
 `evidence` is mandatory. A finding without quotable code is speculation — drop it at the scanner level.
 
@@ -115,9 +122,9 @@ See each agent prompt for category-specific false-positive classes.
 A correct run of this skill produces:
 
 1. Exactly three scanner sub-agent dispatches, in parallel.
-2. Every filed issue has exactly five labels: `scan/<category>`, a matching `sec/*`|`edge/*`|`cov/*` subcategory, `severity/<level>`, `confidence/<score>` (75 or 100), and an auto-derived `area/<top-level-dir>`.
+2. Every filed issue has exactly five labels: `scan:<category>`, a matching `sec:*`|`edge:*`|`cov:*` subcategory, `severity:<level>`, `confidence:<score>` (75 or 100), and an auto-derived `area:<top-level-dir>`.
 3. No issue is filed whose scoring-agent score is below 75.
-4. No duplicate of an existing open scan issue (under either the new `scan/*` labels or the legacy `repo-scan` label).
+4. No duplicate of an existing open scan issue (under either the new `scan:*` labels or the legacy `repo-scan` label).
 5. No finding cites business-logic correctness as the sole reason.
 6. Every filed issue body quotes ≥2 lines of actual code with a `<file>#L<start>-L<end>` link.
 7. If zero findings survive scoring, no issues are filed and the user is told so explicitly.
@@ -171,7 +178,9 @@ Group findings by category, send up to **25 findings per scoring sub-agent** dis
 - **Letting scanners filter their own output.** They should over-report. The scoring pass does the filtering. Merging the two loses calibration.
 - **Using the scanner agent to also create the issue.** Don't — the scanner has too much context. File issues from the main agent after scoring.
 - **Dropping the evidence block in the issue body.** Without it the human has to re-derive the finding. File a crap issue once and nobody trusts the skill.
-- **Creating labels inside the issue-creation loop.** Race-y and noisy. Do it once upfront (step 2).
+- **Mass-creating the full taxonomy upfront without checking the repo.** The skill MUST snapshot existing labels (step 2) and reuse any suitable ones. Blindly creating `scan:security` when the repo already has `security` doubles the label space and fragments triage queries.
+- **"Suitable" stretched too far.** Reusing `bug` for every `edge:*` finding loses the per-subcategory triage signal. When the existing label is too generic, create the canonical one.
+- **Creating subcategory or severity labels inside the issue-creation loop.** Reconcile in step 2, file in step 7. Only `area:*` is resolved lazily, and even then it goes through the same suitable-existing-label check.
 - **Asking scanners to rank severity *and* confidence.** Confidence is the scoring pass's job; scanners assign severity only.
 - **Forgetting the dedupe step.** Re-running the skill must be idempotent or the user will stop running it.
 

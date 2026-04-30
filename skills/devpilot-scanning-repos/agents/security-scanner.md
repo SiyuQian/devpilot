@@ -48,7 +48,7 @@ Return ONLY a JSON array. No prose.
 [
   {
     "category": "security",
-    "subcategory": "sec/injection",
+    "subcategory": "sec:injection",
     "title": "Shell command built from unvalidated HTTP input in internal/runner/exec.go",
     "severity": "high",
     "file": "internal/runner/exec.go",
@@ -64,14 +64,14 @@ Return ONLY a JSON array. No prose.
 
 Every finding MUST set `subcategory` to one of:
 
-- `sec/injection` — SQL / shell / template / NoSQL / LDAP injection
-- `sec/authn-authz` — missing auth, bypassable role checks, broken session
-- `sec/secrets` — hardcoded keys / tokens / credentials in code or history
-- `sec/crypto` — weak hash, bad RNG, ECB, static IV, JWT alg=none
-- `sec/path-traversal` — `../` injection, zip-slip, archive escape
-- `sec/ssrf-csrf` — SSRF, permissive CORS on private data, missing CSRF
-- `sec/deserialization` — pickle/unsafe yaml/gob from untrusted sources
-- `sec/tls-misconfig` — `InsecureSkipVerify`, plaintext-where-TLS-expected, weak ciphers
+- `sec:injection` — SQL / shell / template / NoSQL / LDAP injection
+- `sec:authn-authz` — missing auth, bypassable role checks, broken session
+- `sec:secrets` — hardcoded keys / tokens / credentials in code or history
+- `sec:crypto` — weak hash, bad RNG, ECB, static IV, JWT alg=none
+- `sec:path-traversal` — `../` injection, zip-slip, archive escape
+- `sec:ssrf-csrf` — SSRF, permissive CORS on private data, missing CSRF
+- `sec:deserialization` — pickle/unsafe yaml/gob from untrusted sources
+- `sec:tls-misconfig` — `InsecureSkipVerify`, plaintext-where-TLS-expected, weak ciphers
 
 If a finding doesn't fit any of these, pick the closest fit OR drop the finding. Do NOT invent a new subcategory.
 

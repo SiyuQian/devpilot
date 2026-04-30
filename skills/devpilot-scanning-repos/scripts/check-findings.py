@@ -36,15 +36,15 @@ VALID_CATEGORIES = {"security", "edge-case", "coverage"}
 VALID_SEVERITIES = {"high", "medium", "low"}
 VALID_SUBCATEGORIES = {
     "security": {
-        "sec/injection", "sec/authn-authz", "sec/secrets", "sec/crypto",
-        "sec/path-traversal", "sec/ssrf-csrf", "sec/deserialization", "sec/tls-misconfig",
+        "sec:injection", "sec:authn-authz", "sec:secrets", "sec:crypto",
+        "sec:path-traversal", "sec:ssrf-csrf", "sec:deserialization", "sec:tls-misconfig",
     },
     "edge-case": {
-        "edge/nil-deref", "edge/bounds-overflow", "edge/error-swallowed",
-        "edge/concurrency", "edge/resource-leak", "edge/input-validation",
+        "edge:nil-deref", "edge:bounds-overflow", "edge:error-swallowed",
+        "edge:concurrency", "edge:resource-leak", "edge:input-validation",
     },
     "coverage": {
-        "cov/no-test-file", "cov/error-paths", "cov/integration-seam", "cov/stale-test",
+        "cov:no-test-file", "cov:error-paths", "cov:integration-seam", "cov:stale-test",
     },
 }
 MAX_TITLE_LEN = 80
