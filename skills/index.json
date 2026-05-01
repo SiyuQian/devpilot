@@ -94,6 +94,16 @@
       ]
     },
     {
+      "name": "devpilot-issue-triage",
+      "description": "Use when the user wants to triage, classify, sort, or sweep open GitHub issues to decide what's worth working on. Sits between devpilot-scanning-repos (files issues) and devpilot-resolve-issues (executes fixes). Read-only against GitHub: drafts comments and labels into a local report but never posts.",
+      "files": [
+        "references/bucket-rubric.md",
+        "references/draft-comments.md",
+        "references/report-template.md",
+        "SKILL.md"
+      ]
+    },
+    {
       "name": "devpilot-learn",
       "description": "Summarize any single article, document, or web page into a standalone HTML digest file with reader-mode styling.",
       "files": [
