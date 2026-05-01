@@ -45,6 +45,20 @@
       ]
     },
     {
+      "name": "devpilot-daily-toolkit",
+      "description": "Personal daily-life toolkit for an Auckland, NZ user — bundles RSS news (世界科技/AI/政治/财经/新西兰), real-time exchange rates, GitHub daily activity reports, and NZ public holidays behind one skill, plus a combined morning-briefing mode that runs all four.",
+      "files": [
+        "evals/evals.json",
+        "feeds.json",
+        "requirements.txt",
+        "scripts/fetch_news.py",
+        "scripts/get_holidays.py",
+        "scripts/get_rate.py",
+        "scripts/github_daily_report.py",
+        "SKILL.md"
+      ]
+    },
+    {
       "name": "devpilot-google-go-style",
       "description": "ALWAYS use when working in a Go project — writing new Go code, modifying .go files, reviewing Go PRs, or discussing Go design decisions.",
       "files": [

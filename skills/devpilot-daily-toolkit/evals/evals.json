@@ -1,0 +1,64 @@
+{
+  "skill_name": "devpilot-daily-toolkit",
+  "evals": [
+    {
+      "id": 0,
+      "prompt": "1000 AUD 换多少人民币？",
+      "expected_output": "A clear answer using get_rate.py with the amount form (1000 AUD CNY), showing both the per-unit rate and the total converted amount, with a fresh timestamp.",
+      "files": [],
+      "assertions": [
+        {"name": "uses_get_rate_amount_form", "description": "Invokes scripts/get_rate.py with arguments '1000 AUD CNY' (or equivalent amount form)"},
+        {"name": "shows_total_conversion", "description": "Output includes the converted CNY total for 1000 AUD, not just the unit rate"},
+        {"name": "no_default_run", "description": "Does not run the default no-arg form (which would only show NZD pairs)"}
+      ]
+    },
+    {
+      "id": 1,
+      "prompt": "下一个新西兰公共假期是什么时候？我在奥克兰",
+      "expected_output": "Runs get_holidays.py and reports the next upcoming holiday relevant to Auckland, with date and day countdown, in Chinese.",
+      "files": [],
+      "assertions": [
+        {"name": "uses_get_holidays", "description": "Invokes scripts/get_holidays.py"},
+        {"name": "names_specific_holiday", "description": "Output names a specific upcoming holiday (e.g., King's Birthday, Matariki, Auckland Anniversary Day, Labour Day)"},
+        {"name": "shows_countdown", "description": "Output includes a day countdown or absolute date for the next holiday"},
+        {"name": "auckland_aware", "description": "Either prefers Auckland regional holidays or notes Auckland eligibility"}
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "今日 github daily report",
+      "expected_output": "Runs github_daily_report.py with no date arg (today) and presents the 改动总结 / activity overview for the user's active repos.",
+      "files": [],
+      "assertions": [
+        {"name": "uses_github_report", "description": "Invokes scripts/github_daily_report.py"},
+        {"name": "no_unprompted_repo_filter", "description": "Does not pass --repo unless the user named one (covers all active repos by default)"},
+        {"name": "presents_summary_section", "description": "Output includes either the 今日概览 totals or the per-repo 今日改动总结"}
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "给我今日简报，所有内容都要",
+      "expected_output": "Combined briefing: runs all four scripts, assembles a single Chinese digest with sections for holidays, exchange rates, GitHub activity, and translated news in the order specified by the skill.",
+      "files": [],
+      "assertions": [
+        {"name": "runs_all_four_scripts", "description": "Invokes fetch_news.py, get_rate.py, github_daily_report.py, and get_holidays.py at least once each"},
+        {"name": "single_combined_digest", "description": "Produces one assembled Chinese digest, not four separate dumps"},
+        {"name": "contains_all_four_sections", "description": "Final digest has visible sections for holidays, exchange rates (NZD pairs), GitHub activity, and news"},
+        {"name": "news_translated_to_chinese", "description": "News headlines/summaries are rendered in Chinese, not raw English RSS"},
+        {"name": "categories_preserved", "description": "News section preserves the five categories: 世界科技动态, AI 专项, 世界政治, 经济/金融, 新西兰新闻"}
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "今天有什么新闻？",
+      "expected_output": "Runs fetch_news.py and translates the raw English RSS output into a Chinese digest grouped by the five categories from feeds.json, with [source | date] attribution.",
+      "files": [],
+      "assertions": [
+        {"name": "uses_fetch_news", "description": "Invokes scripts/fetch_news.py"},
+        {"name": "output_in_chinese", "description": "Headlines and summaries are translated to Chinese"},
+        {"name": "five_categories", "description": "Output groups items under the five original categories from feeds.json"},
+        {"name": "has_source_attribution", "description": "Each item retains a [source | YYYY-MM-DD] tag"}
+      ]
+    }
+  ]
+}
