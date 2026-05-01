@@ -1,6 +1,6 @@
 ---
 name: devpilot-issue-triage
-description: Use when the user wants to triage, classify, sort, or sweep open GitHub issues to decide what's worth working on — "triage these issues", "整理 backlog", "哪些可以马上修", "/triage", "sort the open issues". Sits between devpilot-scanning-repos (which files issues) and devpilot-resolve-issues (which fixes them). Read-only against GitHub: drafts comments and labels into a local report but never posts. Do NOT use for filing new issues, executing fixes, or reviewing a single PR.
+description: Use when the user wants to triage, classify, sort, or sweep open GitHub issues to decide what's worth working on — "triage these issues", "整理 backlog", "哪些可以马上修", "/triage", "sort the open issues". Sits between devpilot-scanning-repos (which files issues) and devpilot-resolve-issues (which fixes them). Read-only against GitHub — drafts comments and labels into a local report but never posts. Do NOT use for filing new issues, executing fixes, or reviewing a single PR.
 license: MIT
 ---
 
