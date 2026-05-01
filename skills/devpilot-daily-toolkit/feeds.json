@@ -1,0 +1,30 @@
+{
+  "categories": {
+    "世界科技动态": [
+      {"name": "TechCrunch", "url": "https://techcrunch.com/feed/"},
+      {"name": "The Verge", "url": "https://www.theverge.com/rss/index.xml"},
+      {"name": "Ars Technica", "url": "https://feeds.arstechnica.com/arstechnica/index"}
+    ],
+    "AI 专项": [
+      {"name": "MIT Technology Review", "url": "https://www.technologyreview.com/feed/"},
+      {"name": "OpenAI Blog", "url": "https://openai.com/blog/rss.xml"},
+      {"name": "DeepMind Blog", "url": "https://deepmind.google/blog/rss.xml"},
+      {"name": "Anthropic (via Google News)", "url": "https://news.google.com/rss/search?q=Anthropic+Claude&hl=en"}
+    ],
+    "世界政治": [
+      {"name": "BBC World", "url": "https://feeds.bbci.co.uk/news/world/rss.xml"},
+      {"name": "AP News", "url": "https://rsshub.app/apnews/topics/apf-topnews"},
+      {"name": "Al Jazeera", "url": "https://www.aljazeera.com/xml/rss/all.xml"}
+    ],
+    "经济/金融": [
+      {"name": "CNBC", "url": "https://www.cnbc.com/id/100003114/device/rss/rss.html"},
+      {"name": "MarketWatch", "url": "https://feeds.content.dowjones.io/public/rss/mw_topstories"},
+      {"name": "Bloomberg via RSSHub", "url": "https://rsshub.app/bloomberg"}
+    ],
+    "新西兰新闻": [
+      {"name": "RNZ", "url": "https://www.rnz.co.nz/rss/national.xml"},
+      {"name": "NZ Herald", "url": "https://www.nzherald.co.nz/arc/outboundfeeds/rss/curated/78/?outputType=xml"},
+      {"name": "Stuff", "url": "https://www.stuff.co.nz/rss"}
+    ]
+  }
+}
