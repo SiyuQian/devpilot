@@ -14,6 +14,8 @@ license: Complete terms in LICENSE.txt
 **Core principle:** Read the actual diff before writing anything. Every sentence in the description
 must come from code you read, not from branch names or assumptions.
 
+**Operating mode: automatic by default.** Do not stop to confirm routine choices (branch name, commit message, draft body) — derive them from the diff and execute. Only stop for the destructive / ambiguous cases listed under [Hard Stops](#hard-stops). Showing a draft "for approval" before creating is **not** a hard stop; the user can `gh pr edit` after the fact.
+
 ## Quick Reference
 
 | Action | GitHub | GitLab |
@@ -57,13 +59,40 @@ git ls-remote --heads origin <branch>        # branch already on origin?
 gh pr list --head <branch>                   # existing PR? (or glab mr list --source-branch)
 ```
 
-**Stop and ask the user if** (in autonomous mode, return the question to the parent instead of blocking):
-- Current branch is `main`/`master` — you cannot PR from main into main. Ask if they want to create a feature branch first. **Never** use `git reset`, `git push --force`, or any history rewriting on main — not even as an "option." If the work is already pushed to main, tell the user the PR opportunity has passed for this change.
-- **There are modified or staged changes to files that ALSO appear in the PR diff** — the working tree disagrees with what you're about to PR; ask whether to commit first or exclude.
-- There are no commits ahead of base — nothing to PR.
-- There's already an open PR for this branch — switch to **update flow** (see below).
+### Auto-recover: on main/master
+
+If `HEAD` is on `main`/`master`, **do not stop** — recover automatically:
+
+1. Confirm none of the local commits ahead of base have been pushed to `origin/main`. If `git log origin/main..HEAD` is empty AND the working tree is clean, there is nothing to PR — exit. If commits ahead of base have **already been pushed to origin/main**, stop: the PR window has passed (see Hard Stops).
+2. Pick a feature branch name (see [Branch naming](#branch-naming)).
+3. `git checkout -b <name>` — this carries any uncommitted changes onto the new branch and leaves `main` untouched.
+4. If there are uncommitted changes that belong in the PR, `git add` the relevant files (those whose paths overlap the intended PR scope) and commit with a conventional-commit message derived from the diff. Leave unrelated dirty files alone.
+5. Continue with the normal flow.
+
+**Never** run `git reset`, `git push --force`, `git push --force-with-lease`, or any history rewrite on `main`/`master` — not as a recovery, not as an "option," not ever.
+
+### Auto-recover: dirty working tree overlapping the PR diff
+
+If modified/staged files overlap the PR diff, **do not stop** — stage and commit them as part of the PR with a conventional-commit message derived from the changes. Files outside the PR diff stay untouched.
+
+### Hard Stops
+
+These are the *only* cases where you must stop. In autonomous mode, return the question to the parent instead of blocking:
+
+- **Work already pushed to `origin/main`/`origin/master`.** The PR window for those commits has passed. Do not try to "rescue" it with history rewriting. Tell the user.
+- **No commits ahead of base AND no uncommitted changes.** Nothing to PR.
+- **Open PR already exists for this branch.** Switch to **update flow** (see below) — this isn't really a stop, just a branch in logic.
+- **Remote branch diverged.** `git log HEAD..origin/<branch>` is non-empty after fetching. Reconcile by inspecting; never force-push.
 
 **Do NOT block on:** untracked files, or modified files outside the PR diff. These are common in worktrees (test artifacts, scratch logs, leftovers from a parent agent) and are already excluded from `origin/<base>...HEAD`. Note them in your report and proceed.
+
+### Branch naming
+
+Derive deterministically — do not ask:
+
+1. If there are commits ahead of base, parse the latest commit subject. Take its conventional prefix (`feat`, `fix`, `chore`, `docs`, `refactor`) and slugify the rest: `<type>/<kebab-slug>` (max ~50 chars).
+2. Otherwise (only uncommitted changes), pick the prefix from the change shape — `fix:` for bug language in modified code, `docs:` for `.md`-only, `chore:` for config/tooling, else `feat:`. Slug from the most-changed top-level directory or filename stem.
+3. If a branch by that name already exists locally, append `-2`, `-3`, etc.
 
 **Branch already on origin, but no open PR** (common after a draft-escalation push from `devpilot-resolve-issues`):
 1. Only enter this branch if `git ls-remote --heads origin <branch>` returned a SHA. If it was empty, skip — `git push -u origin HEAD` will create the remote ref normally.
@@ -131,7 +160,7 @@ If no project template exists, **read ONE template** based on what you found in 
 - Leave "For Reviewers (human)" items unchecked — those are for humans
 - For bug fixes, describe the bug, root cause, and fix separately
 
-**Show the draft to the user before creating or updating.** Let them edit the title and body. In autonomous mode (invoked by a parent skill), include the draft inline in your final response instead — the parent will surface it.
+**Do not stop to "show the draft for approval."** Write the strongest title and body you can from the diff and create the PR directly. Report the URL afterward; the user can `gh pr edit <number>` if they want to tweak. In autonomous mode (invoked by a parent skill), include the final body inline in your response so the parent can surface it.
 
 ## Create and Report
 
@@ -160,7 +189,7 @@ glab mr view <number>              # GitLab
 - **Reviewer feedback** on description → address the specific feedback while keeping the rest.
 - **Draft → Ready** → update description if it was a WIP placeholder, then mark ready.
 
-**4. Show draft to user, then execute:**
+**4. Execute the update directly** (do not stop for approval):
 ```bash
 gh pr edit <number> --title "..." --body "..."    # GitHub
 glab mr update <number> --title "..." --description "..."  # GitLab
@@ -188,6 +217,20 @@ glab mr update <number> --draft=false  # GitLab
 | Diffing against local `main` in a worktree | Local `main` may be stale or absent in a worktree — always use `origin/<default-branch>` |
 | Force-pushing because the branch already exists on origin | Fetch first; if remote diverged, reconcile, never force. Fast-forward push is fine |
 | Appending to PR description instead of rewriting | Re-read the full diff and write a cohesive description covering all commits |
+| Stopping to ask "should I create a feature branch?" when on main | Don't. Auto-create per [Auto-recover: on main](#auto-recover-on-mainmaster). The only main-related stop is when the work was already pushed to `origin/main` |
+| Stopping to "show the draft for approval" before creating | Don't. Create directly; user edits after via `gh pr edit` |
+| Asking the user to pick a branch name | Derive it per [Branch naming](#branch-naming). Don't prompt |
+
+## Red Flags — you are over-confirming
+
+If you catch yourself about to write any of these, stop and just execute:
+
+- "Want me to create a feature branch?"
+- "Here's the draft — should I proceed?"
+- "What should I name the branch?"
+- "Should I commit these changes first?"
+
+The only legitimate stops are listed under [Hard Stops](#hard-stops). Everything else is automatic.
 
 ## Tips
 
