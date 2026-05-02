@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"github.com/siyuqian/devpilot/internal/project"
-	"github.com/siyuqian/devpilot/internal/skillmgr"
 )
 
 func TestConfigureBoard_NonInteractiveSkips(t *testing.T) {
@@ -101,64 +100,6 @@ func TestConfigureBoard_PreservesExistingConfig(t *testing.T) {
 	}
 	if cfg.Board != "My Board" {
 		t.Errorf("Board = %q, want %q", cfg.Board, "My Board")
-	}
-	if len(cfg.Skills) != 1 || cfg.Skills[0].Name != "pm" {
-		t.Errorf("existing skill entry was overwritten, skills = %v", cfg.Skills)
-	}
-}
-
-func TestInstallSkills_NonInteractiveSkips(t *testing.T) {
-	dir := t.TempDir()
-	opts := GenerateOpts{Dir: dir, Interactive: false}
-
-	called := false
-	installOpts := SkillInstallOpts{
-		SelectFn: func(catalog []skillmgr.CatalogEntry) ([]string, error) {
-			called = true
-			return []string{"pm"}, nil
-		},
-	}
-
-	if err := InstallSkills(opts, installOpts); err != nil {
-		t.Fatalf("InstallSkills: %v", err)
-	}
-	if called {
-		t.Error("selectFn should not be called in non-interactive mode")
-	}
-	if _, err := os.Stat(filepath.Join(dir, ".claude", "skills")); !os.IsNotExist(err) {
-		t.Error(".claude/skills should not exist when skipped")
-	}
-}
-
-func stubCatalogFn() ([]skillmgr.CatalogEntry, error) {
-	return []skillmgr.CatalogEntry{
-		{Name: "pm", Description: "Product manager skill"},
-		{Name: "trello", Description: "Trello integration"},
-	}, nil
-}
-
-func TestInstallSkills_InteractiveInstalls(t *testing.T) {
-	dir := t.TempDir()
-	opts := GenerateOpts{Dir: dir, Interactive: true}
-
-	installOpts := SkillInstallOpts{
-		SelectFn: func(catalog []skillmgr.CatalogEntry) ([]string, error) {
-			return []string{"pm"}, nil
-		},
-		FetchCatalogFn: stubCatalogFn,
-		FetchSkillFn: func(name, tag string) ([]skillmgr.SkillFile, error) {
-			return []skillmgr.SkillFile{
-				{Path: "SKILL.md", Content: []byte("---\nname: " + name + "\n---")},
-			}, nil
-		},
-	}
-
-	if err := InstallSkills(opts, installOpts); err != nil {
-		t.Fatalf("InstallSkills: %v", err)
-	}
-
-	if _, err := os.Stat(filepath.Join(dir, ".claude", "skills", "pm", "SKILL.md")); err != nil {
-		t.Errorf("SKILL.md not created: %v", err)
 	}
 }
 
@@ -307,18 +248,3 @@ func TestEnsureGitignore_DoesNotDuplicateExactMatch(t *testing.T) {
 	}
 }
 
-func TestInstallSkills_NoSelection(t *testing.T) {
-	dir := t.TempDir()
-	opts := GenerateOpts{Dir: dir, Interactive: true}
-
-	installOpts := SkillInstallOpts{
-		SelectFn: func(catalog []skillmgr.CatalogEntry) ([]string, error) {
-			return nil, nil // user selected nothing
-		},
-		FetchCatalogFn: stubCatalogFn,
-	}
-
-	if err := InstallSkills(opts, installOpts); err != nil {
-		t.Fatalf("InstallSkills: %v", err)
-	}
-}

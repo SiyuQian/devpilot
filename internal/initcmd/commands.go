@@ -103,14 +103,9 @@ var initCmd = &cobra.Command{
 			}
 		}
 
-		// Install skills from devpilot catalog
-		if opts.Interactive {
-			if err := InstallSkills(opts, SkillInstallOpts{}); err != nil {
-				fmt.Fprintf(os.Stderr, "  Error installing skills: %v\n", err)
-			}
-		}
-
 		fmt.Println("\nDone!")
+		fmt.Println("\nTo install Claude Code skills, run:")
+		fmt.Println("  npx skills add siyuqian/devpilot")
 	},
 }
 
