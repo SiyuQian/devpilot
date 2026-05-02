@@ -247,4 +247,3 @@ func TestEnsureGitignore_DoesNotDuplicateExactMatch(t *testing.T) {
 		t.Errorf(".gitignore was modified despite exact match.\nbefore:\n%s\nafter:\n%s", initial, string(data))
 	}
 }
-

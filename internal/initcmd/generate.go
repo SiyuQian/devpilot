@@ -191,4 +191,3 @@ func EnsureGitignore(dir string, entries []string) error {
 	fmt.Printf("  Updated .gitignore: added %s\n", strings.Join(toAdd, ", "))
 	return nil
 }
-
