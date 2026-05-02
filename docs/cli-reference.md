@@ -15,8 +15,8 @@ make clean                         # Remove bin/
 
 Run a single test:
 ```bash
-go test ./internal/skillmgr/ -run TestInstallSkill   # Single test by name
-go test ./internal/skillmgr/ -v                       # Single package, verbose
+go test ./internal/initcmd/ -run TestDetect   # Single test by name
+go test ./internal/initcmd/ -v                # Single package, verbose
 ```
 
 ## Authentication & Status
@@ -38,14 +38,10 @@ devpilot init -y                     # Accept all defaults
 
 ## Skills
 
+Skills are distributed and installed via npx — the Go CLI no longer manages them:
+
 ```bash
-devpilot skill add <name>                       # Install a skill (prompts for project/user level)
-devpilot skill add <name>@<ref>                 # Install at specific git ref
-devpilot skill add <name> --level user          # Install at user level non-interactively
-devpilot skill add --all                        # Install every skill in the catalog
-devpilot skill add --all --level project        # Bulk install at project level, no prompt
-devpilot skill list                             # List available skills with install status
-devpilot skill list --installed                 # List only installed skills
+npx skills add siyuqian/devpilot                # Install Claude Code skills from this repo
 ```
 
 ## Trello
