@@ -132,6 +132,14 @@
       ]
     },
     {
+      "name": "devpilot-prd-to-issues",
+      "description": "Use when the user wants to turn a PRD, spec, design doc, or feature brief into a tree of GitHub issues — every ticket a deliverable slice with explicit parent/blocks/blocked-by relationships and a bounded change size.",
+      "files": [
+        "LICENSE.txt",
+        "SKILL.md"
+      ]
+    },
+    {
       "name": "devpilot-pr-creator",
       "description": "Use when the user wants to create or update a pull request or merge request, open a PR/MR, push changes for review, update a PR description, or mark a draft as ready.",
       "files": [
