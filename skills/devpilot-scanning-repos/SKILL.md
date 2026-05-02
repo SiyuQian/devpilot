@@ -34,14 +34,17 @@ A whole-repo sweep that dispatches **three parallel specialist sub-agents**, sco
 ## Workflow
 
 1. **Resolve target.** Accept `owner/repo`, a clone URL, or "this repo" (use `gh repo view --json nameWithOwner`). Verify with `gh repo view`.
-2. **Reconcile labels — reuse what the repo already has, only create what's missing.** Do NOT blindly paste a `gh label create` block. The procedure:
+2. **Reconcile labels — rename non-canonical matches, reuse exact matches, create what's missing.** Do NOT blindly paste a `gh label create` block. The procedure:
    1. **Snapshot existing labels:** `gh label list --limit 200 --json name,description > /tmp/devpilot-existing-labels.json`. If the count returned equals the limit, raise `--limit` and re-run until the result is shorter than the limit.
-   2. **For each label the skill needs** (the full taxonomy lives in `references/labels.md`): check whether the repo already has a *suitable* label for the same purpose. "Suitable" means same semantic intent, not just same name. A repo label `security` or `type:security` covers `scan:security`; `bug` does NOT cover `edge:nil-deref` (too generic). The match rule: the existing label's name OR description clearly maps onto the canonical purpose listed in `references/labels.md`. When in doubt, do NOT reuse — false reuse poisons triage queries.
-   3. **Build a name-mapping table** for this run: `canonical_name → label_to_apply` (either the canonical `type:value` name, or the suitable existing repo label). The orchestrator uses this mapping when filing issues in step 7.
-   4. **Only create the labels that have no suitable existing match.** Use the canonical `type:value` form. See `references/labels.md` for the exact `gh label create` invocation per label (colors and descriptions). Skip any label already mapped to an existing repo label.
-   5. **Print the reconciliation summary** to the user before continuing: `N reused, M created, list of each` — so they can spot a wrong reuse before issues get filed.
+   2. **For each label the skill needs** (the full taxonomy lives in `references/labels.md`): classify the closest existing repo label into one of three buckets:
+      - **Exact match** — the repo label name already equals the canonical `type:value` (e.g. repo has `scan:security`). **Reuse as-is.**
+      - **Semantic match, non-canonical name** — same intent, different name (e.g. repo has `security` or `type-security` for `scan:security`; `nil-deref` for `edge:nil-deref`). **Rename to the canonical name** with `gh label edit "<old-name>" --name "<canonical-name>" --description "<canonical-desc>"`. Renaming preserves all existing issue associations, so this is safe and brings the repo onto our taxonomy. Confirm the rename plan with the user before executing if more than 3 labels are being renamed at once.
+      - **Too generic / wrong intent** — e.g. `bug` for `edge:nil-deref`, or `enhancement` for anything scan-related. **Do NOT rename and do NOT reuse.** Create the canonical label fresh; leave the generic label alone.
+   3. **Build a name-mapping table** for this run: `canonical_name → label_to_apply`. After renames, every entry should be the canonical `type:value` name. The orchestrator uses this mapping when filing issues in step 7.
+   4. **Create the labels that had no match.** Use the canonical `type:value` form. See `references/labels.md` for the exact `gh label create` invocation per label (colors and descriptions).
+   5. **Print the reconciliation summary** to the user before continuing: `N reused, R renamed (old → new), M created` — so they can spot a wrong rename or reuse before issues get filed.
 
-   `area:*` labels follow the same rule but are reconciled lazily at filing time (step 7): for each finding, check the snapshot for an existing area-ish label covering the same top-level dir before creating `area:<dir>`.
+   `area:*` labels follow the same three-bucket rule but are reconciled lazily at filing time (step 7): for each finding, check the snapshot for an existing area-ish label covering the same top-level dir; rename it to `area:<dir>` if it's a semantic match with a non-canonical name, otherwise create.
 2.5. **Build a shared file manifest.** The orchestrator does ONE walk and hands a sampled file list to all three scanners. Scanners MUST NOT re-walk — they may only read paths in the manifest. See "Scaling for large repos" below for the algorithm. The manifest is a plain text file written to `/tmp/devpilot-scan-manifest.txt`, one repo-relative path per line. Default cap: **800 files**. Override with `--full` (raises to 2000) or `--scope <dir>` (manifest = `find <dir>` capped at 800).
 3. **Dispatch scanners in parallel.** In ONE message, launch three sub-agents using the prompts in `agents/`:
    - `agents/security-scanner.md`
@@ -57,7 +60,7 @@ A whole-repo sweep that dispatches **three parallel specialist sub-agents**, sco
      --state all --limit 1000 --json title,number,state
    ```
    Normalize titles by lower-casing, stripping the `[scan:<category>]` / `[repo-scan:<category>]` prefix, and collapsing whitespace before comparing. Skip findings whose normalized title matches an existing issue. If `--limit 1000` returns exactly 1000, paginate with `--search "... created:<<date-of-oldest>"` until empty.
-7. **File issues.** One `gh issue create` per surviving finding, using the template in `references/issue-template.md`. Labels: always exactly five — apply the labels from the step-2 mapping table for `scan:<category>`, the matching subcategory, `severity:<level>`, `confidence:<score>`, plus an `area:<top-level-dir>` resolved lazily here. For the area label: first check `/tmp/devpilot-existing-labels.json` for a suitable existing label (e.g. repo already has `area-cmd` or `cmd` covering the dir) and reuse it; only run `gh label create area:<dir>` when no suitable repo label exists.
+7. **File issues.** One `gh issue create` per surviving finding, using the template in `references/issue-template.md`. Labels: always exactly five — apply the labels from the step-2 mapping table for `scan:<category>`, the matching subcategory, `severity:<level>`, `confidence:<score>`, plus an `area:<top-level-dir>` resolved lazily here. For the area label: first check `/tmp/devpilot-existing-labels.json` for a suitable existing label (e.g. repo already has `area-cmd` or `cmd` covering the dir). If it's an exact match, reuse; if it's a semantic match with a non-canonical name, rename it to `area:<dir>` via `gh label edit`; otherwise run `gh label create area:<dir>`.
 8. **Summarize.** Print a compact table to the user: `[category] [severity] title → #issue-number`.
 
 ## Finding format
@@ -178,8 +181,9 @@ Group findings by category, send up to **25 findings per scoring sub-agent** dis
 - **Letting scanners filter their own output.** They should over-report. The scoring pass does the filtering. Merging the two loses calibration.
 - **Using the scanner agent to also create the issue.** Don't — the scanner has too much context. File issues from the main agent after scoring.
 - **Dropping the evidence block in the issue body.** Without it the human has to re-derive the finding. File a crap issue once and nobody trusts the skill.
-- **Mass-creating the full taxonomy upfront without checking the repo.** The skill MUST snapshot existing labels (step 2) and reuse any suitable ones. Blindly creating `scan:security` when the repo already has `security` doubles the label space and fragments triage queries.
-- **"Suitable" stretched too far.** Reusing `bug` for every `edge:*` finding loses the per-subcategory triage signal. When the existing label is too generic, create the canonical one.
+- **Mass-creating the full taxonomy upfront without checking the repo.** The skill MUST snapshot existing labels (step 2) and reconcile against them. Blindly creating `scan:security` when the repo already has `security` doubles the label space and fragments triage queries — rename `security` to `scan:security` instead.
+- **Reusing a non-canonical name as-is instead of renaming it.** If the repo has `security` and we file under `scan:security`, both labels now exist with overlapping intent. Rename the existing one to bring the repo onto the canonical taxonomy.
+- **Renaming a too-generic label.** Don't rename `bug` to `edge:nil-deref` — it's attached to unrelated existing issues. Generic labels stay; create the canonical one alongside.
 - **Creating subcategory or severity labels inside the issue-creation loop.** Reconcile in step 2, file in step 7. Only `area:*` is resolved lazily, and even then it goes through the same suitable-existing-label check.
 - **Asking scanners to rank severity *and* confidence.** Confidence is the scoring pass's job; scanners assign severity only.
 - **Forgetting the dedupe step.** Re-running the skill must be idempotent or the user will stop running it.
