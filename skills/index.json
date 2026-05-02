@@ -135,6 +135,7 @@
       "name": "devpilot-prd-to-issues",
       "description": "Use when the user wants to turn a PRD, spec, design doc, or feature brief into a tree of GitHub issues — every ticket a deliverable slice with explicit parent/blocks/blocked-by relationships and a bounded change size.",
       "files": [
+        "LICENSE.txt",
         "SKILL.md"
       ]
     },
