@@ -4,7 +4,6 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
-	"time"
 )
 
 func TestUserConfigDir(t *testing.T) {
@@ -173,83 +172,30 @@ func TestSaveYAMLFormat(t *testing.T) {
 	}
 }
 
-func TestUpsertSkillAdd(t *testing.T) {
-	cfg := &Config{}
-	entry := SkillEntry{
-		Name:        "pm",
-		Source:      "github.com/siyuqian/devpilot",
-		InstalledAt: time.Now(),
-	}
-	cfg.UpsertSkill(entry)
-	if len(cfg.Skills) != 1 {
-		t.Fatalf("len(Skills) = %d, want 1", len(cfg.Skills))
-	}
-	if cfg.Skills[0].Name != "pm" {
-		t.Errorf("Name = %q, want %q", cfg.Skills[0].Name, "pm")
-	}
-}
-
-func TestUpsertSkillUpdate(t *testing.T) {
-	old := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
-	cfg := &Config{
-		Skills: []SkillEntry{
-			{Name: "pm", Source: "github.com/siyuqian/devpilot", InstalledAt: old},
-		},
-	}
-	now := time.Now().UTC()
-	updated := SkillEntry{
-		Name:        "pm",
-		Source:      "github.com/siyuqian/devpilot",
-		InstalledAt: now,
-	}
-	cfg.UpsertSkill(updated)
-	if len(cfg.Skills) != 1 {
-		t.Fatalf("len(Skills) = %d after update, want 1 (no duplicates)", len(cfg.Skills))
-	}
-	if !cfg.Skills[0].InstalledAt.Equal(now) {
-		t.Errorf("InstalledAt = %v, want %v", cfg.Skills[0].InstalledAt, now)
-	}
-}
-
-func TestUpsertSkillMultiple(t *testing.T) {
-	cfg := &Config{}
-	cfg.UpsertSkill(SkillEntry{Name: "pm"})
-	cfg.UpsertSkill(SkillEntry{Name: "trello"})
-	now := time.Now().UTC()
-	cfg.UpsertSkill(SkillEntry{Name: "pm", InstalledAt: now})
-
-	if len(cfg.Skills) != 2 {
-		t.Fatalf("len(Skills) = %d, want 2", len(cfg.Skills))
-	}
-	if !cfg.Skills[0].InstalledAt.Equal(now) {
-		t.Errorf("pm InstalledAt = %v, want %v", cfg.Skills[0].InstalledAt, now)
-	}
-}
-
-func TestSkillsRoundTrip(t *testing.T) {
+// TestLoad_IgnoresLegacySkillsBlock verifies that a .devpilot.yaml left over
+// from before the in-repo skill manager was removed still loads cleanly. The
+// 'skills:' key is silently dropped on the next Save.
+func TestLoad_IgnoresLegacySkillsBlock(t *testing.T) {
 	dir := t.TempDir()
-	now := time.Now().UTC().Truncate(time.Second)
-	cfg := &Config{
-		Board: "My Board",
-		Skills: []SkillEntry{
-			{Name: "pm", Source: "github.com/siyuqian/devpilot", InstalledAt: now},
-		},
+	yamlContent := `board: my-board
+source: trello
+skills:
+  - name: devpilot-pr-review
+    source: github.com/siyuqian/devpilot
+    installedAt: 2026-01-15T10:00:00Z
+`
+	if err := os.WriteFile(filepath.Join(dir, ".devpilot.yaml"), []byte(yamlContent), 0o644); err != nil {
+		t.Fatalf("WriteFile: %v", err)
 	}
-	if err := Save(dir, cfg); err != nil {
-		t.Fatalf("Save: %v", err)
-	}
-	loaded, err := Load(dir)
+
+	cfg, err := Load(dir)
 	if err != nil {
-		t.Fatalf("Load: %v", err)
+		t.Fatalf("Load returned error on legacy skills block: %v", err)
 	}
-	if len(loaded.Skills) != 1 {
-		t.Fatalf("len(Skills) = %d, want 1", len(loaded.Skills))
+	if cfg.Board != "my-board" {
+		t.Errorf("Board = %q, want %q", cfg.Board, "my-board")
 	}
-	s := loaded.Skills[0]
-	if s.Name != "pm" || s.Source != "github.com/siyuqian/devpilot" {
-		t.Errorf("skill = %+v, unexpected values", s)
-	}
-	if !s.InstalledAt.Equal(now) {
-		t.Errorf("InstalledAt = %v, want %v", s.InstalledAt, now)
+	if cfg.Source != "trello" {
+		t.Errorf("Source = %q, want %q", cfg.Source, "trello")
 	}
 }

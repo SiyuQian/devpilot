@@ -8,7 +8,7 @@
 
 ## What DevPilot Gives You
 
-- **A skill catalog.** `devpilot skill add <name>` pulls a curated Claude Code skill into `.claude/skills/`. `devpilot skill list` shows what is available and what is installed. `devpilot init` picks sensible defaults for a new project based on detected stack.
+- **A skill catalog.** Install Claude Code skills with `npx skills add siyuqian/devpilot`. `devpilot init` scaffolds project-level config (`.devpilot.yaml`, `.gitignore` entries, `CLAUDE.md`).
 - **Gmail digest.** `devpilot gmail summary` reads unread mail via OAuth, summarises it with Claude Code, and optionally posts the digest to Slack.
 - **Slack send.** `devpilot slack send` posts a message to a channel or DM with the credentials stored by `devpilot login slack`.
 - **Trello helpers.** `devpilot login trello` stores credentials; `devpilot push` creates a Trello card from a markdown plan file. Skills such as `devpilot-trello` read the same credential store.
@@ -56,12 +56,11 @@ Verify: `devpilot --version`
 ### Quick Start
 
 ```bash
-# Initialise a project — detects stack, installs a sensible skill set
+# Initialise a project — detects stack, scaffolds .devpilot.yaml + CLAUDE.md
 devpilot init
 
-# Browse and install additional skills
-devpilot skill list
-devpilot skill add devpilot-pr-review
+# Install Claude Code skills (separate from the CLI)
+npx skills add siyuqian/devpilot
 
 # Summarise unread Gmail, send to Slack
 devpilot login gmail
@@ -75,16 +74,16 @@ devpilot gmail summary --channel daily-digest
 
 | Command | Description |
 |---------|-------------|
-| `devpilot init` | Project setup wizard (detects stack, generates config, installs starter skills) |
+| `devpilot init` | Project setup wizard (detects stack, generates config) |
 | `devpilot init -y` | Accept all defaults without prompting |
 
-### Skill Commands
+### Skills
 
-| Command | Description |
-|---------|-------------|
-| `devpilot skill add <name[@version]>` | Install a skill from the devpilot catalog |
-| `devpilot skill add --all` | Install every skill in the catalog |
-| `devpilot skill list` | List available + installed skills |
+Skills are distributed via npx, not the Go CLI. To install:
+
+```bash
+npx skills add siyuqian/devpilot
+```
 
 ### Service Commands
 
@@ -174,16 +173,15 @@ Tests and lint must pass before committing. CI enforces this.
 ### Testing a Single Package
 
 ```bash
-go test ./internal/skillmgr/ -run TestInstallSkill   # Single test by name
-go test ./internal/gmail/ -v                          # Single package, verbose
+go test ./internal/initcmd/ -run TestDetect   # Single test by name
+go test ./internal/gmail/ -v                  # Single package, verbose
 ```
 
 ## Tech Stack
 
 - **Language:** Go 1.25.6
 - **CLI:** [Cobra](https://github.com/spf13/cobra)
-- **Selector UI:** [Bubble Tea](https://github.com/charmbracelet/bubbletea) + [Lip Gloss](https://github.com/charmbracelet/lipgloss) (skill picker in `devpilot init`)
-- **Skills:** [Claude Code](https://claude.ai/code) skill system
+- **Skills:** [Claude Code](https://claude.ai/code) skill system, distributed via [npx skills](https://www.npmjs.com/package/skills)
 - **External APIs:** [Trello API](https://developer.atlassian.com/cloud/trello/), [Gmail API](https://developers.google.com/gmail/api), [Slack API](https://api.slack.com/)
 
 ## License

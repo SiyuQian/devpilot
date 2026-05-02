@@ -5,19 +5,11 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"time"
 
 	"gopkg.in/yaml.v3"
 )
 
 const configFile = ".devpilot.yaml"
-
-// SkillEntry records an installed skill in the project config.
-type SkillEntry struct {
-	Name        string    `yaml:"name"`
-	Source      string    `yaml:"source"`
-	InstalledAt time.Time `yaml:"installedAt"`
-}
 
 // Config represents project-level configuration stored in .devpilot.yaml.
 type Config struct {
@@ -25,7 +17,6 @@ type Config struct {
 	Source             string            `yaml:"source,omitempty"` // "trello" or "github"
 	Models             map[string]string `yaml:"models,omitempty"`
 	OpenSpecMinVersion string            `yaml:"openspecMinVersion,omitempty"`
-	Skills             []SkillEntry      `yaml:"skills,omitempty"`
 }
 
 // ResolveSource returns the effective task source: flag value takes priority,
@@ -49,17 +40,6 @@ func (c *Config) ModelFor(command string) string {
 		return m
 	}
 	return c.Models["default"]
-}
-
-// UpsertSkill adds or updates a skill entry by name.
-func (c *Config) UpsertSkill(entry SkillEntry) {
-	for i, s := range c.Skills {
-		if s.Name == entry.Name {
-			c.Skills[i] = entry
-			return
-		}
-	}
-	c.Skills = append(c.Skills, entry)
 }
 
 // UserConfigDir returns the user-level config directory (~/.config/devpilot/).

@@ -2,17 +2,14 @@ package initcmd
 
 import (
 	"bufio"
-	"context"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/siyuqian/devpilot/internal/project"
-	"github.com/siyuqian/devpilot/internal/skillmgr"
 )
 
 // Board is a simple struct for board listing (avoids importing trello package).
@@ -193,94 +190,4 @@ func EnsureGitignore(dir string, entries []string) error {
 
 	fmt.Printf("  Updated .gitignore: added %s\n", strings.Join(toAdd, ", "))
 	return nil
-}
-
-// SkillInstallOpts holds injectable functions for InstallSkills.
-// All fields are optional; nil values use production defaults.
-type SkillInstallOpts struct {
-	// SelectFn presents a skill catalog and returns the names the user selected.
-	SelectFn func(catalog []skillmgr.CatalogEntry) ([]string, error)
-
-	// FetchCatalogFn returns the available skill catalog.
-	FetchCatalogFn func() ([]skillmgr.CatalogEntry, error)
-
-	// FetchSkillFn fetches skill files for a given name and tag.
-	FetchSkillFn func(name, tag string) ([]skillmgr.SkillFile, error)
-}
-
-// InstallSkills presents a multi-select checklist of devpilot's built-in skills
-// and installs the selected ones. Skipped in non-interactive mode.
-func InstallSkills(opts GenerateOpts, installOpts SkillInstallOpts) error {
-	if !opts.Interactive {
-		return nil
-	}
-
-	selectFn := installOpts.SelectFn
-	if selectFn == nil {
-		selectFn = skillmgr.SelectSkillsFromCatalog
-	}
-
-	fetchCatalogFn := installOpts.FetchCatalogFn
-	if fetchCatalogFn == nil {
-		fetchCatalogFn = func() ([]skillmgr.CatalogEntry, error) {
-			fmt.Println("  Discovering available skills...")
-			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-			defer cancel()
-			catalog, err := skillmgr.FetchCatalog(ctx, "siyuqian", "devpilot", "main")
-			if err != nil {
-				return nil, fmt.Errorf("fetching skill catalog: %w", err)
-			}
-			return catalog, nil
-		}
-	}
-
-	catalog, err := fetchCatalogFn()
-	if err != nil {
-		return err
-	}
-	if len(catalog) == 0 {
-		fmt.Println("  No skills found in catalog.")
-		return nil
-	}
-
-	selected, err := selectFn(catalog)
-	if err != nil {
-		return fmt.Errorf("skill selection: %w", err)
-	}
-	if len(selected) == 0 {
-		return nil
-	}
-
-	fetchSkillFn := installOpts.FetchSkillFn
-	if fetchSkillFn == nil {
-		fetchSkillFn = func(name, ref string) ([]skillmgr.SkillFile, error) {
-			return skillmgr.FetchSkill("siyuqian", "devpilot", name, ref)
-		}
-	}
-
-	cfg, err := project.Load(opts.Dir)
-	if err != nil {
-		return fmt.Errorf("loading config: %w", err)
-	}
-
-	for _, name := range selected {
-		fmt.Printf("  Installing skill %q...\n", name)
-		files, err := fetchSkillFn(name, "main")
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "  Warning: failed to fetch skill %q: %v\n", name, err)
-			continue
-		}
-		if err := skillmgr.InstallSkill(filepath.Join(opts.Dir, skillmgr.InstallDir), name, files); err != nil {
-			fmt.Fprintf(os.Stderr, "  Warning: failed to install skill %q: %v\n", name, err)
-			continue
-		}
-		cfg.UpsertSkill(project.SkillEntry{
-			Name:        name,
-			Source:      skillmgr.DefaultSource,
-			InstalledAt: time.Now().UTC(),
-		})
-		fmt.Printf("  Installed %s/%s/\n", skillmgr.InstallDir, name)
-	}
-
-	return project.Save(opts.Dir, cfg)
 }

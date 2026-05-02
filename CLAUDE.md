@@ -4,7 +4,7 @@ Skill catalog for Claude Code plus a small set of Go-native helpers (Gmail OAuth
 
 ## Repo map
 - `cmd/devpilot/` — entry point
-- `internal/<domain>/` — self-contained domains (`auth`, `trello`, `gmail`, `slack`, `initcmd`, `skillmgr`, `project`); each owns its Cobra commands in `commands.go`
+- `internal/<domain>/` — self-contained domains (`auth`, `trello`, `gmail`, `slack`, `initcmd`, `project`); each owns its Cobra commands in `commands.go`
 - `skills/` — distributable skill catalog (register each in `skills/index.json`)
 - `.claude/skills/` — installed skills for this project
 - `.github/workflows/` — CI (test + release)
