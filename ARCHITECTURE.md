@@ -11,21 +11,20 @@ Read this before touching an unfamiliar part of the codebase. Describes the shap
 │  cmd/devpilot ──► internal/<domain>/commands.go ──► domain  │
 │                                                     logic   │
 │                                                             │
-│  domains: auth · trello · gmail · slack · initcmd ·         │
-│           skillmgr · project                                │
+│  domains: auth · trello · gmail · slack · initcmd · project │
 └────────────────┬────────────────────────────────────────────┘
                  │
       ┌──────────┴───────────┐
       ▼                      ▼
  skill catalog          external services
- (devpilot skill)       (Trello / Gmail / Slack)
+ (npx skills add)       (Trello / Gmail / Slack)
       │                      │
       ▼                      ▼
  installs into          OAuth via internal/auth
  .claude/skills/        creds at ~/.config/devpilot/credentials.json
 ```
 
-DevPilot has two jobs: (1) distribute Claude Code skills (the `skills/` catalog, `devpilot skill add`, `devpilot init`), and (2) host thin Go CLIs where an OAuth flow or typed client is a better fit than a Claude skill (Gmail digest, Slack post, Trello credential store).
+DevPilot has two jobs: (1) distribute Claude Code skills via the `skills/` catalog (installed by users with `npx skills add siyuqian/devpilot`), and (2) host thin Go CLIs where an OAuth flow or typed client is a better fit than a Claude skill (Gmail digest, Slack post, Trello credential store).
 
 ## Components
 
@@ -36,10 +35,9 @@ Each `internal/<domain>/` is self-contained. The important ones:
 - **`internal/trello/`** — Trello API client + `devpilot push` (create card from plan); `devpilot login trello` flow.
 - **`internal/gmail/`** — Gmail OAuth client + `devpilot gmail list | read | mark-read | bulk-mark-read | summary`. The `summary` subcommand is the only place that still shells out to `claude` for AI work.
 - **`internal/slack/`** — Slack OAuth client + `devpilot slack send`.
-- **`internal/initcmd/`** — `devpilot init` scaffolding: detects project stack, writes `.devpilot.yaml`, installs starter skills.
-- **`internal/skillmgr/`** — `devpilot skill add | list`. Downloads from the catalog, syncs `skills/` ↔ `.claude/skills/`. Uses Bubble Tea for an interactive skill picker.
+- **`internal/initcmd/`** — `devpilot init` scaffolding: detects project stack, writes `.devpilot.yaml`, points users at npx for skill installation.
 - **`internal/project/`** — cross-cutting repo config (`.devpilot.yaml` shape, stack detection).
-- **`skills/`** (top-level, not `internal/`) — distributable skill catalog. `.claude/skills/` is the *installed* copy.
+- **`skills/`** (top-level, not `internal/`) — distributable skill catalog. `.claude/skills/` is the *installed* copy. Distribution is handled by the external `npx skills` tool — there is no in-repo Go installer.
 
 ## Invariants
 
@@ -71,7 +69,7 @@ Sensors today: `gofmt`, `goimports`, `golangci-lint`, `go test ./...`, CI, `make
 
 A skill is a `SKILL.md` (YAML frontmatter + markdown body) with optional `references/` and `scripts/`. Progressive disclosure: frontmatter is always in context, body loads on invocation, references load on demand.
 
-- `skills/` — catalog source; what `devpilot skill add` fetches.
+- `skills/` — catalog source; what `npx skills add siyuqian/devpilot` fetches.
 - `.claude/skills/` — per-project installation directory.
 - `skills/index.json` — manifest mapping name → files; required for the installer.
 - `make sync-skills` / `make check-skills-sync` — drift guard.
