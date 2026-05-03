@@ -17,6 +17,7 @@ Each line is the **fallback** used when no suitable repo label exists. Run only 
 gh label create scan:security    --color B60205 --description "Filed by devpilot-scanning-repos: security category"
 gh label create scan:edge-case   --color D93F0B --description "Filed by devpilot-scanning-repos: edge-case / robustness"
 gh label create scan:coverage    --color 0E8A16 --description "Filed by devpilot-scanning-repos: test-coverage gap"
+gh label create scan:doc-drift   --color 5319E7 --description "Filed by devpilot-scanning-repos: doc out of sync with code"
 
 # --- security subcategories (exactly one when category=scan:security) ---
 gh label create sec:injection         --color B60205 --description "SQL / shell / template / NoSQL injection"
@@ -41,6 +42,13 @@ gh label create cov:no-test-file       --color 0E8A16 --description "Exported su
 gh label create cov:error-paths        --color 0E8A16 --description "Happy path tested, error branches not"
 gh label create cov:integration-seam   --color 0E8A16 --description "Untested boundary between two packages"
 gh label create cov:stale-test         --color 0E8A16 --description "Production churn, test file stagnant"
+
+# --- doc-drift subcategories (exactly one when category=scan:doc-drift) ---
+gh label create doc:broken-link        --color 5319E7 --description "Internal markdown link target (file or #anchor) does not exist"
+gh label create doc:missing-file       --color 5319E7 --description "Doc names a file or directory that does not exist"
+gh label create doc:command-mismatch   --color 5319E7 --description "Doc names a make target / script / CLI command / flag the repo does not provide"
+gh label create doc:stale-claim        --color 5319E7 --description "Doc claims a convention/symbol/env var/version that current code contradicts"
+gh label create doc:cross-doc-conflict --color 5319E7 --description "Two entry-point docs disagree on the same concrete claim"
 
 # --- severity (one per issue) ---
 gh label create severity:high     --color CC0000 --description "High-severity scan finding"
@@ -87,8 +95,8 @@ This lets a CODEOWNER filter `is:open label:area:internal` (or whichever label w
 
 Every filed issue MUST have exactly **five** labels (using whichever name the step-2 mapping resolved to — canonical or reused):
 
-1. One category — canonical: `scan:security` | `scan:edge-case` | `scan:coverage`
-2. One subcategory matching the category — canonical: `sec:*` | `edge:*` | `cov:*`
+1. One category — canonical: `scan:security` | `scan:edge-case` | `scan:coverage` | `scan:doc-drift`
+2. One subcategory matching the category — canonical: `sec:*` | `edge:*` | `cov:*` | `doc:*`
 3. One severity — canonical: `severity:high` | `severity:medium` | `severity:low`
 4. One confidence — canonical: `confidence:75` | `confidence:100`
 5. One area — canonical: `area:{top-level-dir}`

@@ -1,6 +1,6 @@
 ---
 name: devpilot-scanning-repos
-description: Use when the user asks to scan, audit, or sweep an entire GitHub repository for issues and file them as tickets — "scan this repo", "audit the codebase", "find bugs/security holes/missing tests", "/repo-scan", "open issues for all the problems you find". Scans security, edge cases, and testing coverage without assuming business logic. Do NOT use for reviewing a single PR (use devpilot-pr-review) or language-specific style review (use devpilot-google-go-style).
+description: Use when the user asks to scan, audit, or sweep an entire GitHub repository for issues and file them as tickets — "scan this repo", "audit the codebase", "find bugs/security holes/missing tests", "check the docs are still accurate", "/repo-scan", "open issues for all the problems you find". Scans security, edge cases, testing coverage, and doc/code drift (CLAUDE.md, AGENTS.md, README.md and the docs they link to) without assuming business logic. Do NOT use for reviewing a single PR (use devpilot-pr-review) or language-specific style review (use devpilot-google-go-style).
 ---
 
 # Repo Scan (Security / Edge Cases / Coverage → GitHub Issues)
@@ -12,6 +12,7 @@ description: Use when the user asks to scan, audit, or sweep an entire GitHub re
 | `agents/security-scanner.md` | Step 3 — sub-agent prompt for the security scanner. |
 | `agents/edge-case-hunter.md` | Step 3 — sub-agent prompt for edge-case hunting (no business logic). |
 | `agents/coverage-auditor.md` | Step 3 — sub-agent prompt for test-coverage gap detection. |
+| `agents/doc-consistency-auditor.md` | Step 3 — sub-agent prompt for doc/code drift detection (CLAUDE.md, AGENTS.md, README.md and linked docs). |
 | `references/scoring.md` | Step 4 — full 0/25/50/75/100 rubric + false-positive classes. |
 | `references/issue-template.md` | Step 7 — exact `gh issue create` body and label contract. |
 | `references/labels.md` | Step 2 — one-shot `gh label create` commands. |
@@ -20,7 +21,7 @@ description: Use when the user asks to scan, audit, or sweep an entire GitHub re
 
 ## Overview
 
-A whole-repo sweep that dispatches **three parallel specialist sub-agents**, scores every finding 0–100 for confidence, filters below threshold, then files each surviving finding as a labeled GitHub issue. Business logic is out of scope — scanners only catch mistakes a reasonable reader could flag without domain knowledge.
+A whole-repo sweep that dispatches **four parallel specialist sub-agents** (security, edge-case, coverage, doc-drift), scores every finding 0–100 for confidence, filters below threshold, then files each surviving finding as a labeled GitHub issue. Business logic is out of scope — scanners only catch mistakes a reasonable reader could flag without domain knowledge. The doc-drift scanner audits the entry-point docs (`CLAUDE.md`, `AGENTS.md`, `README.md`) and every doc file they link to, checking falsifiable claims against the current code.
 
 **Core principle:** coverage during scan, filtering during scoring, noise-free issues at the end. The sub-agents are told to surface everything they notice; a separate scoring pass kills the noise so the human only sees load-bearing issues.
 
@@ -45,18 +46,27 @@ A whole-repo sweep that dispatches **three parallel specialist sub-agents**, sco
    5. **Print the reconciliation summary** to the user before continuing: `N reused, R renamed (old → new), M created` — so they can spot a wrong rename or reuse before issues get filed.
 
    `area:*` labels follow the same three-bucket rule but are reconciled lazily at filing time (step 7): for each finding, check the snapshot for an existing area-ish label covering the same top-level dir; rename it to `area:<dir>` if it's a semantic match with a non-canonical name, otherwise create.
-2.5. **Build a shared file manifest.** The orchestrator does ONE walk and hands a sampled file list to all three scanners. Scanners MUST NOT re-walk — they may only read paths in the manifest. See "Scaling for large repos" below for the algorithm. The manifest is a plain text file written to `/tmp/devpilot-scan-manifest.txt`, one repo-relative path per line. Default cap: **800 files**. Override with `--full` (raises to 2000) or `--scope <dir>` (manifest = `find <dir>` capped at 800).
-3. **Dispatch scanners in parallel.** In ONE message, launch three sub-agents using the prompts in `agents/`:
-   - `agents/security-scanner.md`
-   - `agents/edge-case-hunter.md`
-   - `agents/coverage-auditor.md`
-   Pass the manifest path to each scanner. Each returns a list of `Finding` objects (see format below). Scanners are told to emit everything they notice — including low-severity — because filtering happens in step 4, not in the scanner.
-3.5. **Validate scanner output.** Pipe each scanner's JSON array through `python3 scripts/check-findings.py --manifest /tmp/devpilot-scan-manifest.txt`. The `--manifest` flag is mandatory — it makes the script reject any finding whose `file` is not on the manifest, enforcing the contract from step 2.5. The script also rejects missing required fields, invalid `category`/`subcategory`/`severity` enums, and empty `evidence`. Fix (or ask the scanner to re-emit) before scoring.
+2.5. **Build the file manifest AND the doc manifest.**
+   - **Source manifest** (`/tmp/devpilot-scan-manifest.txt`): one walk, sampled path list of production source files for the security / edge-case / coverage scanners. They MUST NOT re-walk — they may only read paths in this manifest. See "Scaling for large repos" below. Default cap: **800 files** (`--full` raises to 2000, `--scope <dir>` constrains to a subtree).
+   - **Doc manifest** (`/tmp/devpilot-doc-manifest.txt`): built independently for the doc-drift scanner. Steps:
+     1. Find every entry-point file, case-insensitive, anywhere in the repo: `fd -HI -t f -i '^(claude|agents|readme)\.md$'` (fallback: `find . -type f -iregex '.*/\(claude\|agents\|readme\)\.md'`).
+     2. Parse markdown links from each — both inline `[text](path)` and reference `[text]: path` forms — keep only relative targets that resolve to existing files with doc-ish extensions (`.md`, `.mdx`, `.txt`, `.rst`) or living under a `docs/`-style directory. Strip `#anchor` for resolution but keep it for the scanner's reporting.
+     3. Recurse one hop at a time, dedupe by absolute path, cap at depth 3 and at 200 doc files total. Write the resulting list to `/tmp/devpilot-doc-manifest.txt`. Print to the user: total entry points found, total docs in the manifest, and a tree showing which entry point pulled in which linked doc.
+3. **Dispatch scanners in parallel.** In ONE message, launch four sub-agents using the prompts in `agents/`:
+   - `agents/security-scanner.md` — pass `/tmp/devpilot-scan-manifest.txt`
+   - `agents/edge-case-hunter.md` — pass `/tmp/devpilot-scan-manifest.txt`
+   - `agents/coverage-auditor.md` — pass `/tmp/devpilot-scan-manifest.txt`
+   - `agents/doc-consistency-auditor.md` — pass `/tmp/devpilot-doc-manifest.txt`
+   Each returns a list of `Finding` objects (see format below). Scanners are told to emit everything they notice — including low-severity — because filtering happens in step 4, not in the scanner.
+3.5. **Validate scanner output.** Pipe each scanner's JSON array through `python3 scripts/check-findings.py`. The `--manifest` flag is mandatory and chooses the manifest the scanner was dispatched against:
+   - security / edge-case / coverage → `--manifest /tmp/devpilot-scan-manifest.txt`
+   - doc-drift → `--manifest /tmp/devpilot-doc-manifest.txt`
+   The script rejects findings whose `file` is not on the relevant manifest, missing required fields, invalid `category`/`subcategory`/`severity` enums, and empty `evidence`. Fix (or ask the scanner to re-emit) before scoring.
 4. **Score every finding, in batches.** Group findings by category and dispatch ONE scoring sub-agent per batch of up to **25 findings** (not one per finding — the per-finding fan-out doesn't scale past ~50). The scoring agent returns a JSON array of `{index, score, reason}` aligned with the input order. See `references/scoring.md` for the rubric and the batched prompt.
 5. **Filter.** Drop every finding with score `< 75`. If zero survive, stop — report "no high-confidence issues found" to the user and do not create issues.
 6. **Deduplicate against existing issues.** Before filing, query existing scan issues. Use a search that covers BOTH the new taxonomy and the legacy `repo-scan` label (so re-runs against repos scanned under the old label set still dedupe correctly):
    ```bash
-   gh issue list --search 'label:scan:security,scan:edge-case,scan:coverage,repo-scan in:title' \
+   gh issue list --search 'label:scan:security,scan:edge-case,scan:coverage,scan:doc-drift,repo-scan in:title' \
      --state all --limit 1000 --json title,number,state
    ```
    Normalize titles by lower-casing, stripping the `[scan:<category>]` / `[repo-scan:<category>]` prefix, and collapsing whitespace before comparing. Skip findings whose normalized title matches an existing issue. If `--limit 1000` returns exactly 1000, paginate with `--search "... created:<<date-of-oldest>"` until empty.
@@ -69,8 +79,8 @@ Every scanner returns a JSON array of objects with exactly these fields:
 
 ```json
 {
-  "category": "security | edge-case | coverage",
-  "subcategory": "sec:injection | sec:authn-authz | sec:secrets | sec:crypto | sec:path-traversal | sec:ssrf-csrf | sec:deserialization | sec:tls-misconfig | edge:nil-deref | edge:bounds-overflow | edge:error-swallowed | edge:concurrency | edge:resource-leak | edge:input-validation | cov:no-test-file | cov:error-paths | cov:integration-seam | cov:stale-test",
+  "category": "security | edge-case | coverage | doc-drift",
+  "subcategory": "sec:injection | sec:authn-authz | sec:secrets | sec:crypto | sec:path-traversal | sec:ssrf-csrf | sec:deserialization | sec:tls-misconfig | edge:nil-deref | edge:bounds-overflow | edge:error-swallowed | edge:concurrency | edge:resource-leak | edge:input-validation | cov:no-test-file | cov:error-paths | cov:integration-seam | cov:stale-test | doc:broken-link | doc:missing-file | doc:command-mismatch | doc:stale-claim | doc:cross-doc-conflict",
   "title": "<≤80 chars, imperative — e.g. 'Sanitize shell input in cmd/devpilot/run.go'>",
   "severity": "high | medium | low",
   "file": "<path relative to repo root>",
@@ -81,7 +91,9 @@ Every scanner returns a JSON array of objects with exactly these fields:
 }
 ```
 
-`subcategory` must match `category` (`sec:*` for security, `edge:*` for edge-case, `cov:*` for coverage). See `references/labels.md` for the fixed enum — scanners do NOT invent new subcategory values. If a finding doesn't fit any subcategory, the scanner picks the closest fit OR drops the finding.
+`subcategory` must match `category` (`sec:*` for security, `edge:*` for edge-case, `cov:*` for coverage, `doc:*` for doc-drift). See `references/labels.md` for the fixed enum — scanners do NOT invent new subcategory values. If a finding doesn't fit any subcategory, the scanner picks the closest fit OR drops the finding.
+
+For doc-drift, the `file` field is the **doc** containing the wrong claim (e.g. `README.md`, `docs/cli-reference.md`), not the source file the claim is about. The source file (or its absence) goes in `evidence`.
 
 `evidence` is mandatory. A finding without quotable code is speculation — drop it at the scanner level.
 
@@ -124,8 +136,8 @@ See each agent prompt for category-specific false-positive classes.
 
 A correct run of this skill produces:
 
-1. Exactly three scanner sub-agent dispatches, in parallel.
-2. Every filed issue has exactly five labels: `scan:<category>`, a matching `sec:*`|`edge:*`|`cov:*` subcategory, `severity:<level>`, `confidence:<score>` (75 or 100), and an auto-derived `area:<top-level-dir>`.
+1. Exactly four scanner sub-agent dispatches, in parallel (security, edge-case, coverage, doc-drift).
+2. Every filed issue has exactly five labels: `scan:<category>`, a matching `sec:*`|`edge:*`|`cov:*`|`doc:*` subcategory, `severity:<level>`, `confidence:<score>` (75 or 100), and an auto-derived `area:<top-level-dir>` (for doc-drift findings, derived from the doc file's path — e.g. a finding in `README.md` → `area:root`, in `docs/cli-reference.md` → `area:docs`).
 3. No issue is filed whose scoring-agent score is below 75.
 4. No duplicate of an existing open scan issue (under either the new `scan:*` labels or the legacy `repo-scan` label).
 5. No finding cites business-logic correctness as the sole reason.
