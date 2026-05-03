@@ -32,7 +32,7 @@ REQUIRED_FIELDS = (
     "why_it_matters",
     "suggested_fix",
 )
-VALID_CATEGORIES = {"security", "edge-case", "coverage"}
+VALID_CATEGORIES = {"security", "edge-case", "coverage", "doc-drift"}
 VALID_SEVERITIES = {"high", "medium", "low"}
 VALID_SUBCATEGORIES = {
     "security": {
@@ -45,6 +45,10 @@ VALID_SUBCATEGORIES = {
     },
     "coverage": {
         "cov:no-test-file", "cov:error-paths", "cov:integration-seam", "cov:stale-test",
+    },
+    "doc-drift": {
+        "doc:broken-link", "doc:missing-file", "doc:command-mismatch",
+        "doc:stale-claim", "doc:cross-doc-conflict",
     },
 }
 MAX_TITLE_LEN = 80
