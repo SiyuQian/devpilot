@@ -25,11 +25,11 @@ Every finding tied to a specific line uses this template. Posted as a single Git
 - **Length** — ≤ 8 lines of prose. Long architectural arguments belong in the body's "What's working well" / verdict, not in an inline comment.
 - **Anchor for cross-cutting findings** — when a finding has no natural single line (e.g. "this PR adds no tests"), anchor to the most representative line and add a one-liner: *"This comment is about the change as a whole; anchored here for visibility."*
 - **Language** — matches the PR's language end-to-end. Chinese PR → Chinese comment, including the field labels.
-- **Severity and confidence are independent.** A high-severity bug you are moderately sure about is `Severity: Blocking, Confidence: medium`. Low confidence never automatically demotes severity.
+- **Severity and confidence are independent.** A high-severity bug you are moderately sure about is `Severity: Blocking, Confidence: medium`. Low confidence never automatically demotes severity. See `confidence.md` for the 0–100 rubric the fanout uses internally and the high/medium/low label mapping shown to the author.
 
 ## Review body template
 
-The body holds only what doesn't belong on a single line: TL;DR, the sweep summary, inline-finding counts, what's working well, Open Questions, disclaimer, metadata. Render the skeleton; fill every placeholder.
+The body holds only what doesn't belong on a single line: Verdict, TL;DR, Strengths, the sweep summary, inline-finding counts, Open Questions, disclaimer, metadata. Render the skeleton; fill every placeholder.
 
 ```
 <!-- devpilot-pr-review (devpilot <version>) -->
@@ -39,8 +39,15 @@ Thanks for the change. Inline comments cover the per-line findings; the summary 
 
 ## PR Review: <title / #number>
 
+### Verdict
+**Ready to merge:** <Yes | With fixes | No>
+<one-sentence reasoning>
+
 ### TL;DR
-<1–2 sentences: safe to merge? single most important thing to address?>
+<1–2 sentences: single most important thing to address (or, if approving, what makes this clean)>
+
+### Strengths
+<2–3 bullets worth preserving — accurate praise so the author trusts the rest>
 
 ### Unknown-Unknowns Sweep
 1. Local pattern fit: <finding or "matches convention in X">
@@ -54,9 +61,6 @@ Thanks for the change. Inline comments cover the per-line findings; the summary 
 - Should-fix: <n>
 - Consider: <n>
 - Nit: <n>
-
-### What's working well
-<2–3 bullets worth preserving>
 
 ### Open Questions (optional — omit heading if empty)
 <only things the code could not answer, one line each>
@@ -78,6 +82,10 @@ Inline comments: <total count>
 - **`<version>`** — resolve via `devpilot --version` at post time. Take the `vX.Y.Z` token. Fall back to `unknown` if the command is unavailable. Same value goes in both the leading marker and the trailing HTML comment.
 - **`<author-handle>`** — `gh pr view --json author -q .author.login`. Fall back to "Hi there," (no handle) when unavailable.
 - **Language** — render every section (TL;DR, sweep, counts, what's working well, Open Questions, disclaimer, metadata) in the PR's language. Translate the disclaimer while preserving its meaning: automated, not authoritative, human judgment required.
+- **Verdict** — derived from the highest-severity surviving inline finding:
+  - Any Blocking → `Ready to merge: No`
+  - Only Should-fix / Consider / Nit → `Ready to merge: With fixes`
+  - Zero findings → `Ready to merge: Yes`
 - **Severity counts** — derived from the inline comments actually posted. Drop zero-count buckets from the list.
 - **Empty sections** — `Open Questions` is the only section omitted-when-empty (drop the heading). TL;DR, Sweep, Inline findings counts, What's working well, disclaimer, and both metadata blocks are always present.
 - **Review event** — derived from the highest-severity inline finding:
