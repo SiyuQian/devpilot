@@ -168,7 +168,7 @@ Read the full issue body. If the issue was filed by `devpilot-scanning-repos` it
 |---|---|---|
 | **REAL** | You traced the code and reproduced / confirmed the bug, gap, or risk. | Proceed to step 5. **Stay assigned** until the PR merges — `Closes #N` on merge closes the issue cleanly when it's authored by the assignee. |
 | **FALSE-POSITIVE** | You traced the code and the premise is wrong — already fixed, wrong file, misread of the code, scanner hallucination, or pre-existing and intentional. | Post the FALSE-POSITIVE comment from `references/verdict-comments.md`, close with the `wontfix` label, unassign. Next issue. |
-| **NEEDS-HUMAN** | Concern is real but fixing requires domain knowledge you don't have — business logic, product decisions, contracts with external services. | Post the NEEDS-HUMAN comment with 1–3 concrete questions, unassign. Next issue. |
+| **NEEDS-HUMAN** | Concern is real but fixing requires domain knowledge you don't have — business logic, product decisions, contracts with external services. | Post the NEEDS-HUMAN comment with 1–3 concrete questions, add the `need:human` label, unassign. Next issue. |
 
 **Do not classify as REAL just to "take a shot."** False positives close in 60 seconds; wrong REAL verdicts spawn implementer subagents that produce useless diffs and poison the PR history.
 
@@ -242,7 +242,7 @@ make lint
 Or the project-specific equivalents (`go test ./...`, `pnpm test`, `cargo test`). Trust-but-verify: implementer and reviewer subagents can both misreport — innocently or because a test harness is broken.
 
 - Everything passes → step 8.
-- Anything fails → escalate the issue `NEEDS-HUMAN`: push the branch as a draft (`git push -u origin "$BRANCH"`), comment on the issue with the failing output and the branch URL, unassign, then proceed to step 10 (worktree cleanup) before the next issue. The per-task reviews already ate the retry budget; don't burn another round here.
+- Anything fails → escalate the issue `NEEDS-HUMAN`: push the branch as a draft (`git push -u origin "$BRANCH"`), comment on the issue with the failing output and the branch URL, add the `need:human` label (`gh issue edit <num> --add-label "need:human"`), unassign, then proceed to step 10 (worktree cleanup) before the next issue. The per-task reviews already ate the retry budget; don't burn another round here. See `references/verdict-comments.md` for the label-creation one-liner if the label doesn't exist yet.
 
 ### 8. Create the PR
 

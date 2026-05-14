@@ -74,10 +74,25 @@ Unassigning so whoever owns this can pick it up. Ping me (or re-run `/resolve-is
 Then:
 
 ```bash
-gh issue edit <num> --remove-assignee @me
+gh issue edit <num> --add-label "need:human" --remove-assignee @me
 ```
 
-Do not close the issue. Do not add `wontfix`. It stays open.
+If the label doesn't exist yet, create it once per repo (yellow, short description):
+
+```bash
+gh label create "need:human" --color "fbca04" --description "Blocked on human input — business rules, product decision, or external contract" 2>/dev/null || true
+```
+
+Do not close the issue. Do not add `wontfix`. It stays open with the `need:human` label so maintainers can filter the backlog for what's blocked on them.
+
+**This label applies to every NEEDS-HUMAN exit path**, not just the triage verdict in step 4:
+
+- BLOCKED return from an implementer subagent (step 6b)
+- Round-3 review failure on any task (step 6c)
+- Second verification failure inside a subagent (step 6b)
+- Final-verify failure in the worktree (step 7)
+
+In the mid-fix escalation paths the branch is pushed as a draft first; the `need:human` label and the escalation comment still go on the **issue**, not the PR.
 
 ## Real → PR opened (posted after the PR is created)
 
