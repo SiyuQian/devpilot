@@ -65,6 +65,22 @@ gh pr view "$url" --json url,number,baseRepository \
 
 …or split the URL `https://github.com/<owner>/<repo>/pull/<num>`.
 
+### Link format for the body
+
+Links in the **body** (TL;DR, Strengths, sweep summary, Open Questions) MUST use the full-SHA `blob` form so GitHub renders the snippet preview:
+
+```
+https://github.com/<owner>/<repo>/blob/<full-40-char-sha>/<path>#L<start>-L<end>
+```
+
+Rules:
+- **Full SHA only** — `git rev-parse HEAD` output. `main`, `HEAD`, `$(git rev-parse HEAD)`, or short SHAs do NOT render in Markdown previews.
+- `#` separator after the path; line range as `L<start>-L<end>`.
+- Provide ≥ 1 line of context before and after the line you're citing. Commenting about line 12? Link `L11-L13`.
+- The repo segment must match the PR's repo, not a fork.
+
+Inline comments do NOT need these links — their anchor (`path`, `line`) is structured metadata. Use links only in the body.
+
 ### Pre-post sanity check
 
 Before the POST:
