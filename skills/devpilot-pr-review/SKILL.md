@@ -49,7 +49,12 @@ Self-check before post      → references/rationalizations.md
 
 ### 0. Eligibility gate
 
-Before anything else, run the gate in `references/eligibility.md`. If the PR is closed, draft, automation-only, generated-only, or already has a review from you, stop and tell the user. Cheap; saves an entire fanout.
+Before anything else, run the gate in `references/eligibility.md`. If the PR is closed, draft, automation-only, generated-only, or already reviewed by you **at the current head SHA**, stop and tell the user. Cheap; saves an entire fanout.
+
+The gate also produces two outputs the later steps consume:
+
+- **Review mode** — `full` (no prior devpilot review) or `incremental` (prior review exists but head has moved; fanout runs against `last_reviewed_sha..head_sha`, not the full PR diff).
+- **Existing review comments** — `/tmp/existing_review_comments.json`, every prior inline comment on this PR from any reviewer. Used by step 3 to drop findings that duplicate an existing comment.
 
 ### 1. Load the PR
 
@@ -63,6 +68,8 @@ Or `git diff <base>...HEAD` for a local branch, or read a pasted patch directly.
 ### 2. Parallel fanout (5 subagents)
 
 Dispatch all five in a single message so they run in parallel. Each receives the PR metadata, the diff, and one focused brief. Each returns findings with `Confidence: 0–100` and `Severity`. See `references/fanout.md` for the prompts.
+
+In **incremental mode**, the diff passed to subagents is the range diff (`last_reviewed_sha..head_sha`), not the full PR diff — agents should look at the new commits only. Agent A still grounds its blast-radius checks in the full repo, but findings must be anchored to lines changed in the new commits.
 
 | Agent | Angle |
 |---|---|
@@ -79,7 +86,7 @@ The main session does NOT also do these passes itself. Subagent context savings 
 Apply the rubric in `references/confidence.md`:
 
 - Drop findings with `Confidence < 70`.
-- Drop findings that match the false-positive list in `references/eligibility.md` (pre-existing issues, lines the PR did not modify, linter/typechecker-catchable, ignored-by-comment, etc.).
+- Drop findings that match the false-positive list in `references/eligibility.md` (pre-existing issues, lines the PR did not modify, linter/typechecker-catchable, ignored-by-comment, **already raised by an existing review comment at the same anchor**, etc.). The existing-comments file from step 0 is the source of truth for the duplicate check.
 - Dedupe across agents (same line, same defect → one inline comment, take the higher confidence).
 - Assign each surviving finding an inline anchor `(path, line)`. Cross-cutting findings anchor to the most representative line.
 
