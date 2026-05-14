@@ -24,6 +24,15 @@ Common shortcuts the reviewer may reach for, and what to do instead. The "Realit
 | "I'll split blockers and nits into two reviews." | One review per pass. The author gets one notification, one set of comments, one verdict. |
 | "A small emoji softens the tone." | Keep the review in professional prose. The review is part of the PR record. |
 | "Greeting feels redundant, skipping it." | The greeting is part of the template and addresses the author by handle. |
+| "I'll skip the eligibility gate and just review." | The gate is 1–2 `gh` calls. Skipping it wastes a fanout on a dependabot PR or duplicates a review you already posted. |
+| "I'll run the five passes myself instead of dispatching subagents." | The fanout is parallel for a reason — five agents in one turn finish in the time of one, and the main session keeps its context for filtering and drafting. Sequential single-thread defeats the design. |
+| "I'll skip one of the five agents — Agent D/E rarely finds anything." | The angles are independent. Skipping an angle by hunch is how silent defects survive. Run all five; the filter step is where you discard noise. |
+| "Confidence 65, but the bug feels real — I'll round up to 75." | Don't bargain with yourself. Open the file that would raise confidence to 85, or drop it. The rubric exists so 70 means something. |
+| "All findings are < 70 — I'll lower the threshold to surface something." | A clean fanout is allowed to produce zero findings. Approve and move on. Lowering the threshold to fill space is noise. |
+| "Same defect on 4 lines — I'll post 4 nearly-identical comments." | One consolidated inline comment anchored to the worst occurrence, with the other `path:line`s listed inside. Recurrence count goes in the body sweep summary. Four near-identical comments is the noise inline-first is meant to avoid. |
+| "I'll put the body link in short-SHA form, the reader can figure it out." | GitHub Markdown previews require the full 40-char SHA. Short SHA or branch name → no rendered preview. Use `git rev-parse HEAD`. |
+| "I'll skip the Verdict — readers can infer it from the counts." | The Verdict is the one thing every reader looks at. State it explicitly: Yes / With fixes / No. |
+| "I'll skip Strengths — sounds performative." | Accurate praise gates trust in the rest of the review. Two specific bullets, not generic compliments. |
 | "The version comment is noise, I'll drop it." | Keep `<!-- devpilot-pr-review (devpilot vX.Y.Z) -->` so readers can attribute the review. |
 | "Disclaimer feels defensive, I'll skip or shorten it." | Keep the disclaimer. It protects authors from treating AI findings as authoritative. |
 | "I'll ask 'what happens when X?' so the author clarifies." | If the code can answer it, state the answer. Author questions live in Open Questions only. |
@@ -33,8 +42,12 @@ Common shortcuts the reviewer may reach for, and what to do instead. The "Realit
 
 Before running `gh pr review`, run through this list. A "yes" on any item means the review is not ready; fix the underlying issue and re-check.
 
+- Eligibility gate skipped — PR turned out to be draft / merged / dependabot / already reviewed.
+- Fanout collapsed: only 1–2 of the five agents ran, or all five ran sequentially in the main session.
+- Findings with `confidence < 70` made it into the review.
+- Verdict (`Ready to merge: ...`) missing from the body.
+- Strengths section missing or replaced by generic compliments.
 - Writing findings before the five blind-spot questions were answered.
-- Quality checklist (`checklist.md`) skipped — only the behavior sweep was run.
 - Findings are all naming / formatting / "could be cleaner".
 - Comparing two options the author already listed instead of surfacing ones they did not consider.
 - "LGTM" without a single traced input.

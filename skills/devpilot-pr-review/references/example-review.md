@@ -18,8 +18,16 @@ Thanks for the change. Inline comments cover the per-line findings; the summary 
 
 ## PR Review: feat(auth): add session refresh on 401 (#214)
 
+### Verdict
+**Ready to merge:** No
+One Blocking inline finding: the refresh path recurses on a 401 from `/refresh`.
+
 ### TL;DR
-Not safe to merge as-is. The refresh path calls back into itself when the refresh endpoint returns 401, which will stack-overflow the process. Other findings are inline.
+The refresh path calls back into itself when the refresh endpoint returns 401, which will stack-overflow the process. Two other findings are inline (concurrent-refresh race, token leak in logs).
+
+### Strengths
+- Clear separation between `RoundTrip` and `refreshToken` makes the recursion guard a local fix ([`internal/auth/client.go#L60-L75`](https://github.com/SiyuQian/devpilot/blob/3c0e8f7b2a91e4d6f5c8a17b29e4d3b1a8f7e9c2/internal/auth/client.go#L60-L75)).
+- `TestRoundTrip_RefreshOn401` exercises the happy path cleanly.
 
 ### Unknown-Unknowns Sweep
 1. Local pattern fit: `internal/auth/client.go` already has a `doWithRetry` helper. This PR adds a parallel retry path instead of extending it.
@@ -32,10 +40,6 @@ Not safe to merge as-is. The refresh path calls back into itself when the refres
 - Blocking: 1
 - Should-fix: 1
 - Consider: 1
-
-### What's working well
-- Clear separation between `RoundTrip` and `refreshToken` makes the recursion guard a local fix.
-- `TestRoundTrip_RefreshOn401` exercises the happy path cleanly.
 
 ### Open Questions
 - Is this `RoundTrip` reused by the mobile SDK? I did not find callers outside this repo.
