@@ -1,6 +1,9 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+	alias "strings"
+)
 
 func Greet(name string) string {
 	return fmt.Sprintf("hi %s", name)
@@ -21,3 +24,5 @@ type Hello interface {
 }
 type Alias = string
 type IntPtr *int
+
+var _ = alias.ToUpper

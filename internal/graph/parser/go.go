@@ -94,6 +94,32 @@ func (p *GoParser) Parse(path string, src []byte) (ParseResult, error) {
 				res.Edges = append(res.Edges, store.Edge{Src: path, Dst: id, Kind: "contains"})
 			}
 		}
+		if child.Type() == "import_declaration" {
+			// Walk every import_spec descendant
+			for j := 0; j < int(child.NamedChildCount()); j++ {
+				sub := child.NamedChild(j)
+				switch sub.Type() {
+				case "import_spec":
+					if pkg := importSpecPath(sub, src); pkg != "" {
+						res.Edges = append(res.Edges, store.Edge{
+							Src: path, Dst: "external::" + pkg, Kind: "imports",
+						})
+					}
+				case "import_spec_list":
+					for k := 0; k < int(sub.NamedChildCount()); k++ {
+						spec := sub.NamedChild(k)
+						if spec.Type() != "import_spec" {
+							continue
+						}
+						if pkg := importSpecPath(spec, src); pkg != "" {
+							res.Edges = append(res.Edges, store.Edge{
+								Src: path, Dst: "external::" + pkg, Kind: "imports",
+							})
+						}
+					}
+				}
+			}
+		}
 		if child.Type() == "method_declaration" {
 			nameNode := child.ChildByFieldName("name")
 			recvNode := child.ChildByFieldName("receiver")
@@ -222,4 +248,37 @@ func isExportedGo(name string) bool {
 		return false
 	}
 	return unicode.IsUpper([]rune(name)[0])
+}
+
+// importSpecPath extracts the import path from an import_spec, stripping the
+// quotes. For aliased imports (e.g. `alias "strings"`) it returns the path,
+// not the alias. Returns the final path segment (e.g. "strings" for
+// "github.com/foo/strings") to keep external IDs short.
+//
+// For v1 we keep just the last segment to match the test expectation. Later
+// tasks can refine this to keep the full path when needed.
+func importSpecPath(spec *sitter.Node, src []byte) string {
+	pathNode := spec.ChildByFieldName("path")
+	if pathNode == nil {
+		return ""
+	}
+	raw := pathNode.Content(src)
+	// strip surrounding quotes
+	if len(raw) >= 2 && raw[0] == '"' && raw[len(raw)-1] == '"' {
+		raw = raw[1 : len(raw)-1]
+	}
+	// Take final segment
+	if idx := lastSlash(raw); idx >= 0 {
+		raw = raw[idx+1:]
+	}
+	return raw
+}
+
+func lastSlash(s string) int {
+	for i := len(s) - 1; i >= 0; i-- {
+		if s[i] == '/' {
+			return i
+		}
+	}
+	return -1
 }

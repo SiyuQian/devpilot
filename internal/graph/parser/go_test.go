@@ -112,6 +112,34 @@ func TestGoParserExtractsCalls(t *testing.T) {
 	}
 }
 
+func TestGoParserExtractsImports(t *testing.T) {
+	p := NewGoParser()
+	src, err := os.ReadFile(filepath.Join("testdata", "go", "simple", "main.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	r, err := p.Parse("simple/main.go", src)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	imports := map[[2]string]bool{}
+	for _, e := range r.Edges {
+		if e.Kind == "imports" {
+			imports[[2]string{e.Src, e.Dst}] = true
+		}
+	}
+	want := [][2]string{
+		{"simple/main.go", "external::fmt"},
+		{"simple/main.go", "external::strings"},
+	}
+	for _, w := range want {
+		if !imports[w] {
+			t.Errorf("missing imports edge %s -> %s", w[0], w[1])
+		}
+	}
+}
+
 func TestGoParserExtractsTypes(t *testing.T) {
 	p := NewGoParser()
 	src, err := os.ReadFile(filepath.Join("testdata", "go", "simple", "main.go"))
