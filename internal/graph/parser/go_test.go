@@ -140,6 +140,47 @@ func TestGoParserExtractsImports(t *testing.T) {
 	}
 }
 
+func TestGoParserEmitsTestsEdges(t *testing.T) {
+	p := NewGoParser()
+	src, err := os.ReadFile(filepath.Join("testdata", "go", "simple", "main_test.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	r, err := p.Parse("simple/main_test.go", src)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	hasTestNode := false
+	for _, n := range r.Nodes {
+		if n.ID == "simple/main_test.go::TestGreet" {
+			hasTestNode = true
+		}
+	}
+	if !hasTestNode {
+		t.Fatal("missing TestGreet function node")
+	}
+
+	hasTestsEdge := false
+	for _, e := range r.Edges {
+		if e.Kind == "tests" && e.Src == "simple/main_test.go::TestGreet" && e.Dst == "external::Greet" {
+			// Greet is "external" relative to main_test.go alone because the
+			// resolver in this single-file parse doesn't see main.go. Cross-file
+			// resolution happens in Task 1.11.
+			hasTestsEdge = true
+		}
+	}
+	if !hasTestsEdge {
+		var got []string
+		for _, e := range r.Edges {
+			if e.Kind == "tests" {
+				got = append(got, e.Src+"->"+e.Dst)
+			}
+		}
+		t.Fatalf("missing tests edge TestGreet -> external::Greet; got tests edges: %v", got)
+	}
+}
+
 func TestGoParserExtractsTypes(t *testing.T) {
 	p := NewGoParser()
 	src, err := os.ReadFile(filepath.Join("testdata", "go", "simple", "main.go"))

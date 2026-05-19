@@ -67,9 +67,15 @@ func (p *GoParser) Parse(path string, src []byte) (ParseResult, error) {
 				IsExported: isExportedGo(name),
 			})
 			res.Edges = append(res.Edges, store.Edge{Src: path, Dst: id, Kind: "contains"})
-			bodyNode := child.ChildByFieldName("body")
-			if bodyNode != nil {
-				res.Edges = append(res.Edges, walkCalls(bodyNode, src, path, id, intraFileFuncs)...)
+			if bodyNode := child.ChildByFieldName("body"); bodyNode != nil {
+				callEdges := walkCalls(bodyNode, src, path, id, intraFileFuncs)
+				res.Edges = append(res.Edges, callEdges...)
+
+				if isGoTestFunc(name, child, src) {
+					for _, e := range callEdges {
+						res.Edges = append(res.Edges, store.Edge{Src: e.Src, Dst: e.Dst, Kind: "tests"})
+					}
+				}
 			}
 		}
 		if child.Type() == "type_declaration" {
@@ -241,6 +247,33 @@ func classifyGoTypeSpec(spec *sitter.Node) string {
 	default:
 		return "type"
 	}
+}
+
+// isGoTestFunc returns true if name starts with "Test" and the function has
+// a parameter of type *testing.T.
+func isGoTestFunc(name string, fn *sitter.Node, src []byte) bool {
+	if len(name) < 4 || name[:4] != "Test" {
+		return false
+	}
+	params := fn.ChildByFieldName("parameters")
+	if params == nil {
+		return false
+	}
+	for i := 0; i < int(params.NamedChildCount()); i++ {
+		p := params.NamedChild(i)
+		if p.Type() != "parameter_declaration" {
+			continue
+		}
+		typeNode := p.ChildByFieldName("type")
+		if typeNode == nil {
+			continue
+		}
+		t := typeNode.Content(src)
+		if t == "*testing.T" {
+			return true
+		}
+	}
+	return false
 }
 
 func isExportedGo(name string) bool {
