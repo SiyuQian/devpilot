@@ -24,6 +24,7 @@ func (p *GoParser) Extensions() []string { return []string{".go"} }
 // Methods, types, calls, imports, and tests edges are added in later tasks.
 func (p *GoParser) Parse(path string, src []byte) (ParseResult, error) {
 	parser := sitter.NewParser()
+	defer parser.Close()
 	parser.SetLanguage(p.lang)
 	tree, err := parser.ParseCtx(context.Background(), nil, src)
 	if err != nil {
