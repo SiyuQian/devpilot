@@ -39,3 +39,42 @@ func TestGoParserExtractsFunctions(t *testing.T) {
 		t.Fatalf("missing nodes: greet=%v main=%v file=%v", hasGreet, hasMain, hasFile)
 	}
 }
+
+func TestGoParserExtractsMethods(t *testing.T) {
+	p := NewGoParser()
+	src, err := os.ReadFile(filepath.Join("testdata", "go", "simple", "main.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	r, err := p.Parse("simple/main.go", src)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	wantIDs := map[string]bool{
+		"simple/main.go::Greeter.Hello":  false,
+		"simple/main.go::Greeter.silent": false,
+	}
+	for _, n := range r.Nodes {
+		if _, ok := wantIDs[n.ID]; ok {
+			wantIDs[n.ID] = true
+			if n.Kind != "method" {
+				t.Errorf("%s kind=%q, want method", n.ID, n.Kind)
+			}
+			if n.Container != "Greeter" {
+				t.Errorf("%s container=%q, want Greeter", n.ID, n.Container)
+			}
+			if n.ID == "simple/main.go::Greeter.Hello" && !n.IsExported {
+				t.Errorf("Hello must be exported")
+			}
+			if n.ID == "simple/main.go::Greeter.silent" && n.IsExported {
+				t.Errorf("silent must NOT be exported")
+			}
+		}
+	}
+	for id, found := range wantIDs {
+		if !found {
+			t.Errorf("missing method node: %s", id)
+		}
+	}
+}

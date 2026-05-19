@@ -9,3 +9,8 @@ func Greet(name string) string {
 func main() {
 	fmt.Println(Greet("world"))
 }
+
+type Greeter struct{ prefix string }
+
+func (g *Greeter) Hello(name string) string { return g.prefix + " " + name }
+func (g Greeter) silent() string             { return "" }
