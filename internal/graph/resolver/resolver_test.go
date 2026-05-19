@@ -74,3 +74,37 @@ func TestResolveGoIntraModuleCalls(t *testing.T) {
 	}
 	_ = store.Node{} // keep store import used
 }
+
+func TestResolveEmitsImplementsEdges(t *testing.T) {
+	p := parser.NewGoParser()
+	dir := filepath.Join("..", "parser", "testdata", "go", "iface")
+	src, err := os.ReadFile(filepath.Join(dir, "iface.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	r, err := p.Parse("iface/iface.go", src)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resolved := Resolve([]parser.ParseResult{r})
+
+	wantSrc := "iface/iface.go::Console"
+	wantDst := "iface/iface.go::Greeter"
+	var have, haveMute bool
+	for _, rr := range resolved {
+		for _, e := range rr.Edges {
+			if e.Kind == "implements" && e.Src == wantSrc && e.Dst == wantDst {
+				have = true
+			}
+			if e.Kind == "implements" && e.Src == "iface/iface.go::Mute" && e.Dst == wantDst {
+				haveMute = true
+			}
+		}
+	}
+	if !have {
+		t.Errorf("missing implements edge Console -> Greeter")
+	}
+	if haveMute {
+		t.Errorf("Mute should NOT implement Greeter (no methods)")
+	}
+}

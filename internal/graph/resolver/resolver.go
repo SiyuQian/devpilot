@@ -40,12 +40,13 @@ func Resolve(results []parser.ParseResult) []parser.ParseResult {
 			}
 		}
 		out[i] = parser.ParseResult{
-			Nodes:  r.Nodes,
-			Edges:  newEdges,
-			Errors: r.Errors,
+			Nodes:            r.Nodes,
+			Edges:            newEdges,
+			Errors:           r.Errors,
+			InterfaceMethods: r.InterfaceMethods,
 		}
 	}
-	return out
+	return addImplementsEdges(out)
 }
 
 // rewriteExternalEdge inspects an edge and, if its dst is a synthetic

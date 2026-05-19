@@ -14,9 +14,10 @@ type Parser interface {
 
 // ParseResult is the output of parsing a single source file.
 type ParseResult struct {
-	Nodes  []store.Node
-	Edges  []store.Edge
-	Errors []ParseError
+	Nodes            []store.Node
+	Edges            []store.Edge
+	Errors           []ParseError
+	InterfaceMethods map[string][]string // interfaceNodeID -> method names declared inside
 }
 
 // ParseError describes a recoverable parse failure.

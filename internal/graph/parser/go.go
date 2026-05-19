@@ -91,6 +91,18 @@ func (p *GoParser) Parse(path string, src []byte) (ParseResult, error) {
 				name := nameNode.Content(src)
 				kind := classifyGoTypeSpec(spec)
 				id := path + "::" + name
+				if kind == "interface" {
+					typeNode := spec.ChildByFieldName("type")
+					if typeNode != nil {
+						methods := extractGoInterfaceMethods(typeNode, src)
+						if len(methods) > 0 {
+							if res.InterfaceMethods == nil {
+								res.InterfaceMethods = map[string][]string{}
+							}
+							res.InterfaceMethods[id] = methods
+						}
+					}
+				}
 				res.Nodes = append(res.Nodes, store.Node{
 					ID: id, Kind: kind, Path: path, Name: name, Language: "go",
 					StartLine:  int(spec.StartPoint().Row) + 1,
@@ -230,6 +242,22 @@ func indexByteFast(s string, c byte) int {
 		}
 	}
 	return -1
+}
+
+// extractGoInterfaceMethods walks an interface_type subtree and returns the
+// names of its declared methods (excluding embedded types).
+func extractGoInterfaceMethods(ifaceType *sitter.Node, src []byte) []string {
+	var names []string
+	for i := 0; i < int(ifaceType.NamedChildCount()); i++ {
+		c := ifaceType.NamedChild(i)
+		if c.Type() == "method_elem" || c.Type() == "method_spec" {
+			nameNode := c.ChildByFieldName("name")
+			if nameNode != nil {
+				names = append(names, nameNode.Content(src))
+			}
+		}
+	}
+	return names
 }
 
 // classifyGoTypeSpec returns "struct", "interface", or "type" based on the
