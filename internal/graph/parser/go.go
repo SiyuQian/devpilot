@@ -278,10 +278,16 @@ func classifyGoTypeSpec(spec *sitter.Node) string {
 	}
 }
 
-// isGoTestFunc returns true if name starts with "Test" and the function has
-// a parameter of type *testing.T.
+// isGoTestFunc returns true if name is a valid Go test function name
+// ("Test" followed by an uppercase letter, digit, or end-of-string) and the
+// function has a parameter of type *testing.T. `go test` requires the
+// character after "Test" to NOT be lowercase, so names like "Testfoo" are
+// rejected here to match the same rule.
 func isGoTestFunc(name string, fn *sitter.Node, src []byte) bool {
 	if len(name) < 4 || name[:4] != "Test" {
+		return false
+	}
+	if len(name) > 4 && unicode.IsLower([]rune(name)[4]) {
 		return false
 	}
 	params := fn.ChildByFieldName("parameters")
