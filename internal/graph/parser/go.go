@@ -54,6 +54,28 @@ func (p *GoParser) Parse(path string, src []byte) (ParseResult, error) {
 			})
 			res.Edges = append(res.Edges, store.Edge{Src: path, Dst: id, Kind: "contains"})
 		}
+		if child.Type() == "type_declaration" {
+			for j := 0; j < int(child.NamedChildCount()); j++ {
+				spec := child.NamedChild(j)
+				if spec.Type() != "type_spec" && spec.Type() != "type_alias" {
+					continue
+				}
+				nameNode := spec.ChildByFieldName("name")
+				if nameNode == nil {
+					continue
+				}
+				name := nameNode.Content(src)
+				kind := classifyGoTypeSpec(spec)
+				id := path + "::" + name
+				res.Nodes = append(res.Nodes, store.Node{
+					ID: id, Kind: kind, Path: path, Name: name, Language: "go",
+					StartLine:  int(spec.StartPoint().Row) + 1,
+					EndLine:    int(spec.EndPoint().Row) + 1,
+					IsExported: isExportedGo(name),
+				})
+				res.Edges = append(res.Edges, store.Edge{Src: path, Dst: id, Kind: "contains"})
+			}
+		}
 		if child.Type() == "method_declaration" {
 			nameNode := child.ChildByFieldName("name")
 			recvNode := child.ChildByFieldName("receiver")
@@ -110,6 +132,23 @@ func indexByteFast(s string, c byte) int {
 		}
 	}
 	return -1
+}
+
+// classifyGoTypeSpec returns "struct", "interface", or "type" based on the
+// underlying form of a type spec (e.g. struct{}, interface{...}, alias).
+func classifyGoTypeSpec(spec *sitter.Node) string {
+	typeNode := spec.ChildByFieldName("type")
+	if typeNode == nil {
+		return "type"
+	}
+	switch typeNode.Type() {
+	case "struct_type":
+		return "struct"
+	case "interface_type":
+		return "interface"
+	default:
+		return "type"
+	}
 }
 
 func isExportedGo(name string) bool {

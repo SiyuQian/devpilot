@@ -78,3 +78,34 @@ func TestGoParserExtractsMethods(t *testing.T) {
 		}
 	}
 }
+
+func TestGoParserExtractsTypes(t *testing.T) {
+	p := NewGoParser()
+	src, err := os.ReadFile(filepath.Join("testdata", "go", "simple", "main.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	r, err := p.Parse("simple/main.go", src)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	want := map[string]string{
+		"simple/main.go::Greeter":  "struct",
+		"simple/main.go::Greeter2": "struct",
+		"simple/main.go::Hello":    "interface",
+		"simple/main.go::Alias":    "type",
+		"simple/main.go::IntPtr":   "type",
+	}
+	got := map[string]string{}
+	for _, n := range r.Nodes {
+		if _, ok := want[n.ID]; ok {
+			got[n.ID] = n.Kind
+		}
+	}
+	for id, kind := range want {
+		if got[id] != kind {
+			t.Errorf("%s: got kind=%q, want %q", id, got[id], kind)
+		}
+	}
+}

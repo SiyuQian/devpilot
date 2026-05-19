@@ -14,3 +14,10 @@ type Greeter struct{ prefix string }
 
 func (g *Greeter) Hello(name string) string { return g.prefix + " " + name }
 func (g Greeter) silent() string             { return "" }
+
+type Greeter2 struct{}
+type Hello interface {
+	Greet() string
+}
+type Alias = string
+type IntPtr *int
