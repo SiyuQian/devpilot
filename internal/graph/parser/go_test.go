@@ -79,6 +79,39 @@ func TestGoParserExtractsMethods(t *testing.T) {
 	}
 }
 
+func TestGoParserExtractsCalls(t *testing.T) {
+	p := NewGoParser()
+	src, err := os.ReadFile(filepath.Join("testdata", "go", "simple", "main.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	r, err := p.Parse("simple/main.go", src)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Build set of (src, dst) for kind=calls edges
+	calls := map[[2]string]bool{}
+	for _, e := range r.Edges {
+		if e.Kind == "calls" {
+			calls[[2]string{e.Src, e.Dst}] = true
+		}
+	}
+
+	// Greet calls fmt.Sprintf (external)
+	if !calls[[2]string{"simple/main.go::Greet", "external::fmt.Sprintf"}] {
+		t.Error("missing calls edge Greet -> external::fmt.Sprintf")
+	}
+	// main calls Greet (intra-file)
+	if !calls[[2]string{"simple/main.go::main", "simple/main.go::Greet"}] {
+		t.Error("missing calls edge main -> Greet (intra-file)")
+	}
+	// main calls fmt.Println (external)
+	if !calls[[2]string{"simple/main.go::main", "external::fmt.Println"}] {
+		t.Error("missing calls edge main -> external::fmt.Println")
+	}
+}
+
 func TestGoParserExtractsTypes(t *testing.T) {
 	p := NewGoParser()
 	src, err := os.ReadFile(filepath.Join("testdata", "go", "simple", "main.go"))

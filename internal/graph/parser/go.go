@@ -37,6 +37,20 @@ func (p *GoParser) Parse(path string, src []byte) (ParseResult, error) {
 	})
 
 	root := tree.RootNode()
+
+	// First pass: collect top-level function names for intra-file call resolution.
+	intraFileFuncs := map[string]bool{}
+	for i := 0; i < int(root.NamedChildCount()); i++ {
+		child := root.NamedChild(i)
+		if child.Type() == "function_declaration" {
+			nameNode := child.ChildByFieldName("name")
+			if nameNode != nil {
+				intraFileFuncs[nameNode.Content(src)] = true
+			}
+		}
+	}
+
+	// Second pass: emit nodes and edges.
 	for i := 0; i < int(root.NamedChildCount()); i++ {
 		child := root.NamedChild(i)
 		if child.Type() == "function_declaration" {
@@ -53,6 +67,10 @@ func (p *GoParser) Parse(path string, src []byte) (ParseResult, error) {
 				IsExported: isExportedGo(name),
 			})
 			res.Edges = append(res.Edges, store.Edge{Src: path, Dst: id, Kind: "contains"})
+			bodyNode := child.ChildByFieldName("body")
+			if bodyNode != nil {
+				res.Edges = append(res.Edges, walkCalls(bodyNode, src, path, id, intraFileFuncs)...)
+			}
 		}
 		if child.Type() == "type_declaration" {
 			for j := 0; j < int(child.NamedChildCount()); j++ {
@@ -95,9 +113,57 @@ func (p *GoParser) Parse(path string, src []byte) (ParseResult, error) {
 				IsExported: isExportedGo(name),
 			})
 			res.Edges = append(res.Edges, store.Edge{Src: path, Dst: id, Kind: "contains"})
+			bodyNode := child.ChildByFieldName("body")
+			if bodyNode != nil {
+				res.Edges = append(res.Edges, walkCalls(bodyNode, src, path, id, intraFileFuncs)...)
+			}
 		}
 	}
 	return res, nil
+}
+
+// walkCalls walks node's subtree, emitting a "calls" edge from srcID for every
+// call_expression encountered. Local symbols (Greet) emit edges to
+// path+"::"+Name; selector expressions (pkg.Sym) emit edges to "external::"+sel.
+func walkCalls(n *sitter.Node, src []byte, path, srcID string, intraFile map[string]bool) []store.Edge {
+	var edges []store.Edge
+
+	var visit func(node *sitter.Node)
+	visit = func(node *sitter.Node) {
+		if node.Type() == "call_expression" {
+			fnNode := node.ChildByFieldName("function")
+			if fnNode != nil {
+				dst := resolveCallDst(fnNode, src, path, intraFile)
+				if dst != "" {
+					edges = append(edges, store.Edge{Src: srcID, Dst: dst, Kind: "calls"})
+				}
+			}
+		}
+		for i := 0; i < int(node.NamedChildCount()); i++ {
+			visit(node.NamedChild(i))
+		}
+	}
+	visit(n)
+	return edges
+}
+
+// resolveCallDst maps a call_expression's "function" child to a node ID.
+//   - identifier "Foo"      -> path+"::Foo" if Foo is defined intra-file, else external::Foo
+//   - selector "pkg.Sym"    -> external::pkg.Sym
+//   - all others (closures, etc.) -> ""
+func resolveCallDst(fn *sitter.Node, src []byte, path string, intraFile map[string]bool) string {
+	switch fn.Type() {
+	case "identifier":
+		name := fn.Content(src)
+		if intraFile[name] {
+			return path + "::" + name
+		}
+		return "external::" + name
+	case "selector_expression":
+		// pkg.Sym — capture "pkg.Sym" verbatim
+		return "external::" + fn.Content(src)
+	}
+	return ""
 }
 
 // extractGoReceiverType returns the Greeter in "(g *Greeter)" or "(g Greeter)".
