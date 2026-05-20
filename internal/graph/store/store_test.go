@@ -258,3 +258,36 @@ func mustInsertEdges(t *testing.T, s *Store, e []Edge) {
 		t.Fatal(err)
 	}
 }
+
+func TestNodesByPathAndCountEdges(t *testing.T) {
+	s := newTestStore(t)
+	mustInsertNodes(t, s, []Node{
+		{ID: "a.go::A", Kind: "function", Path: "a.go", Name: "A", Language: "go"},
+		{ID: "a.go::B", Kind: "function", Path: "a.go", Name: "B", Language: "go"},
+		{ID: "b.go::C", Kind: "function", Path: "b.go", Name: "C", Language: "go"},
+	})
+	mustInsertEdges(t, s, []Edge{
+		{Src: "a.go::A", Dst: "b.go::C", Kind: "calls"},
+		{Src: "a.go::B", Dst: "b.go::C", Kind: "calls"},
+	})
+
+	t.Run("nodes_by_path", func(t *testing.T) {
+		got, err := s.NodesByPath("a.go")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(got) != 2 {
+			t.Fatalf("want 2 nodes, got %d: %+v", len(got), got)
+		}
+	})
+
+	t.Run("count_edges", func(t *testing.T) {
+		n, err := s.CountEdgesByKind("b.go::C", "calls")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if n != 2 {
+			t.Errorf("want 2, got %d", n)
+		}
+	})
+}
