@@ -204,4 +204,25 @@ func TestTypeScriptParserExtracts(t *testing.T) {
 			t.Errorf("InterfaceMethods[Speaker]=%v, want [hello]", methods)
 		}
 	})
+
+	t.Run("implements_extends", func(t *testing.T) {
+		p := NewTypeScriptParser()
+		path, src := loadSimple(t)
+		r, err := p.Parse(path, src)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var hasImpl, hasExt bool
+		for _, e := range r.Edges {
+			if e.Kind == "implements" && e.Src == "simple/main.ts::Greeter" && e.Dst == "simple/main.ts::Speaker" {
+				hasImpl = true
+			}
+			if e.Kind == "extends" && e.Src == "simple/main.ts::Greeter" && e.Dst == "simple/main.ts::Base" {
+				hasExt = true
+			}
+		}
+		if !hasImpl || !hasExt {
+			t.Fatalf("missing edges: implements=%v extends=%v", hasImpl, hasExt)
+		}
+	})
 }

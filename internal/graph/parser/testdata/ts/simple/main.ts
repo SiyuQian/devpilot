@@ -6,12 +6,14 @@ function internalHelper(): void {
   greet("world");
 }
 
-export class Greeter {
+export class Greeter extends Base implements Speaker {
   hello(name: string): string {
     return greet(name);
   }
   private silent(): void {}
 }
+
+class Base {}
 
 export interface Speaker {
   hello(name: string): string;

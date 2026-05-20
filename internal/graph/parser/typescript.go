@@ -50,6 +50,10 @@ func (p *TypeScriptParser) Parse(path string, src []byte) (ParseResult, error) {
 			if n := decl.ChildByFieldName("name"); n != nil {
 				intra[n.Content(src)] = path + "::" + n.Content(src)
 			}
+		case "class_declaration", "interface_declaration":
+			if n := decl.ChildByFieldName("name"); n != nil {
+				intra[n.Content(src)] = path + "::" + n.Content(src)
+			}
 		}
 	}
 
@@ -162,6 +166,31 @@ func emitClassNode(res *ParseResult, decl *sitter.Node, src []byte, path string,
 		IsExported: exported,
 	})
 	res.Edges = append(res.Edges, store.Edge{Src: path, Dst: classID, Kind: "contains"})
+
+	for i := 0; i < int(decl.ChildCount()); i++ {
+		c := decl.Child(i)
+		if c.Type() == "class_heritage" {
+			for j := 0; j < int(c.NamedChildCount()); j++ {
+				clause := c.NamedChild(j)
+				switch clause.Type() {
+				case "extends_clause":
+					for k := 0; k < int(clause.NamedChildCount()); k++ {
+						name := clause.NamedChild(k).Content(src)
+						res.Edges = append(res.Edges, store.Edge{
+							Src: classID, Dst: resolveIntra(name, path, intra), Kind: "extends",
+						})
+					}
+				case "implements_clause":
+					for k := 0; k < int(clause.NamedChildCount()); k++ {
+						name := clause.NamedChild(k).Content(src)
+						res.Edges = append(res.Edges, store.Edge{
+							Src: classID, Dst: resolveIntra(name, path, intra), Kind: "implements",
+						})
+					}
+				}
+			}
+		}
+	}
 
 	body := decl.ChildByFieldName("body")
 	if body == nil {
