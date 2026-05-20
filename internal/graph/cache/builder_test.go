@@ -67,6 +67,54 @@ func B() { A() }
 	}
 }
 
+func TestBuilderParallelMatchesSequential(t *testing.T) {
+	repo := t.TempDir()
+	for i := 0; i < 20; i++ {
+		name := filepath.Join(repo, "pkg", "file"+itoa(i)+".go")
+		mustWrite(t, name, "package pkg\nfunc F"+itoa(i)+"() {}\n")
+	}
+
+	home1 := t.TempDir()
+	b1, err := NewBuilder(home1, repo)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b1.MaxWorkers = 1
+	if _, err := b1.FullBuild(); err != nil {
+		t.Fatal(err)
+	}
+	d1 := dumpDB(t, GraphDB(home1, RepoKey(repo)))
+
+	home8 := t.TempDir()
+	b8, err := NewBuilder(home8, repo)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b8.MaxWorkers = 8
+	if _, err := b8.FullBuild(); err != nil {
+		t.Fatal(err)
+	}
+	d8 := dumpDB(t, GraphDB(home8, RepoKey(repo)))
+
+	if d1 != d8 {
+		t.Errorf("parallel build diverged from sequential:\n--- workers=1 ---\n%s\n--- workers=8 ---\n%s", d1, d8)
+	}
+}
+
+func itoa(i int) string {
+	if i == 0 {
+		return "0"
+	}
+	var buf [20]byte
+	pos := len(buf)
+	for i > 0 {
+		pos--
+		buf[pos] = byte('0' + i%10)
+		i /= 10
+	}
+	return string(buf[pos:])
+}
+
 func mustWrite(t *testing.T, path, content string) {
 	t.Helper()
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
