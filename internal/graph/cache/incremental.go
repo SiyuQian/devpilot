@@ -139,35 +139,57 @@ type changeSet struct {
 	Added, Modified, Deleted []string
 }
 
-// gitChangedFiles parses `git diff --name-status from to` into added,
-// modified, and deleted path slices. Renames are split into delete+add.
+// gitChangedFiles parses `git diff --name-status -z from to` into added,
+// modified, and deleted path slices. The -z flag NUL-separates records and
+// status from path, which is the only way to handle paths containing spaces
+// or newlines correctly. Renames (R) and copies (C) are split into delete+add.
+// Typechanges (T) and unmerged (U) are treated as Modified so the file is
+// re-parsed rather than silently skipped.
 func gitChangedFiles(repo, from, to string) (changeSet, error) {
-	out, err := exec.Command("git", "-C", repo, "diff", "--name-status", from, to).CombinedOutput()
+	// Output() separates stderr from stdout, so git warnings (e.g. CRLF
+	// notices) don't pollute the diff record stream.
+	cmd := exec.Command("git", "-C", repo, "diff", "--name-status", "-z", from, to)
+	out, err := cmd.Output()
 	if err != nil {
-		return changeSet{}, fmt.Errorf("git diff %s..%s: %w (%s)", from, to, err, out)
+		return changeSet{}, fmt.Errorf("git diff %s..%s: %w", from, to, err)
 	}
+	// Each record is `<status>\0<path>` or, for R/C, `<status>\0<old>\0<new>`.
+	tokens := strings.Split(strings.TrimRight(string(out), "\x00"), "\x00")
 	var cs changeSet
-	for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
-		if line == "" {
+	for i := 0; i < len(tokens); {
+		status := tokens[i]
+		if status == "" {
+			i++
 			continue
 		}
-		fields := strings.Fields(line)
-		if len(fields) < 2 {
-			continue
+		i++
+		needNew := status[0] == 'R' || status[0] == 'C'
+		if i >= len(tokens) {
+			break
 		}
-		status := fields[0]
+		path := tokens[i]
+		i++
+		var newPath string
+		if needNew {
+			if i >= len(tokens) {
+				break
+			}
+			newPath = tokens[i]
+			i++
+		}
 		switch status[0] {
 		case 'A':
-			cs.Added = append(cs.Added, filepath.ToSlash(fields[len(fields)-1]))
-		case 'M':
-			cs.Modified = append(cs.Modified, filepath.ToSlash(fields[len(fields)-1]))
+			cs.Added = append(cs.Added, filepath.ToSlash(path))
 		case 'D':
-			cs.Deleted = append(cs.Deleted, filepath.ToSlash(fields[len(fields)-1]))
-		case 'R':
-			if len(fields) == 3 {
-				cs.Deleted = append(cs.Deleted, filepath.ToSlash(fields[1]))
-				cs.Added = append(cs.Added, filepath.ToSlash(fields[2]))
+			cs.Deleted = append(cs.Deleted, filepath.ToSlash(path))
+		case 'R', 'C':
+			if status[0] == 'R' {
+				cs.Deleted = append(cs.Deleted, filepath.ToSlash(path))
 			}
+			cs.Added = append(cs.Added, filepath.ToSlash(newPath))
+		default:
+			// M, T, U, and any unknown future status: treat as modified.
+			cs.Modified = append(cs.Modified, filepath.ToSlash(path))
 		}
 	}
 	return cs, nil

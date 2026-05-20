@@ -64,8 +64,12 @@ func (b *Builder) FullBuild() (BuildResult, error) {
 	defer func() { _ = rel() }()
 
 	dbPath := GraphDB(b.home, b.key)
-	if err := os.Remove(dbPath); err != nil && !os.IsNotExist(err) {
-		return BuildResult{}, fmt.Errorf("remove %s: %w", dbPath, err)
+	// SQLite WAL mode leaves -wal and -shm sidecars; remove them with the db
+	// so a fresh Open doesn't replay a stale WAL onto the empty database.
+	for _, p := range []string{dbPath, dbPath + "-wal", dbPath + "-shm"} {
+		if err := os.Remove(p); err != nil && !os.IsNotExist(err) {
+			return BuildResult{}, fmt.Errorf("remove %s: %w", p, err)
+		}
 	}
 
 	files, err := WalkRepo(b.repo)

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/siyuqian/devpilot/internal/graph/store"
@@ -83,7 +84,21 @@ func (r *TSConfigResolver) Rewrite(edges []store.Edge) []store.Edge {
 }
 
 func (r *TSConfigResolver) resolve(spec string) (string, bool) {
-	for pattern, targets := range r.paths {
+	// Iterate longest-prefix-first so the most specific alias wins, and so the
+	// output is deterministic regardless of Go's randomized map iteration.
+	patterns := make([]string, 0, len(r.paths))
+	for p := range r.paths {
+		patterns = append(patterns, p)
+	}
+	sort.Slice(patterns, func(i, j int) bool {
+		pi, pj := patterns[i], patterns[j]
+		if len(pi) != len(pj) {
+			return len(pi) > len(pj)
+		}
+		return pi < pj
+	})
+	for _, pattern := range patterns {
+		targets := r.paths[pattern]
 		prefix := strings.TrimSuffix(pattern, "*")
 		if !strings.HasPrefix(spec, prefix) {
 			continue
@@ -106,13 +121,47 @@ func (r *TSConfigResolver) resolve(spec string) (string, bool) {
 	return "", false
 }
 
+// stripJSONComments removes JSONC `//` line comments while preserving
+// occurrences of `//` inside string literals (so URLs and path values
+// like "https://x" survive intact). Block comments are not handled —
+// add when a real tsconfig in the wild needs them.
 func stripJSONComments(b []byte) []byte {
-	// tsconfig allows // line comments. Strip them naively.
-	lines := strings.Split(string(b), "\n")
-	for i, l := range lines {
-		if idx := strings.Index(l, "//"); idx >= 0 {
-			lines[i] = l[:idx]
+	out := make([]byte, 0, len(b))
+	inString := false
+	escaped := false
+	for i := 0; i < len(b); i++ {
+		c := b[i]
+		if inString {
+			out = append(out, c)
+			if escaped {
+				escaped = false
+				continue
+			}
+			if c == '\\' {
+				escaped = true
+				continue
+			}
+			if c == '"' {
+				inString = false
+			}
+			continue
 		}
+		if c == '"' {
+			inString = true
+			out = append(out, c)
+			continue
+		}
+		// Outside a string: drop `//...\n` line comments.
+		if c == '/' && i+1 < len(b) && b[i+1] == '/' {
+			for i < len(b) && b[i] != '\n' {
+				i++
+			}
+			if i < len(b) {
+				out = append(out, '\n')
+			}
+			continue
+		}
+		out = append(out, c)
 	}
-	return []byte(strings.Join(lines, "\n"))
+	return out
 }

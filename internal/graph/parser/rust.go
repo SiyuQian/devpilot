@@ -60,7 +60,7 @@ func (p *RustParser) Parse(path string, src []byte) (ParseResult, error) {
 			if body := c.ChildByFieldName("body"); body != nil {
 				if n := c.ChildByFieldName("name"); n != nil {
 					id := path + "::" + n.Content(src)
-					res.Edges = append(res.Edges, walkRustCalls(body, src, id, path, intra)...)
+					res.Edges = append(res.Edges, walkRustCalls(body, src, id, intra)...)
 				}
 			}
 		case "struct_item":
@@ -98,10 +98,10 @@ func flattenUseTree(n *sitter.Node, src []byte) string {
 }
 
 // walkRustCalls emits "calls" edges from srcID for every call_expression in body.
-// Identifier-form calls are treated as intra-file (path::name); Phase 1's
-// resolver rewrites these to real targets across the module when they exist
-// elsewhere. Scoped/field calls fall back to external::<full.expr>.
-func walkRustCalls(body *sitter.Node, src []byte, srcID, filePath string, intra map[string]string) []store.Edge {
+// Identifier-form calls resolve via intra first; on miss they fall through to
+// external::Name (no dot) so resolver.Resolve can rewrite them to real targets
+// in other files of the same module. Scoped/field calls always go external.
+func walkRustCalls(body *sitter.Node, src []byte, srcID string, intra map[string]string) []store.Edge {
 	var out []store.Edge
 	var visit func(n *sitter.Node)
 	visit = func(n *sitter.Node) {
@@ -117,7 +117,7 @@ func walkRustCalls(body *sitter.Node, src []byte, srcID, filePath string, intra 
 					if id, ok := intra[name]; ok {
 						out = append(out, store.Edge{Src: srcID, Dst: id, Kind: "calls"})
 					} else {
-						out = append(out, store.Edge{Src: srcID, Dst: filePath + "::" + name, Kind: "calls"})
+						out = append(out, store.Edge{Src: srcID, Dst: "external::" + name, Kind: "calls"})
 					}
 				case "scoped_identifier", "field_expression":
 					out = append(out, store.Edge{Src: srcID, Dst: "external::" + fn.Content(src), Kind: "calls"})
@@ -229,7 +229,7 @@ func emitRustImpl(res *ParseResult, decl *sitter.Node, src []byte, path string, 
 		})
 		res.Edges = append(res.Edges, store.Edge{Src: typeID, Dst: mID, Kind: "contains"})
 		if body := fn.ChildByFieldName("body"); body != nil {
-			res.Edges = append(res.Edges, walkRustCalls(body, src, mID, path, intra)...)
+			res.Edges = append(res.Edges, walkRustCalls(body, src, mID, intra)...)
 		}
 	}
 }
