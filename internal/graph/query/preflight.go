@@ -209,6 +209,162 @@ func containsString(haystack []string, needle string) bool {
 	return false
 }
 
+// Preflight composes DetectChanges + enrichment + cross-community detection
+// into the §6 payload. It does not write anything.
+func Preflight(r Reader, in PreflightInput) (PreflightResult, error) {
+	if in.HubThreshold <= 0 {
+		in.HubThreshold = 10
+	}
+	if in.CallerSample <= 0 {
+		in.CallerSample = 10
+	}
+	if in.SymbolBudget <= 0 {
+		in.SymbolBudget = 50
+	}
+
+	changes, err := DetectChanges(r, in.RepoRoot, in.Base, in.Head)
+	if err != nil {
+		return PreflightResult{}, err
+	}
+
+	hubs, err := Hubs(r, in.HubThreshold)
+	if err != nil {
+		return PreflightResult{}, err
+	}
+	set := hubSet{}
+	for _, h := range hubs {
+		set[h.ID] = true
+	}
+
+	details := make([]ChangedSymbolDetail, 0, len(changes))
+	for _, ch := range changes {
+		if ch.Kind == "file" {
+			details = append(details, ChangedSymbolDetail{
+				ID:         ch.ID,
+				Kind:       "file",
+				ChangeType: ch.ChangeType,
+				IsNew:      ch.IsNew,
+				Community:  communityFromPath(ch.ID),
+			})
+			continue
+		}
+		d, err := enrichChangedSymbol(r, ch, set, in.CallerSample)
+		if err != nil {
+			return PreflightResult{}, err
+		}
+		details = append(details, d)
+	}
+
+	// Rank by risk descending, then by id for determinism.
+	sort.SliceStable(details, func(i, j int) bool {
+		if details[i].Risk != details[j].Risk {
+			return details[i].Risk > details[j].Risk
+		}
+		return details[i].ID < details[j].ID
+	})
+
+	var truncated []string
+	if len(details) > in.SymbolBudget {
+		for _, d := range details[in.SymbolBudget:] {
+			truncated = append(truncated, d.ID)
+		}
+		details = details[:in.SymbolBudget]
+	}
+
+	cross := crossCommunityEdges(r, details)
+	summary := buildRiskSummary(details, cross)
+
+	return PreflightResult{
+		Mode:             "built",
+		Graph:            GraphMeta{Freshness: Freshness{CoversBaseSHA: true}, Languages: detectLanguages(r), SkippedFiles: nil},
+		ChangedSymbols:   details,
+		CrossCommunity:   cross,
+		RiskSummary:      summary,
+		TruncatedSymbols: truncated,
+	}, nil
+}
+
+func crossCommunityEdges(r Reader, details []ChangedSymbolDetail) []CrossCommunityEdge {
+	type key struct{ from, to string }
+	agg := map[key]*CrossCommunityEdge{}
+	for _, d := range details {
+		dstNode, err := r.GetNode(d.ID)
+		if err != nil {
+			continue
+		}
+		toCom := communityFromPath(dstNode.Path)
+		for _, callerID := range d.Callers.Sample {
+			n, err := r.GetNode(callerID)
+			if err != nil {
+				continue
+			}
+			fromCom := communityFromPath(n.Path)
+			if fromCom == "" || fromCom == toCom {
+				continue
+			}
+			k := key{fromCom, toCom}
+			e, ok := agg[k]
+			if !ok {
+				e = &CrossCommunityEdge{From: fromCom, To: toCom}
+				agg[k] = e
+			}
+			e.CountAdded++
+			if len(e.Samples) < 5 {
+				e.Samples = append(e.Samples, callerID+" → "+d.ID)
+			}
+		}
+	}
+	out := make([]CrossCommunityEdge, 0, len(agg))
+	for _, v := range agg {
+		out = append(out, *v)
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].From != out[j].From {
+			return out[i].From < out[j].From
+		}
+		return out[i].To < out[j].To
+	})
+	return out
+}
+
+func buildRiskSummary(details []ChangedSymbolDetail, cross []CrossCommunityEdge) RiskSummary {
+	var s RiskSummary
+	for _, d := range details {
+		if d.Callers.InHub {
+			s.HubNodesModified++
+		}
+		if d.IsExported && !d.Tests.HasTests {
+			s.UntestedPublicChanges++
+		}
+		if containsString(d.RiskFactors, "interface_change") {
+			s.InterfaceChanges++
+		}
+	}
+	for _, c := range cross {
+		s.NewCrossCommunityEdges += c.CountAdded
+	}
+	return s
+}
+
+func detectLanguages(r Reader) []string {
+	all, err := r.AllNodes()
+	if err != nil {
+		return nil
+	}
+	set := map[string]struct{}{}
+	for _, n := range all {
+		if n.Language != "" {
+			set[n.Language] = struct{}{}
+		}
+	}
+	out := make([]string, 0, len(set))
+	for l := range set {
+		out = append(out, l)
+	}
+	sort.Strings(out)
+	return out
+}
+
 // communityFromPath returns the shallowest directory containing the file,
 // capped at depth 3, per design §6 "Community definition".
 func communityFromPath(path string) string {

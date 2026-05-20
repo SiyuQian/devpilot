@@ -25,6 +25,59 @@ func TestCommunityFromPath(t *testing.T) {
 	}
 }
 
+func TestPreflightComposite(t *testing.T) {
+	nodes := []store.Node{
+		{ID: "internal/payment/p.go::Charge", Kind: "method", Path: "internal/payment/p.go",
+			Name: "Charge", Container: "PaymentProcessor", Language: "go", IsExported: true},
+		{ID: "api/checkout.go::handleCheckout", Kind: "function", Path: "api/checkout.go",
+			Name: "handleCheckout", Language: "go", IsExported: true},
+		{ID: "internal/payment/p.go::Helper", Kind: "function", Path: "internal/payment/p.go",
+			Name: "Helper", Language: "go", IsExported: false},
+	}
+	edges := []store.Edge{
+		{Src: "api/checkout.go::handleCheckout", Dst: "internal/payment/p.go::Charge", Kind: "calls"},
+	}
+	r := newStore(t, nodes, edges)
+
+	prevGitRun := gitRun
+	t.Cleanup(func() { gitRun = prevGitRun })
+	gitRun = func(repo string, args ...string) ([]byte, error) {
+		switch args[0] {
+		case "diff":
+			return []byte("M\tinternal/payment/p.go\n"), nil
+		case "show":
+			if contains(args, "BASE:internal/payment/p.go") {
+				return []byte("old"), nil
+			}
+			return []byte("new"), nil
+		}
+		return nil, nil
+	}
+
+	res, err := Preflight(r, PreflightInput{
+		RepoRoot: "/fake", Base: "BASE", Head: "HEAD",
+		HubThreshold: 10, CallerSample: 10, SymbolBudget: 50,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Mode == "" {
+		t.Error("mode must be set")
+	}
+	if len(res.ChangedSymbols) != 2 {
+		t.Fatalf("want 2 changed symbols, got %d (%+v)", len(res.ChangedSymbols), res.ChangedSymbols)
+	}
+	// First should be the exported one (Charge), higher risk.
+	if res.ChangedSymbols[0].ID != "internal/payment/p.go::Charge" {
+		t.Errorf("ranking wrong: %+v", res.ChangedSymbols)
+	}
+	// One cross-community edge: api → internal/payment.
+	if len(res.CrossCommunity) != 1 || res.CrossCommunity[0].From != "api" ||
+		res.CrossCommunity[0].To != "internal/payment" {
+		t.Errorf("cross_community=%+v", res.CrossCommunity)
+	}
+}
+
 func TestEnrichChangedSymbol(t *testing.T) {
 	nodes := []store.Node{
 		{ID: "internal/payment/p.go::Charge", Kind: "method", Path: "internal/payment/p.go",
