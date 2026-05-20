@@ -16,10 +16,15 @@ import (
 // BuildIncremental applies a delta on top of an existing graph.db by diffing
 // prev.HeadSHA against the current HEAD with `git diff --name-status`. It
 // falls back to FullBuild when prev.HeadSHA is empty, the git invocation
-// fails, or prev.HeadSHA is not an ancestor of HEAD (force-push, rebase).
+// fails, prev.HeadSHA is not an ancestor of HEAD (force-push, rebase), or
+// the working tree has uncommitted changes (otherwise the cache would
+// silently reflect the last-committed state instead of disk).
 func (b *Builder) BuildIncremental(prev Meta) (BuildResult, error) {
 	currentHead := gitHeadSHA(b.repo)
 	if prev.HeadSHA == "" || currentHead == "" || !isAncestor(b.repo, prev.HeadSHA, currentHead) {
+		return b.FullBuild()
+	}
+	if isDirty(b.repo) {
 		return b.FullBuild()
 	}
 	if prev.HeadSHA == currentHead {
@@ -28,18 +33,18 @@ func (b *Builder) BuildIncremental(prev Meta) (BuildResult, error) {
 
 	rel, err := AcquireBuildLock(LockFile(b.home, b.key), 60*time.Second)
 	if err != nil {
-		return BuildResult{}, err
+		return BuildResult{}, fmt.Errorf("acquire build lock: %w", err)
 	}
 	defer func() { _ = rel() }()
 
 	changed, err := gitChangedFiles(b.repo, prev.HeadSHA, currentHead)
 	if err != nil {
-		return BuildResult{}, err
+		return BuildResult{}, fmt.Errorf("collect changed files: %w", err)
 	}
 
 	st, err := store.Open(GraphDB(b.home, b.key))
 	if err != nil {
-		return BuildResult{}, err
+		return BuildResult{}, fmt.Errorf("open graph.db: %w", err)
 	}
 	defer func() { _ = st.Close() }()
 
@@ -88,7 +93,7 @@ func (b *Builder) BuildIncremental(prev Meta) (BuildResult, error) {
 	if _, err := os.Stat(filepath.Join(b.repo, "tsconfig.json")); err == nil {
 		ts, err := resolver.NewTSConfigResolver(b.repo)
 		if err != nil {
-			return BuildResult{}, err
+			return BuildResult{}, fmt.Errorf("load tsconfig: %w", err)
 		}
 		for i := range allResults {
 			allResults[i].Edges = ts.Rewrite(allResults[i].Edges)
@@ -110,10 +115,10 @@ func (b *Builder) BuildIncremental(prev Meta) (BuildResult, error) {
 	newEdges = append(newEdges, allResults[0].Edges...)
 
 	if err := st.InsertNodes(newNodes); err != nil {
-		return BuildResult{}, err
+		return BuildResult{}, fmt.Errorf("insert nodes: %w", err)
 	}
 	if err := st.InsertEdges(newEdges); err != nil {
-		return BuildResult{}, err
+		return BuildResult{}, fmt.Errorf("insert edges: %w", err)
 	}
 
 	meta := Meta{
@@ -124,7 +129,7 @@ func (b *Builder) BuildIncremental(prev Meta) (BuildResult, error) {
 		BuiltAtUnix:   time.Now().Unix(),
 	}
 	if err := WriteMeta(MetaFile(b.home, b.key), meta); err != nil {
-		return BuildResult{}, err
+		return BuildResult{}, fmt.Errorf("write meta: %w", err)
 	}
 
 	return BuildResult{
@@ -198,4 +203,14 @@ func gitChangedFiles(repo, from, to string) (changeSet, error) {
 // isAncestor reports whether commit a is an ancestor of commit b in repo.
 func isAncestor(repo, a, b string) bool {
 	return exec.Command("git", "-C", repo, "merge-base", "--is-ancestor", a, b).Run() == nil
+}
+
+// isDirty reports whether repo has uncommitted changes (staged or unstaged).
+// Returns false when git is unavailable so non-git checkouts still incremental.
+func isDirty(repo string) bool {
+	out, err := exec.Command("git", "-C", repo, "status", "--porcelain").Output()
+	if err != nil {
+		return false
+	}
+	return len(strings.TrimSpace(string(out))) > 0
 }

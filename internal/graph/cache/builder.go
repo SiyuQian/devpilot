@@ -59,7 +59,7 @@ type BuildResult struct {
 func (b *Builder) FullBuild() (BuildResult, error) {
 	rel, err := AcquireBuildLock(LockFile(b.home, b.key), 60*time.Second)
 	if err != nil {
-		return BuildResult{}, err
+		return BuildResult{}, fmt.Errorf("acquire build lock: %w", err)
 	}
 	defer func() { _ = rel() }()
 
@@ -82,7 +82,7 @@ func (b *Builder) FullBuild() (BuildResult, error) {
 
 	st, err := store.Open(dbPath)
 	if err != nil {
-		return BuildResult{}, err
+		return BuildResult{}, fmt.Errorf("open graph.db: %w", err)
 	}
 	defer func() { _ = st.Close() }()
 
@@ -113,7 +113,7 @@ func (b *Builder) FullBuild() (BuildResult, error) {
 		})
 	}
 	if err := g.Wait(); err != nil {
-		return BuildResult{}, err
+		return BuildResult{}, fmt.Errorf("parse fanout: %w", err)
 	}
 
 	results = resolver.Resolve(results)
@@ -121,7 +121,7 @@ func (b *Builder) FullBuild() (BuildResult, error) {
 	if _, err := os.Stat(filepath.Join(b.repo, "tsconfig.json")); err == nil {
 		ts, err := resolver.NewTSConfigResolver(b.repo)
 		if err != nil {
-			return BuildResult{}, err
+			return BuildResult{}, fmt.Errorf("load tsconfig: %w", err)
 		}
 		for i := range results {
 			results[i].Edges = ts.Rewrite(results[i].Edges)
@@ -136,10 +136,10 @@ func (b *Builder) FullBuild() (BuildResult, error) {
 	}
 
 	if err := st.InsertNodes(allNodes); err != nil {
-		return BuildResult{}, err
+		return BuildResult{}, fmt.Errorf("insert nodes: %w", err)
 	}
 	if err := st.InsertEdges(allEdges); err != nil {
-		return BuildResult{}, err
+		return BuildResult{}, fmt.Errorf("insert edges: %w", err)
 	}
 
 	meta := Meta{
@@ -150,7 +150,7 @@ func (b *Builder) FullBuild() (BuildResult, error) {
 		BuiltAtUnix:   time.Now().Unix(),
 	}
 	if err := WriteMeta(MetaFile(b.home, b.key), meta); err != nil {
-		return BuildResult{}, err
+		return BuildResult{}, fmt.Errorf("write meta: %w", err)
 	}
 
 	return BuildResult{
@@ -171,14 +171,14 @@ func (b *Builder) Build() (BuildResult, error) {
 	}
 	m, err := ReadMeta(MetaFile(b.home, b.key))
 	if err != nil {
-		return BuildResult{}, err
+		return BuildResult{}, fmt.Errorf("read meta: %w", err)
 	}
 	if m.SchemaVersion != CurrentSchemaVersion {
 		if err := os.RemoveAll(GraphDir(b.home, b.key)); err != nil {
 			return BuildResult{}, fmt.Errorf("wipe cache dir: %w", err)
 		}
 		if err := EnsureDirs(b.home, b.key); err != nil {
-			return BuildResult{}, err
+			return BuildResult{}, fmt.Errorf("ensure cache dirs: %w", err)
 		}
 		return b.FullBuild()
 	}

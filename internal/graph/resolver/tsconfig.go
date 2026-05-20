@@ -1,5 +1,6 @@
-// Package resolver — additions for TypeScript path aliases.
 package resolver
+
+// TypeScript path-alias resolver. Package doc is in resolver.go.
 
 import (
 	"encoding/json"
@@ -28,16 +29,25 @@ type TSConfigResolver struct {
 	paths   map[string][]string
 }
 
-// NewTSConfigResolver loads tsconfig.json from root (handling `extends` once).
+// NewTSConfigResolver loads tsconfig.json from root, following the `extends`
+// chain with cycle detection.
 func NewTSConfigResolver(root string) (*TSConfigResolver, error) {
 	r := &TSConfigResolver{root: root, paths: map[string][]string{}}
-	if err := r.loadTSConfig(filepath.Join(root, "tsconfig.json")); err != nil {
+	if err := r.loadTSConfig(filepath.Join(root, "tsconfig.json"), map[string]bool{}); err != nil {
 		return nil, err
 	}
 	return r, nil
 }
 
-func (r *TSConfigResolver) loadTSConfig(path string) error {
+func (r *TSConfigResolver) loadTSConfig(path string, visited map[string]bool) error {
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		return fmt.Errorf("abs %s: %w", path, err)
+	}
+	if visited[abs] {
+		return fmt.Errorf("tsconfig extends cycle through %s", abs)
+	}
+	visited[abs] = true
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -54,7 +64,7 @@ func (r *TSConfigResolver) loadTSConfig(path string) error {
 		if !strings.HasSuffix(parent, ".json") {
 			parent += ".json"
 		}
-		if err := r.loadTSConfig(parent); err != nil {
+		if err := r.loadTSConfig(parent, visited); err != nil {
 			return err
 		}
 	}

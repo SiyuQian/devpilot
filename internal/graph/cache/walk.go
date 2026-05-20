@@ -12,6 +12,8 @@ func WalkRepo(root string) ([]string, error) {
 	var out []string
 	skipDirs := map[string]bool{
 		".git": true, "node_modules": true, "target": true, "vendor": true, ".devpilot": true,
+		"dist": true, "build": true, "out": true, ".next": true, ".turbo": true,
+		".cache": true, "coverage": true, "__pycache__": true,
 	}
 	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {

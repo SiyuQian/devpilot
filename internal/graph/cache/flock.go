@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/gofrs/flock"
@@ -15,6 +17,9 @@ var ErrLockTimeout = errors.New("build lock acquire timed out")
 // AcquireBuildLock takes an exclusive flock on lockPath, polling every 100ms until
 // timeout. Returns a release function the caller must invoke.
 func AcquireBuildLock(lockPath string, timeout time.Duration) (release func() error, err error) {
+	if err := os.MkdirAll(filepath.Dir(lockPath), 0o755); err != nil {
+		return nil, fmt.Errorf("mkdir lock parent: %w", err)
+	}
 	fl := flock.New(lockPath)
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
