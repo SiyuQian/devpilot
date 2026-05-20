@@ -276,3 +276,34 @@ func (s *Store) CountEdgesByKind(dst, kind string) (int, error) {
 	}
 	return n, nil
 }
+
+// HubsByCalls returns dst IDs with at least minCallers inbound `calls` edges,
+// ordered by caller count descending then id ascending for determinism.
+func (s *Store) HubsByCalls(minCallers int) ([]struct {
+	ID    string
+	Count int
+}, error) {
+	rows, err := s.db.Query(
+		`SELECT dst, COUNT(*) AS c FROM edges WHERE kind='calls'
+		   GROUP BY dst HAVING c >= ?
+		   ORDER BY c DESC, dst ASC`, minCallers)
+	if err != nil {
+		return nil, fmt.Errorf("HubsByCalls: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	var out []struct {
+		ID    string
+		Count int
+	}
+	for rows.Next() {
+		var e struct {
+			ID    string
+			Count int
+		}
+		if err := rows.Scan(&e.ID, &e.Count); err != nil {
+			return nil, err
+		}
+		out = append(out, e)
+	}
+	return out, rows.Err()
+}
