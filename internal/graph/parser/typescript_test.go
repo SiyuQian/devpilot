@@ -100,6 +100,33 @@ func TestTypeScriptParserExtracts(t *testing.T) {
 		}
 	})
 
+	t.Run("calls", func(t *testing.T) {
+		p := NewTypeScriptParser()
+		path, src := loadSimple(t)
+		r, err := p.Parse(path, src)
+		if err != nil {
+			t.Fatal(err)
+		}
+		want := map[[2]string]bool{
+			{"simple/main.ts::internalHelper", "simple/main.ts::greet"}: false,
+			{"simple/main.ts::Greeter.hello", "simple/main.ts::greet"}:  false,
+		}
+		for _, e := range r.Edges {
+			if e.Kind != "calls" {
+				continue
+			}
+			key := [2]string{e.Src, e.Dst}
+			if _, ok := want[key]; ok {
+				want[key] = true
+			}
+		}
+		for k, seen := range want {
+			if !seen {
+				t.Errorf("missing calls edge %s -> %s", k[0], k[1])
+			}
+		}
+	})
+
 	t.Run("types", func(t *testing.T) {
 		p := NewTypeScriptParser()
 		path, src := loadSimple(t)
