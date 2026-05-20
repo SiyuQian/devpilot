@@ -111,6 +111,82 @@ func (s *Store) GetNode(id string) (Node, error) {
 	return n, nil
 }
 
+// AllNodes returns every node currently in the database.
+// Intended for cache.Builder; not for query hot-paths.
+func (s *Store) AllNodes() ([]Node, error) {
+	rows, err := s.db.Query(
+		`SELECT id, kind, path, name, container, language, start_line, end_line, is_exported, signature_hash FROM nodes`,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+	var out []Node
+	for rows.Next() {
+		var n Node
+		var container, sigHash sql.NullString
+		var exported int
+		if err := rows.Scan(
+			&n.ID, &n.Kind, &n.Path, &n.Name, &container, &n.Language,
+			&n.StartLine, &n.EndLine, &exported, &sigHash,
+		); err != nil {
+			return nil, err
+		}
+		n.Container = container.String
+		n.SignatureHash = sigHash.String
+		n.IsExported = exported == 1
+		out = append(out, n)
+	}
+	return out, rows.Err()
+}
+
+// DeleteByPaths deletes every node whose path is in paths, plus edges whose
+// src or dst belongs to a deleted node. Returns counts deleted.
+func (s *Store) DeleteByPaths(paths []string) (nodes, edges int, err error) {
+	if len(paths) == 0 {
+		return 0, 0, nil
+	}
+	tx, err := s.db.Begin()
+	if err != nil {
+		return 0, 0, err
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	var ids []string
+	for _, p := range paths {
+		rows, err := tx.Query(`SELECT id FROM nodes WHERE path = ?`, p)
+		if err != nil {
+			return 0, 0, err
+		}
+		for rows.Next() {
+			var id string
+			if err := rows.Scan(&id); err != nil {
+				_ = rows.Close()
+				return 0, 0, err
+			}
+			ids = append(ids, id)
+		}
+		_ = rows.Close()
+	}
+	for _, id := range ids {
+		r, err := tx.Exec(`DELETE FROM edges WHERE src = ? OR dst = ?`, id, id)
+		if err != nil {
+			return 0, 0, err
+		}
+		n, _ := r.RowsAffected()
+		edges += int(n)
+	}
+	for _, p := range paths {
+		r, err := tx.Exec(`DELETE FROM nodes WHERE path = ?`, p)
+		if err != nil {
+			return 0, 0, err
+		}
+		n, _ := r.RowsAffected()
+		nodes += int(n)
+	}
+	return nodes, edges, tx.Commit()
+}
+
 // CallersOf returns the source node IDs of all `calls` edges targeting id.
 func (s *Store) CallersOf(id string) ([]string, error) {
 	rows, err := s.db.Query(`SELECT src FROM edges WHERE dst = ? AND kind = 'calls'`, id)

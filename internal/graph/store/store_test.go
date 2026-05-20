@@ -89,6 +89,62 @@ func TestStoreNodeRoundTrip(t *testing.T) {
 	}
 }
 
+func TestAllNodes(t *testing.T) {
+	s := newTestStore(t)
+	in := []Node{
+		{ID: "a.go", Kind: "file", Path: "a.go", Name: "a.go", Language: "go"},
+		{ID: "a.go::A", Kind: "function", Path: "a.go", Name: "A", Language: "go", IsExported: true},
+		{ID: "b.go::B", Kind: "function", Path: "b.go", Name: "B", Container: "T", Language: "go"},
+	}
+	if err := s.InsertNodes(in); err != nil {
+		t.Fatalf("InsertNodes: %v", err)
+	}
+	got, err := s.AllNodes()
+	if err != nil {
+		t.Fatalf("AllNodes: %v", err)
+	}
+	if len(got) != len(in) {
+		t.Fatalf("AllNodes len=%d want %d", len(got), len(in))
+	}
+	seen := map[string]Node{}
+	for _, n := range got {
+		seen[n.ID] = n
+	}
+	if seen["a.go::A"].IsExported != true {
+		t.Errorf("a.go::A IsExported=%v want true", seen["a.go::A"].IsExported)
+	}
+	if seen["b.go::B"].Container != "T" {
+		t.Errorf("b.go::B Container=%q want T", seen["b.go::B"].Container)
+	}
+}
+
+func TestDeleteByPaths(t *testing.T) {
+	s := newTestStore(t)
+	if err := s.InsertNodes([]Node{
+		{ID: "a.go", Kind: "file", Path: "a.go", Name: "a.go", Language: "go"},
+		{ID: "a.go::A", Kind: "function", Path: "a.go", Name: "A", Language: "go"},
+		{ID: "b.go", Kind: "file", Path: "b.go", Name: "b.go", Language: "go"},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.InsertEdges([]Edge{
+		{Src: "a.go", Dst: "a.go::A", Kind: "contains"},
+		{Src: "b.go", Dst: "a.go::A", Kind: "calls"},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	n, e, err := s.DeleteByPaths([]string{"a.go"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n != 2 || e != 2 {
+		t.Errorf("delete: nodes=%d edges=%d, want 2/2", n, e)
+	}
+	if _, err := s.GetNode("a.go::A"); err == nil {
+		t.Error("a.go::A still exists")
+	}
+}
+
 func TestStoreCallersOf(t *testing.T) {
 	tests := []struct {
 		name        string
