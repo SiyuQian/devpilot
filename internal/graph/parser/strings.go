@@ -2,11 +2,10 @@ package parser
 
 // resolveIntra returns the intra-file ID for name if known, otherwise an
 // "external::"-prefixed fallback.
-func resolveIntra(name, path string, intra map[string]string) string {
+func resolveIntra(name string, intra map[string]string) string {
 	if id, ok := intra[name]; ok {
 		return id
 	}
-	_ = path
 	return "external::" + name
 }
 
