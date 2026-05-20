@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "clean.v1.json",
+  "allOf": [{ "$ref": "envelope.v1.json" }],
+  "properties": {
+    "command": { "const": "graph.clean" },
+    "data": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "required": ["removed", "all"],
+          "properties": {
+            "removed": { "type": "string" },
+            "all": { "type": "boolean" }
+          }
+        }
+      ]
+    }
+  }
+}

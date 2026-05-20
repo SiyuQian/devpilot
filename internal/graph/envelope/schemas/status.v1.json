@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "status.v1.json",
+  "allOf": [{ "$ref": "envelope.v1.json" }],
+  "properties": {
+    "command": { "const": "graph.status" },
+    "data": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "required": ["repo", "head_sha", "languages", "nodes", "edges", "built_at_unix"],
+          "properties": {
+            "repo": { "type": "string" },
+            "head_sha": { "type": "string" },
+            "languages": { "type": "array", "items": { "type": "string" } },
+            "nodes": { "type": "integer" },
+            "edges": { "type": "integer" },
+            "built_at_unix": { "type": "integer" }
+          }
+        }
+      ]
+    }
+  }
+}
