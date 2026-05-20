@@ -38,12 +38,31 @@ func (p *RustParser) Parse(path string, src []byte) (ParseResult, error) {
 		ID: path, Kind: "file", Path: path, Name: path, Language: "rust",
 	})
 	root := tree.RootNode()
+
+	// Pre-pass: collect top-level function names for intra-file call resolution.
+	intra := map[string]string{}
+	for i := 0; i < int(root.NamedChildCount()); i++ {
+		c := root.NamedChild(i)
+		if c.Type() == "function_item" {
+			if n := c.ChildByFieldName("name"); n != nil {
+				name := n.Content(src)
+				intra[name] = path + "::" + name
+			}
+		}
+	}
+
 	for i := 0; i < int(root.NamedChildCount()); i++ {
 		c := root.NamedChild(i)
 		exported := hasRustVisibilityPub(c, src)
 		switch c.Type() {
 		case "function_item":
 			emitRustSymbol(&res, c, src, path, "function", exported)
+			if body := c.ChildByFieldName("body"); body != nil {
+				if n := c.ChildByFieldName("name"); n != nil {
+					id := path + "::" + n.Content(src)
+					res.Edges = append(res.Edges, walkRustCalls(body, src, id, path, intra)...)
+				}
+			}
 		case "struct_item":
 			emitRustSymbol(&res, c, src, path, "struct", exported)
 		case "enum_item":
@@ -53,10 +72,64 @@ func (p *RustParser) Parse(path string, src []byte) (ParseResult, error) {
 		case "trait_item":
 			emitRustTrait(&res, c, src, path, exported)
 		case "impl_item":
-			emitRustImpl(&res, c, src, path)
+			emitRustImpl(&res, c, src, path, intra)
+		case "use_declaration":
+			if c.NamedChildCount() > 0 {
+				usePath := flattenUseTree(c.NamedChild(0), src)
+				if usePath != "" {
+					res.Edges = append(res.Edges, store.Edge{
+						Src: path, Dst: "external::" + usePath, Kind: "imports",
+					})
+				}
+			}
 		}
 	}
 	return res, nil
+}
+
+// flattenUseTree returns the scoped path text of a use_declaration's inner node.
+// For "use std::fmt::Display;" the inner node is a scoped_identifier whose
+// Content() already yields "std::fmt::Display".
+func flattenUseTree(n *sitter.Node, src []byte) string {
+	if n == nil {
+		return ""
+	}
+	return n.Content(src)
+}
+
+// walkRustCalls emits "calls" edges from srcID for every call_expression in body.
+// Identifier-form calls are treated as intra-file (path::name); Phase 1's
+// resolver rewrites these to real targets across the module when they exist
+// elsewhere. Scoped/field calls fall back to external::<full.expr>.
+func walkRustCalls(body *sitter.Node, src []byte, srcID, filePath string, intra map[string]string) []store.Edge {
+	var out []store.Edge
+	var visit func(n *sitter.Node)
+	visit = func(n *sitter.Node) {
+		if n == nil {
+			return
+		}
+		if n.Type() == "call_expression" {
+			fn := n.ChildByFieldName("function")
+			if fn != nil {
+				switch fn.Type() {
+				case "identifier":
+					name := fn.Content(src)
+					if id, ok := intra[name]; ok {
+						out = append(out, store.Edge{Src: srcID, Dst: id, Kind: "calls"})
+					} else {
+						out = append(out, store.Edge{Src: srcID, Dst: filePath + "::" + name, Kind: "calls"})
+					}
+				case "scoped_identifier", "field_expression":
+					out = append(out, store.Edge{Src: srcID, Dst: "external::" + fn.Content(src), Kind: "calls"})
+				}
+			}
+		}
+		for i := 0; i < int(n.NamedChildCount()); i++ {
+			visit(n.NamedChild(i))
+		}
+	}
+	visit(body)
+	return out
 }
 
 func hasRustVisibilityPub(n *sitter.Node, src []byte) bool {
@@ -118,7 +191,7 @@ func emitRustTrait(res *ParseResult, decl *sitter.Node, src []byte, path string,
 	}
 }
 
-func emitRustImpl(res *ParseResult, decl *sitter.Node, src []byte, path string) {
+func emitRustImpl(res *ParseResult, decl *sitter.Node, src []byte, path string, intra map[string]string) {
 	traitNode := decl.ChildByFieldName("trait")
 	typeNode := decl.ChildByFieldName("type")
 	if typeNode == nil {
@@ -155,5 +228,8 @@ func emitRustImpl(res *ParseResult, decl *sitter.Node, src []byte, path string) 
 			IsExported: hasRustVisibilityPub(fn, src),
 		})
 		res.Edges = append(res.Edges, store.Edge{Src: typeID, Dst: mID, Kind: "contains"})
+		if body := fn.ChildByFieldName("body"); body != nil {
+			res.Edges = append(res.Edges, walkRustCalls(body, src, mID, path, intra)...)
+		}
 	}
 }

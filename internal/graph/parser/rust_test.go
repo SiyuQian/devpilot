@@ -76,4 +76,35 @@ func TestRustParserExtracts(t *testing.T) {
 			t.Fatalf("trait=%v impl=%v method=%v", hasTrait, hasImpl, hasImplMethod)
 		}
 	})
+
+	t.Run("calls", func(t *testing.T) {
+		var ok bool
+		for _, e := range r.Edges {
+			if e.Kind == "calls" && e.Src == "simple/lib.rs::internal_helper" && e.Dst == "simple/lib.rs::greet" {
+				ok = true
+			}
+		}
+		if !ok {
+			t.Error("missing calls edge internal_helper -> greet")
+		}
+	})
+
+	t.Run("imports", func(t *testing.T) {
+		want := map[string]bool{
+			"external::std::fmt::Display":    false,
+			"external::crate::other::helper": false,
+		}
+		for _, e := range r.Edges {
+			if e.Kind == "imports" && e.Src == "simple/lib.rs" {
+				if _, ok := want[e.Dst]; ok {
+					want[e.Dst] = true
+				}
+			}
+		}
+		for k, v := range want {
+			if !v {
+				t.Errorf("missing imports edge to %s", k)
+			}
+		}
+	})
 }
