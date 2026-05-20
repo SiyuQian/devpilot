@@ -101,6 +101,51 @@ func TestBuilderParallelMatchesSequential(t *testing.T) {
 	}
 }
 
+func TestSchemaMismatchRebuilds(t *testing.T) {
+	repo := t.TempDir()
+	mustWrite(t, filepath.Join(repo, "main.go"), `package main
+func Greet(n string) string { return "hi " + n }
+func main() { Greet("x") }
+`)
+	home := t.TempDir()
+	b, err := NewBuilder(home, repo)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := b.FullBuild(); err != nil {
+		t.Fatal(err)
+	}
+
+	// Poison the on-disk schema version.
+	metaPath := MetaFile(home, RepoKey(repo))
+	m, err := ReadMeta(metaPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	m.SchemaVersion = 0
+	if err := WriteMeta(metaPath, m); err != nil {
+		t.Fatal(err)
+	}
+
+	res, err := b.Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Mode != "full" {
+		t.Errorf("Mode=%q want full", res.Mode)
+	}
+	got, err := ReadMeta(metaPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.SchemaVersion != CurrentSchemaVersion {
+		t.Errorf("meta schema=%d want %d", got.SchemaVersion, CurrentSchemaVersion)
+	}
+	if _, err := os.Stat(GraphDB(home, RepoKey(repo))); err != nil {
+		t.Errorf("graph.db missing after rebuild: %v", err)
+	}
+}
+
 func itoa(i int) string {
 	if i == 0 {
 		return "0"
