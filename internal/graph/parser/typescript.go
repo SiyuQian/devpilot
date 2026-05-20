@@ -177,14 +177,14 @@ func emitClassNode(res *ParseResult, decl *sitter.Node, src []byte, path string,
 					for k := 0; k < int(clause.NamedChildCount()); k++ {
 						name := clause.NamedChild(k).Content(src)
 						res.Edges = append(res.Edges, store.Edge{
-							Src: classID, Dst: resolveIntra(name, path, intra), Kind: "extends",
+							Src: classID, Dst: resolveIntra(name, intra), Kind: "extends",
 						})
 					}
 				case "implements_clause":
 					for k := 0; k < int(clause.NamedChildCount()); k++ {
 						name := clause.NamedChild(k).Content(src)
 						res.Edges = append(res.Edges, store.Edge{
-							Src: classID, Dst: resolveIntra(name, path, intra), Kind: "implements",
+							Src: classID, Dst: resolveIntra(name, intra), Kind: "implements",
 						})
 					}
 				}
