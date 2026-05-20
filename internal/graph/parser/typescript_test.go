@@ -127,6 +127,28 @@ func TestTypeScriptParserExtracts(t *testing.T) {
 		}
 	})
 
+	t.Run("imports", func(t *testing.T) {
+		p := NewTypeScriptParser()
+		path := "multifile/a.ts"
+		src, err := os.ReadFile(filepath.Join("testdata", "ts", "multifile", "a.ts"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		r, err := p.Parse(path, src)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var seen bool
+		for _, e := range r.Edges {
+			if e.Kind == "imports" && e.Src == "multifile/a.ts" && e.Dst == "external::./b" {
+				seen = true
+			}
+		}
+		if !seen {
+			t.Fatalf("missing imports edge multifile/a.ts -> external::./b; edges=%v", r.Edges)
+		}
+	})
+
 	t.Run("types", func(t *testing.T) {
 		p := NewTypeScriptParser()
 		path, src := loadSimple(t)

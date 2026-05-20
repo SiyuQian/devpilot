@@ -54,6 +54,16 @@ func (p *TypeScriptParser) Parse(path string, src []byte) (ParseResult, error) {
 
 	for i := 0; i < int(root.NamedChildCount()); i++ {
 		child := root.NamedChild(i)
+		if child.Type() == "import_statement" {
+			srcNode := child.ChildByFieldName("source")
+			if srcNode != nil {
+				modulePath := unquote(srcNode.Content(src))
+				res.Edges = append(res.Edges, store.Edge{
+					Src: path, Dst: "external::" + modulePath, Kind: "imports",
+				})
+			}
+			continue
+		}
 		exported := false
 		decl := child
 		if child.Type() == "export_statement" {
