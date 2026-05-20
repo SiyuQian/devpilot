@@ -17,14 +17,14 @@ func Open(path string) (*Store, error) {
 		return nil, fmt.Errorf("open sqlite: %w", err)
 	}
 	if _, err := db.Exec(schemaSQL); err != nil {
-		db.Close()
+		_ = db.Close()
 		return nil, fmt.Errorf("apply schema: %w", err)
 	}
 	if _, err := db.Exec(
 		`INSERT INTO schema_version (version) SELECT ? WHERE NOT EXISTS (SELECT 1 FROM schema_version)`,
 		currentSchemaVersion,
 	); err != nil {
-		db.Close()
+		_ = db.Close()
 		return nil, fmt.Errorf("seed schema_version: %w", err)
 	}
 	return &Store{db: db}, nil
@@ -49,14 +49,14 @@ func (s *Store) InsertNodes(nodes []Node) error {
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 	stmt, err := tx.Prepare(`INSERT OR REPLACE INTO nodes
 		(id, kind, path, name, container, language, start_line, end_line, is_exported, signature_hash)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
 	if err != nil {
 		return err
 	}
-	defer stmt.Close()
+	defer func() { _ = stmt.Close() }()
 	for _, n := range nodes {
 		var exported int
 		if n.IsExported {
@@ -76,12 +76,12 @@ func (s *Store) InsertEdges(edges []Edge) error {
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 	stmt, err := tx.Prepare(`INSERT OR IGNORE INTO edges (src, dst, kind) VALUES (?, ?, ?)`)
 	if err != nil {
 		return err
 	}
-	defer stmt.Close()
+	defer func() { _ = stmt.Close() }()
 	for _, e := range edges {
 		if _, err := stmt.Exec(e.Src, e.Dst, e.Kind); err != nil {
 			return err
@@ -117,7 +117,7 @@ func (s *Store) CallersOf(id string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var out []string
 	for rows.Next() {
 		var src string

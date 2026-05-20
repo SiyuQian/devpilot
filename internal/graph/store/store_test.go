@@ -11,7 +11,7 @@ func newTestStore(t *testing.T) *Store {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { s.Close() })
+	t.Cleanup(func() { _ = s.Close() })
 	return s
 }
 
@@ -31,7 +31,7 @@ func TestStoreSchema(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Open: %v", err)
 	}
-	defer s.Close()
+	defer func() { _ = s.Close() }()
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -48,11 +48,11 @@ func TestStoreSchema(t *testing.T) {
 
 func TestStoreNodeRoundTrip(t *testing.T) {
 	tests := []struct {
-		name      string
-		node      Node
-		wantName  string
-		wantExp   bool
-		wantCont  string
+		name     string
+		node     Node
+		wantName string
+		wantExp  bool
+		wantCont string
 	}{
 		{
 			name: "method_with_container",
@@ -116,7 +116,12 @@ func TestStoreCallersOf(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			s := newTestStore(t)
-			must := func(err error) { t.Helper(); if err != nil { t.Fatal(err) } }
+			must := func(err error) {
+				t.Helper()
+				if err != nil {
+					t.Fatal(err)
+				}
+			}
 			must(s.InsertNodes(tc.nodes))
 			must(s.InsertEdges(tc.edges))
 			callers, err := s.CallersOf(tc.targetID)
