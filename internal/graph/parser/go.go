@@ -3,6 +3,7 @@ package parser
 import (
 	"context"
 	"fmt"
+	"strings"
 	"unicode"
 
 	sitter "github.com/smacker/go-tree-sitter"
@@ -74,6 +75,12 @@ func (p *GoParser) Parse(path string, src []byte) (ParseResult, error) {
 
 				if isGoTestFunc(name, child, src) {
 					for _, e := range callEdges {
+						// Skip true external package symbols (external::pkg.Sym form).
+						// Unresolved intra-module names (external::Name with no dot)
+						// are kept so the resolver can rewrite them to real node IDs.
+						if strings.HasPrefix(e.Dst, "external::") && strings.Contains(e.Dst[len("external::"):], ".") {
+							continue
+						}
 						res.Edges = append(res.Edges, store.Edge{Src: e.Src, Dst: e.Dst, Kind: "tests"})
 					}
 				}
