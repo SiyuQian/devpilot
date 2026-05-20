@@ -180,13 +180,6 @@ func (b *Builder) Build() (BuildResult, error) {
 	return b.BuildIncremental(m)
 }
 
-// BuildIncremental is a stub that delegates to FullBuild. Task 2.21 replaces
-// this with a real incremental rebuild driven by prev.HeadSHA / file mtimes.
-func (b *Builder) BuildIncremental(prev Meta) (BuildResult, error) {
-	_ = prev
-	return b.FullBuild()
-}
-
 func parserVersionTag(reg *parser.Registry) string {
 	return "phase2:" + strings.Join(reg.Languages(), ",")
 }
