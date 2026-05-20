@@ -12,3 +12,9 @@ export class Greeter {
   }
   private silent(): void {}
 }
+
+export interface Speaker {
+  hello(name: string): string;
+}
+
+export type Greeting = string;
