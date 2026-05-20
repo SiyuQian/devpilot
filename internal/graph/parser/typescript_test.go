@@ -99,4 +99,38 @@ func TestTypeScriptParserExtracts(t *testing.T) {
 			t.Error("missing class node Greeter")
 		}
 	})
+
+	t.Run("types", func(t *testing.T) {
+		p := NewTypeScriptParser()
+		path, src := loadSimple(t)
+		r, err := p.Parse(path, src)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var hasIface, hasTypeAlias bool
+		for _, n := range r.Nodes {
+			if n.ID == "simple/main.ts::Speaker" {
+				hasIface = true
+				if n.Kind != "interface" {
+					t.Errorf("Speaker kind=%q want interface", n.Kind)
+				}
+				if !n.IsExported {
+					t.Error("Speaker must be exported")
+				}
+			}
+			if n.ID == "simple/main.ts::Greeting" {
+				hasTypeAlias = true
+				if n.Kind != "type" {
+					t.Errorf("Greeting kind=%q want type", n.Kind)
+				}
+			}
+		}
+		if !hasIface || !hasTypeAlias {
+			t.Fatalf("missing: iface=%v typeAlias=%v", hasIface, hasTypeAlias)
+		}
+		methods, ok := r.InterfaceMethods["simple/main.ts::Speaker"]
+		if !ok || len(methods) != 1 || methods[0] != "hello" {
+			t.Errorf("InterfaceMethods[Speaker]=%v, want [hello]", methods)
+		}
+	})
 }

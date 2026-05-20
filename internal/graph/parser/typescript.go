@@ -53,6 +53,12 @@ func (p *TypeScriptParser) Parse(path string, src []byte) (ParseResult, error) {
 		if decl.Type() == "class_declaration" {
 			emitClassNode(&res, decl, src, path, exported)
 		}
+		switch decl.Type() {
+		case "interface_declaration":
+			emitInterfaceNode(&res, decl, src, path, exported)
+		case "type_alias_declaration":
+			emitTypeAliasNode(&res, decl, src, path, exported)
+		}
 	}
 	return res, nil
 }
@@ -102,7 +108,7 @@ func emitClassNode(res *ParseResult, decl *sitter.Node, src []byte, path string,
 			EndLine:    int(member.EndPoint().Row) + 1,
 			IsExported: !isPrivate,
 		})
-		res.Edges = append(res.Edges, store.Edge{Src: classID, Kind: "contains", Dst: mID})
+		res.Edges = append(res.Edges, store.Edge{Src: classID, Dst: mID, Kind: "contains"})
 	}
 }
 
@@ -115,6 +121,60 @@ func emitFunctionNode(res *ParseResult, decl *sitter.Node, src []byte, path stri
 	id := path + "::" + name
 	res.Nodes = append(res.Nodes, store.Node{
 		ID: id, Kind: "function", Path: path, Name: name, Language: "typescript",
+		StartLine:  int(decl.StartPoint().Row) + 1,
+		EndLine:    int(decl.EndPoint().Row) + 1,
+		IsExported: exported,
+	})
+	res.Edges = append(res.Edges, store.Edge{Src: path, Dst: id, Kind: "contains"})
+}
+
+func emitInterfaceNode(res *ParseResult, decl *sitter.Node, src []byte, path string, exported bool) {
+	nameNode := decl.ChildByFieldName("name")
+	if nameNode == nil {
+		return
+	}
+	name := nameNode.Content(src)
+	id := path + "::" + name
+	res.Nodes = append(res.Nodes, store.Node{
+		ID: id, Kind: "interface", Path: path, Name: name, Language: "typescript",
+		StartLine:  int(decl.StartPoint().Row) + 1,
+		EndLine:    int(decl.EndPoint().Row) + 1,
+		IsExported: exported,
+	})
+	res.Edges = append(res.Edges, store.Edge{Src: path, Dst: id, Kind: "contains"})
+
+	body := decl.ChildByFieldName("body")
+	if body == nil {
+		return
+	}
+	var methods []string
+	for i := 0; i < int(body.NamedChildCount()); i++ {
+		member := body.NamedChild(i)
+		if member.Type() != "method_signature" {
+			continue
+		}
+		mName := member.ChildByFieldName("name")
+		if mName != nil {
+			methods = append(methods, mName.Content(src))
+		}
+	}
+	if len(methods) > 0 {
+		if res.InterfaceMethods == nil {
+			res.InterfaceMethods = map[string][]string{}
+		}
+		res.InterfaceMethods[id] = methods
+	}
+}
+
+func emitTypeAliasNode(res *ParseResult, decl *sitter.Node, src []byte, path string, exported bool) {
+	nameNode := decl.ChildByFieldName("name")
+	if nameNode == nil {
+		return
+	}
+	name := nameNode.Content(src)
+	id := path + "::" + name
+	res.Nodes = append(res.Nodes, store.Node{
+		ID: id, Kind: "type", Path: path, Name: name, Language: "typescript",
 		StartLine:  int(decl.StartPoint().Row) + 1,
 		EndLine:    int(decl.EndPoint().Row) + 1,
 		IsExported: exported,
