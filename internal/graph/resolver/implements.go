@@ -35,15 +35,19 @@ func addImplementsEdges(results []parser.ParseResult) []parser.ParseResult {
 	}
 
 	// 2. Populate method sets: walk method nodes and match to their struct.
+	// We require an exact match on the fully-qualified struct ID
+	// (`<path>::<container>`) so methods only attach to the struct in the
+	// same file. v1 limitation: Go allows methods on a type in any file of
+	// the same package; cross-file methods within a package are not yet
+	// attributed. This is conservative — false negatives, never false
+	// positives. Cross-file attribution will be revisited when the package
+	// resolver lands in a later phase.
 	for _, r := range results {
 		for _, n := range r.Nodes {
 			if n.Kind == "method" && n.Container != "" {
-				// Match to a struct whose ID ends with "::<Container>".
-				suffix := "::" + n.Container
-				for _, si := range structs {
-					if endsWith(si.id, suffix) {
-						si.methods[n.Name] = struct{}{}
-					}
+				want := n.Path + "::" + n.Container
+				if si, ok := structs[want]; ok {
+					si.methods[n.Name] = struct{}{}
 				}
 			}
 		}
@@ -72,11 +76,6 @@ func addImplementsEdges(results []parser.ParseResult) []parser.ParseResult {
 	}
 
 	return results
-}
-
-// endsWith reports whether s ends with suffix.
-func endsWith(s, suffix string) bool {
-	return len(s) >= len(suffix) && s[len(s)-len(suffix):] == suffix
 }
 
 // isSuperset reports whether super contains every key in sub.
