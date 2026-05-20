@@ -149,6 +149,28 @@ func TestTypeScriptParserExtracts(t *testing.T) {
 		}
 	})
 
+	t.Run("tests_edges", func(t *testing.T) {
+		p := NewTypeScriptParser()
+		path := "simple/main.test.ts"
+		src, err := os.ReadFile(filepath.Join("testdata", "ts", "simple", "main.test.ts"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		r, err := p.Parse(path, src)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var count int
+		for _, e := range r.Edges {
+			if e.Kind == "tests" && e.Src == "simple/main.test.ts" && e.Dst == "external::greet" {
+				count++
+			}
+		}
+		if count == 0 {
+			t.Fatalf("expected at least one tests edge from main.test.ts to external::greet; edges=%v", r.Edges)
+		}
+	})
+
 	t.Run("types", func(t *testing.T) {
 		p := NewTypeScriptParser()
 		path, src := loadSimple(t)
