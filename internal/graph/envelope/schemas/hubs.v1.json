@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "hubs.v1.json",
+  "allOf": [{ "$ref": "envelope.v1.json" }],
+  "properties": {
+    "command": { "const": "graph.hubs" },
+    "data": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "required": ["hubs"],
+          "properties": {
+            "hubs": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["id", "caller_count"],
+                "properties": {
+                  "id": { "type": "string" },
+                  "caller_count": { "type": "integer" }
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

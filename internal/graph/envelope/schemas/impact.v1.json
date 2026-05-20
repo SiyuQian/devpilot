@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "impact.v1.json",
+  "allOf": [{ "$ref": "envelope.v1.json" }],
+  "properties": {
+    "command": { "const": "graph.impact" },
+    "data": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "required": ["changed_symbols", "callers"],
+          "properties": {
+            "changed_symbols": { "type": "array", "items": { "type": "string" } },
+            "callers": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["id", "hop"],
+                "properties": {
+                  "id": { "type": "string" },
+                  "hop": { "type": "integer" }
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
