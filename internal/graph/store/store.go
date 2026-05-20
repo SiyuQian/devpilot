@@ -204,3 +204,106 @@ func (s *Store) CallersOf(id string) ([]string, error) {
 	}
 	return out, rows.Err()
 }
+
+// EdgesByDst returns all edges of the given kind that end at dst.
+func (s *Store) EdgesByDst(dst, kind string) ([]Edge, error) {
+	rows, err := s.db.Query(`SELECT src, dst, kind FROM edges WHERE dst = ? AND kind = ?`, dst, kind)
+	if err != nil {
+		return nil, fmt.Errorf("EdgesByDst: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	var out []Edge
+	for rows.Next() {
+		var e Edge
+		if err := rows.Scan(&e.Src, &e.Dst, &e.Kind); err != nil {
+			return nil, err
+		}
+		out = append(out, e)
+	}
+	return out, rows.Err()
+}
+
+// EdgesBySrc returns all edges of the given kind that start at src.
+func (s *Store) EdgesBySrc(src, kind string) ([]Edge, error) {
+	rows, err := s.db.Query(`SELECT src, dst, kind FROM edges WHERE src = ? AND kind = ?`, src, kind)
+	if err != nil {
+		return nil, fmt.Errorf("EdgesBySrc: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	var out []Edge
+	for rows.Next() {
+		var e Edge
+		if err := rows.Scan(&e.Src, &e.Dst, &e.Kind); err != nil {
+			return nil, err
+		}
+		out = append(out, e)
+	}
+	return out, rows.Err()
+}
+
+// NodesByPath returns all nodes whose path equals the given path (excluding the file node itself).
+func (s *Store) NodesByPath(path string) ([]Node, error) {
+	rows, err := s.db.Query(
+		`SELECT id, kind, path, name, container, language, start_line, end_line, is_exported, signature_hash
+		 FROM nodes WHERE path = ? AND kind != 'file'`, path)
+	if err != nil {
+		return nil, fmt.Errorf("NodesByPath: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	var out []Node
+	for rows.Next() {
+		var n Node
+		var exp int
+		var container, sigHash sql.NullString
+		if err := rows.Scan(&n.ID, &n.Kind, &n.Path, &n.Name, &container, &n.Language,
+			&n.StartLine, &n.EndLine, &exp, &sigHash); err != nil {
+			return nil, err
+		}
+		n.Container = container.String
+		n.SignatureHash = sigHash.String
+		n.IsExported = exp == 1
+		out = append(out, n)
+	}
+	return out, rows.Err()
+}
+
+// CountEdgesByKind returns the inbound edge count toward dst of the given kind.
+func (s *Store) CountEdgesByKind(dst, kind string) (int, error) {
+	var n int
+	err := s.db.QueryRow(`SELECT COUNT(*) FROM edges WHERE dst = ? AND kind = ?`, dst, kind).Scan(&n)
+	if err != nil {
+		return 0, fmt.Errorf("CountEdgesByKind: %w", err)
+	}
+	return n, nil
+}
+
+// HubsByCalls returns dst IDs with at least minCallers inbound `calls` edges,
+// ordered by caller count descending then id ascending for determinism.
+func (s *Store) HubsByCalls(minCallers int) ([]struct {
+	ID    string
+	Count int
+}, error) {
+	rows, err := s.db.Query(
+		`SELECT dst, COUNT(*) AS c FROM edges WHERE kind='calls'
+		   GROUP BY dst HAVING c >= ?
+		   ORDER BY c DESC, dst ASC`, minCallers)
+	if err != nil {
+		return nil, fmt.Errorf("HubsByCalls: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	var out []struct {
+		ID    string
+		Count int
+	}
+	for rows.Next() {
+		var e struct {
+			ID    string
+			Count int
+		}
+		if err := rows.Scan(&e.ID, &e.Count); err != nil {
+			return nil, err
+		}
+		out = append(out, e)
+	}
+	return out, rows.Err()
+}
