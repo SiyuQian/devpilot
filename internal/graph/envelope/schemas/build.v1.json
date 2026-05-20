@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "build.v1.json",
+  "allOf": [{ "$ref": "envelope.v1.json" }],
+  "properties": {
+    "command": { "const": "graph.build" },
+    "data": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "required": ["repo", "mode", "files_parsed", "nodes", "edges"],
+          "properties": {
+            "repo": { "type": "string" },
+            "mode": { "enum": ["full", "incremental"] },
+            "files_parsed": { "type": "integer" },
+            "nodes": { "type": "integer" },
+            "edges": { "type": "integer" }
+          }
+        }
+      ]
+    }
+  }
+}

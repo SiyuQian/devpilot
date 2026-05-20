@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "context.v1.json",
+  "allOf": [{ "$ref": "envelope.v1.json" }],
+  "$defs": {
+    "snippet": {
+      "type": "object",
+      "required": ["id", "path", "start_line", "end_line", "source"],
+      "properties": {
+        "id": { "type": "string" },
+        "path": { "type": "string" },
+        "start_line": { "type": "integer" },
+        "end_line": { "type": "integer" },
+        "source": { "type": "string" }
+      }
+    }
+  },
+  "properties": {
+    "command": { "const": "graph.context" },
+    "data": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "required": ["context"],
+          "properties": {
+            "context": {
+              "type": "object",
+              "required": ["target", "callers"],
+              "properties": {
+                "target": { "$ref": "#/$defs/snippet" },
+                "callers": { "type": "array", "items": { "$ref": "#/$defs/snippet" } }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

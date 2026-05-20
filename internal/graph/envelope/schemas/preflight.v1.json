@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "preflight.v1.json",
+  "allOf": [{ "$ref": "envelope.v1.json" }],
+  "properties": {
+    "command": { "const": "graph.preflight" },
+    "data": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "required": ["mode", "graph", "changed_symbols", "cross_community_edges", "risk_summary", "truncated_symbols"],
+          "properties": {
+            "mode": { "type": "string" },
+            "graph": {
+              "type": "object",
+              "required": ["freshness", "languages", "skipped_files"],
+              "properties": {
+                "freshness": {
+                  "type": "object",
+                  "required": ["covers_base_sha", "stale_files"],
+                  "properties": {
+                    "covers_base_sha": { "type": "boolean" },
+                    "stale_files": { "type": "integer" }
+                  }
+                },
+                "languages": { "type": ["array", "null"], "items": { "type": "string" } },
+                "skipped_files": { "type": ["array", "null"], "items": { "type": "string" } }
+              }
+            },
+            "changed_symbols": { "type": ["array", "null"] },
+            "cross_community_edges": { "type": ["array", "null"] },
+            "risk_summary": { "type": "object" },
+            "truncated_symbols": { "type": ["array", "null"], "items": { "type": "string" } }
+          }
+        }
+      ]
+    }
+  }
+}

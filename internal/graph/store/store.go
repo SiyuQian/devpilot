@@ -277,6 +277,24 @@ func (s *Store) CountEdgesByKind(dst, kind string) (int, error) {
 	return n, nil
 }
 
+// CountNodes returns the total number of node rows.
+func (s *Store) CountNodes() (int, error) {
+	var n int
+	if err := s.db.QueryRow(`SELECT COUNT(*) FROM nodes`).Scan(&n); err != nil {
+		return 0, fmt.Errorf("CountNodes: %w", err)
+	}
+	return n, nil
+}
+
+// CountEdges returns the total number of edge rows.
+func (s *Store) CountEdges() (int, error) {
+	var n int
+	if err := s.db.QueryRow(`SELECT COUNT(*) FROM edges`).Scan(&n); err != nil {
+		return 0, fmt.Errorf("CountEdges: %w", err)
+	}
+	return n, nil
+}
+
 // HubsByCalls returns dst IDs with at least minCallers inbound `calls` edges,
 // ordered by caller count descending then id ascending for determinism.
 func (s *Store) HubsByCalls(minCallers int) ([]struct {
