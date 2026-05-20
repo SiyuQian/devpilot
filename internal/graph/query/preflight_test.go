@@ -118,3 +118,61 @@ func TestEnrichChangedSymbol(t *testing.T) {
 		t.Errorf("risk factors=%v", got.RiskFactors)
 	}
 }
+
+// TestCrossCommunityEdgesCountsAllCallers ensures crossCommunityEdges iterates
+// all inbound `calls` edges, not the truncated Callers.Sample. With a symbol
+// that has 12 callers from a different community and CallerSample=3, the older
+// implementation would have under-counted; the fix must count all 12.
+func TestCrossCommunityEdgesCountsAllCallers(t *testing.T) {
+	target := store.Node{
+		ID: "internal/payment/p.go::Charge", Kind: "method",
+		Path: "internal/payment/p.go", Name: "Charge", Language: "go", IsExported: true,
+	}
+	nodes := []store.Node{target}
+	edges := []store.Edge{}
+	for i := 0; i < 12; i++ {
+		caller := store.Node{
+			ID:       "api/checkout.go::handler" + itoa(i),
+			Kind:     "function",
+			Path:     "api/checkout.go",
+			Name:     "handler" + itoa(i),
+			Language: "go",
+		}
+		nodes = append(nodes, caller)
+		edges = append(edges, store.Edge{Src: caller.ID, Dst: target.ID, Kind: "calls"})
+	}
+	r := newStore(t, nodes, edges)
+
+	details := []ChangedSymbolDetail{{
+		ID:         target.ID,
+		Kind:       "method",
+		IsExported: true,
+		ChangeType: "modified",
+		Community:  "internal/payment",
+		// Intentionally short sample — fix must NOT rely on this list.
+		Callers: CallerSummary{Count: 12, Sample: []string{"api/checkout.go::handler0"}},
+	}}
+
+	got, err := crossCommunityEdges(r, details)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 1 {
+		t.Fatalf("want 1 cross-community edge, got %d: %+v", len(got), got)
+	}
+	if got[0].CountAdded != 12 {
+		t.Errorf("count_added=%d want 12 (all callers, not just the sample)", got[0].CountAdded)
+	}
+}
+
+func itoa(i int) string {
+	if i == 0 {
+		return "0"
+	}
+	var digits []byte
+	for i > 0 {
+		digits = append([]byte{byte('0' + i%10)}, digits...)
+		i /= 10
+	}
+	return string(digits)
+}

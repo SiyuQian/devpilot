@@ -75,6 +75,45 @@ func TestDetectChanges(t *testing.T) {
 	}
 }
 
+// TestDetectChangesRenameEdgeCase covers the case where git diff reports 'M'
+// but `git show base:path` fails (rename detection corner). The file must be
+// reported as added — not modified — and no per-symbol entries should be emitted.
+func TestDetectChangesRenameEdgeCase(t *testing.T) {
+	nodes := []store.Node{
+		{ID: "renamed.go::F", Kind: "function", Path: "renamed.go", Name: "F", Language: "go"},
+	}
+	r := newStore(t, nodes, nil)
+
+	prevGitRun := gitRun
+	t.Cleanup(func() { gitRun = prevGitRun })
+	gitRun = func(repo string, args ...string) ([]byte, error) {
+		switch {
+		case args[0] == "diff":
+			return []byte("M\trenamed.go\n"), nil
+		case args[0] == "show" && contains(args, "BASE:renamed.go"):
+			return nil, errGitMissing
+		case args[0] == "show" && contains(args, "HEAD:renamed.go"):
+			return []byte("new"), nil
+		}
+		return nil, nil
+	}
+
+	got, err := DetectChanges(r, "/fake/repo", "BASE", "HEAD")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []ChangedSymbol{{ID: "renamed.go", Kind: "file", ChangeType: "added", IsNew: true}}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("got=%+v want=%+v", got, want)
+	}
+}
+
+var errGitMissing = &gitErr{}
+
+type gitErr struct{}
+
+func (e *gitErr) Error() string { return "git: missing" }
+
 func contains(s []string, target string) bool {
 	for _, v := range s {
 		if v == target {

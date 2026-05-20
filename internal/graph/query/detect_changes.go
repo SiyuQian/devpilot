@@ -73,18 +73,31 @@ func modifiedSymbols(r Reader, repoRoot, base, head, path string) ([]ChangedSymb
 	if err != nil {
 		return nil, err
 	}
-	baseBlob, err := gitRun(repoRoot, "show", base+":"+path)
-	if err != nil {
-		// File didn't exist at base — treat as added even though status was M
-		// (can happen with rename detection edge cases).
-		baseBlob = nil
+	baseBlob, baseErr := gitRun(repoRoot, "show", base+":"+path)
+	headBlob, headErr := gitRun(repoRoot, "show", head+":"+path)
+	if baseErr != nil && headErr != nil {
+		return nil, fmt.Errorf("modifiedSymbols %s: base=%w head=%v", path, baseErr, headErr)
 	}
-	headBlob, err := gitRun(repoRoot, "show", head+":"+path)
-	if err != nil {
-		headBlob = nil
+	// Rename detection edge cases: status said 'M' but one side's blob is absent.
+	// Surface the truthful change type rather than mislabelling as 'modified'.
+	changeType := "modified"
+	switch {
+	case baseErr != nil:
+		changeType = "added"
+	case headErr != nil:
+		changeType = "removed"
+	default:
+		if hashBytes(baseBlob) == hashBytes(headBlob) {
+			return nil, nil
+		}
 	}
-	if hashBytes(baseBlob) == hashBytes(headBlob) {
-		return nil, nil
+	if changeType != "modified" {
+		return []ChangedSymbol{{
+			ID:         path,
+			Kind:       "file",
+			ChangeType: changeType,
+			IsNew:      changeType == "added",
+		}}, nil
 	}
 	out := make([]ChangedSymbol, 0, len(nodes))
 	for _, n := range nodes {

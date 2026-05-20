@@ -1,6 +1,7 @@
 package query
 
 import (
+	"fmt"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -271,7 +272,10 @@ func Preflight(r Reader, in PreflightInput) (PreflightResult, error) {
 		details = details[:in.SymbolBudget]
 	}
 
-	cross := crossCommunityEdges(r, details)
+	cross, err := crossCommunityEdges(r, details)
+	if err != nil {
+		return PreflightResult{}, err
+	}
 	summary := buildRiskSummary(details, cross)
 
 	return PreflightResult{
@@ -284,7 +288,7 @@ func Preflight(r Reader, in PreflightInput) (PreflightResult, error) {
 	}, nil
 }
 
-func crossCommunityEdges(r Reader, details []ChangedSymbolDetail) []CrossCommunityEdge {
+func crossCommunityEdges(r Reader, details []ChangedSymbolDetail) ([]CrossCommunityEdge, error) {
 	type key struct{ from, to string }
 	agg := map[key]*CrossCommunityEdge{}
 	for _, d := range details {
@@ -293,8 +297,14 @@ func crossCommunityEdges(r Reader, details []ChangedSymbolDetail) []CrossCommuni
 			continue
 		}
 		toCom := communityFromPath(dstNode.Path)
-		for _, callerID := range d.Callers.Sample {
-			n, err := r.GetNode(callerID)
+		// Iterate ALL inbound calls, not the truncated Callers.Sample, so cross-
+		// community counts don't degrade for high-fanin symbols.
+		callerEdges, err := r.EdgesByDst(d.ID, "calls")
+		if err != nil {
+			return nil, fmt.Errorf("crossCommunityEdges %s: %w", d.ID, err)
+		}
+		for _, edge := range callerEdges {
+			n, err := r.GetNode(edge.Src)
 			if err != nil {
 				continue
 			}
@@ -310,7 +320,7 @@ func crossCommunityEdges(r Reader, details []ChangedSymbolDetail) []CrossCommuni
 			}
 			e.CountAdded++
 			if len(e.Samples) < 5 {
-				e.Samples = append(e.Samples, callerID+" → "+d.ID)
+				e.Samples = append(e.Samples, edge.Src+" → "+d.ID)
 			}
 		}
 	}
@@ -324,7 +334,7 @@ func crossCommunityEdges(r Reader, details []ChangedSymbolDetail) []CrossCommuni
 		}
 		return out[i].To < out[j].To
 	})
-	return out
+	return out, nil
 }
 
 func buildRiskSummary(details []ChangedSymbolDetail, cross []CrossCommunityEdge) RiskSummary {
