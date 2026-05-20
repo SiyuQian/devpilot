@@ -10,7 +10,11 @@ import (
 	"github.com/siyuqian/devpilot/internal/graph/parser"
 	"github.com/siyuqian/devpilot/internal/graph/resolver"
 	"github.com/siyuqian/devpilot/internal/graph/store"
+	"golang.org/x/sync/errgroup"
 )
+
+// defaultMaxWorkers is the parser fanout used when Builder.MaxWorkers is 0.
+const defaultMaxWorkers = 4
 
 // Builder owns the cache directory for a single repo and produces graph.db.
 type Builder struct {
@@ -18,6 +22,10 @@ type Builder struct {
 	repo string
 	key  string
 	reg  *parser.Registry
+	// MaxWorkers caps the number of concurrent parser goroutines used by
+	// FullBuild. Zero means use defaultMaxWorkers. Output is deterministic
+	// regardless of this value.
+	MaxWorkers int
 }
 
 // NewBuilder validates the repo path and constructs a Builder.
@@ -74,18 +82,34 @@ func (b *Builder) FullBuild() (BuildResult, error) {
 	}
 	defer func() { _ = st.Close() }()
 
-	results := make([]parser.ParseResult, 0, len(files))
-	for _, relPath := range files {
-		p := b.reg.ForPath(relPath)
-		src, err := os.ReadFile(filepath.Join(b.repo, relPath))
-		if err != nil {
-			return BuildResult{}, fmt.Errorf("read %s: %w", relPath, err)
-		}
-		res, err := p.Parse(relPath, src)
-		if err != nil {
-			return BuildResult{}, fmt.Errorf("parse %s: %w", relPath, err)
-		}
-		results = append(results, res)
+	workers := b.MaxWorkers
+	if workers <= 0 {
+		workers = defaultMaxWorkers
+	}
+
+	// Indexed slice preserves files-order so output is deterministic
+	// regardless of worker scheduling. Do NOT switch to a channel/map.
+	results := make([]parser.ParseResult, len(files))
+	g := new(errgroup.Group)
+	g.SetLimit(workers)
+	for i, relPath := range files {
+		i, relPath := i, relPath
+		g.Go(func() error {
+			p := b.reg.ForPath(relPath)
+			src, err := os.ReadFile(filepath.Join(b.repo, relPath))
+			if err != nil {
+				return fmt.Errorf("read %s: %w", relPath, err)
+			}
+			res, err := p.Parse(relPath, src)
+			if err != nil {
+				return fmt.Errorf("parse %s: %w", relPath, err)
+			}
+			results[i] = res
+			return nil
+		})
+	}
+	if err := g.Wait(); err != nil {
+		return BuildResult{}, err
 	}
 
 	results = resolver.Resolve(results)
