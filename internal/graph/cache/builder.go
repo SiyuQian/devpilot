@@ -161,6 +161,7 @@ func (b *Builder) FullBuild() (BuildResult, error) {
 // Missing graph.db -> full. Schema-version mismatch -> wipe cache dir, full.
 // Otherwise -> incremental (currently stubbed to full; see Task 2.21).
 func (b *Builder) Build() (BuildResult, error) {
+	_ = SweepPreflight(b.home, 7*24*time.Hour)
 	if _, err := os.Stat(GraphDB(b.home, b.key)); os.IsNotExist(err) {
 		return b.FullBuild()
 	}

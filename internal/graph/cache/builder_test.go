@@ -7,9 +7,40 @@ import (
 	"sort"
 	"strings"
 	"testing"
+	"time"
 
 	_ "modernc.org/sqlite"
 )
+
+func TestBuildSweepsStalePreflight(t *testing.T) {
+	home := t.TempDir()
+	preDir := filepath.Join(home, "preflight")
+	if err := os.MkdirAll(preDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	stale := filepath.Join(preDir, "stale.json")
+	if err := os.WriteFile(stale, []byte("{}"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	old := time.Now().Add(-30 * 24 * time.Hour)
+	if err := os.Chtimes(stale, old, old); err != nil {
+		t.Fatal(err)
+	}
+
+	repo := t.TempDir()
+	mustWrite(t, filepath.Join(repo, "main.go"), "package main\nfunc main() {}\n")
+
+	b, err := NewBuilder(home, repo)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := b.Build(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(stale); !os.IsNotExist(err) {
+		t.Errorf("stale preflight not swept: err=%v", err)
+	}
+}
 
 func TestBuilderFullBuildOnTempRepo(t *testing.T) {
 	repo := t.TempDir()
