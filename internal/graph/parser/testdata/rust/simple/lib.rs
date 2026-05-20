@@ -13,3 +13,13 @@ pub struct Greeter {
 pub enum Mood { Happy, Sad }
 
 pub type Greeting = String;
+
+pub trait Hello {
+    fn hello(&self) -> String;
+}
+
+impl Hello for Greeter {
+    fn hello(&self) -> String {
+        greet(&self.name)
+    }
+}
