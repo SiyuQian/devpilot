@@ -5,7 +5,12 @@ package parser
 import "github.com/siyuqian/devpilot/internal/graph/store"
 
 // Parser parses source files of a single language into ParseResult.
-// Implementations are stateless and safe for concurrent use.
+//
+// Implementations must not hold mutable state across Parse calls so the
+// same Parser value can be invoked from multiple goroutines. In particular,
+// implementations that wrap a stateful native parser (e.g. tree-sitter)
+// should allocate a fresh instance per Parse rather than caching a shared
+// one, or guard the shared instance with explicit synchronization.
 type Parser interface {
 	Language() string
 	Extensions() []string
