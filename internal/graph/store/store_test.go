@@ -188,3 +188,106 @@ func TestStoreCallersOf(t *testing.T) {
 		})
 	}
 }
+
+func TestEdgesByDstAndBySrc(t *testing.T) {
+	s := newTestStore(t)
+	mustInsertNodes(t, s, []Node{
+		{ID: "a", Kind: "function", Path: "a.go", Name: "A", Language: "go"},
+		{ID: "b", Kind: "function", Path: "b.go", Name: "B", Language: "go"},
+		{ID: "c", Kind: "function", Path: "c.go", Name: "C", Language: "go"},
+	})
+	mustInsertEdges(t, s, []Edge{
+		{Src: "a", Dst: "c", Kind: "calls"},
+		{Src: "b", Dst: "c", Kind: "calls"},
+		{Src: "a", Dst: "b", Kind: "calls"},
+		{Src: "a", Dst: "c", Kind: "tests"},
+	})
+
+	t.Run("by_dst_calls", func(t *testing.T) {
+		got, err := s.EdgesByDst("c", "calls")
+		if err != nil {
+			t.Fatal(err)
+		}
+		want := []Edge{{Src: "a", Dst: "c", Kind: "calls"}, {Src: "b", Dst: "c", Kind: "calls"}}
+		if !sameEdges(got, want) {
+			t.Errorf("got=%v want=%v", got, want)
+		}
+	})
+
+	t.Run("by_src_calls", func(t *testing.T) {
+		got, err := s.EdgesBySrc("a", "calls")
+		if err != nil {
+			t.Fatal(err)
+		}
+		want := []Edge{{Src: "a", Dst: "b", Kind: "calls"}, {Src: "a", Dst: "c", Kind: "calls"}}
+		if !sameEdges(got, want) {
+			t.Errorf("got=%v want=%v", got, want)
+		}
+	})
+}
+
+func sameEdges(a, b []Edge) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	m := map[Edge]int{}
+	for _, e := range a {
+		m[e]++
+	}
+	for _, e := range b {
+		m[e]--
+	}
+	for _, v := range m {
+		if v != 0 {
+			return false
+		}
+	}
+	return true
+}
+
+func mustInsertNodes(t *testing.T, s *Store, n []Node) {
+	t.Helper()
+	if err := s.InsertNodes(n); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func mustInsertEdges(t *testing.T, s *Store, e []Edge) {
+	t.Helper()
+	if err := s.InsertEdges(e); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestNodesByPathAndCountEdges(t *testing.T) {
+	s := newTestStore(t)
+	mustInsertNodes(t, s, []Node{
+		{ID: "a.go::A", Kind: "function", Path: "a.go", Name: "A", Language: "go"},
+		{ID: "a.go::B", Kind: "function", Path: "a.go", Name: "B", Language: "go"},
+		{ID: "b.go::C", Kind: "function", Path: "b.go", Name: "C", Language: "go"},
+	})
+	mustInsertEdges(t, s, []Edge{
+		{Src: "a.go::A", Dst: "b.go::C", Kind: "calls"},
+		{Src: "a.go::B", Dst: "b.go::C", Kind: "calls"},
+	})
+
+	t.Run("nodes_by_path", func(t *testing.T) {
+		got, err := s.NodesByPath("a.go")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(got) != 2 {
+			t.Fatalf("want 2 nodes, got %d: %+v", len(got), got)
+		}
+	})
+
+	t.Run("count_edges", func(t *testing.T) {
+		n, err := s.CountEdgesByKind("b.go::C", "calls")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if n != 2 {
+			t.Errorf("want 2, got %d", n)
+		}
+	})
+}
