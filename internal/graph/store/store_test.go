@@ -188,3 +188,73 @@ func TestStoreCallersOf(t *testing.T) {
 		})
 	}
 }
+
+func TestEdgesByDstAndBySrc(t *testing.T) {
+	s := newTestStore(t)
+	mustInsertNodes(t, s, []Node{
+		{ID: "a", Kind: "function", Path: "a.go", Name: "A", Language: "go"},
+		{ID: "b", Kind: "function", Path: "b.go", Name: "B", Language: "go"},
+		{ID: "c", Kind: "function", Path: "c.go", Name: "C", Language: "go"},
+	})
+	mustInsertEdges(t, s, []Edge{
+		{Src: "a", Dst: "c", Kind: "calls"},
+		{Src: "b", Dst: "c", Kind: "calls"},
+		{Src: "a", Dst: "b", Kind: "calls"},
+		{Src: "a", Dst: "c", Kind: "tests"},
+	})
+
+	t.Run("by_dst_calls", func(t *testing.T) {
+		got, err := s.EdgesByDst("c", "calls")
+		if err != nil {
+			t.Fatal(err)
+		}
+		want := []Edge{{Src: "a", Dst: "c", Kind: "calls"}, {Src: "b", Dst: "c", Kind: "calls"}}
+		if !sameEdges(got, want) {
+			t.Errorf("got=%v want=%v", got, want)
+		}
+	})
+
+	t.Run("by_src_calls", func(t *testing.T) {
+		got, err := s.EdgesBySrc("a", "calls")
+		if err != nil {
+			t.Fatal(err)
+		}
+		want := []Edge{{Src: "a", Dst: "b", Kind: "calls"}, {Src: "a", Dst: "c", Kind: "calls"}}
+		if !sameEdges(got, want) {
+			t.Errorf("got=%v want=%v", got, want)
+		}
+	})
+}
+
+func sameEdges(a, b []Edge) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	m := map[Edge]int{}
+	for _, e := range a {
+		m[e]++
+	}
+	for _, e := range b {
+		m[e]--
+	}
+	for _, v := range m {
+		if v != 0 {
+			return false
+		}
+	}
+	return true
+}
+
+func mustInsertNodes(t *testing.T, s *Store, n []Node) {
+	t.Helper()
+	if err := s.InsertNodes(n); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func mustInsertEdges(t *testing.T, s *Store, e []Edge) {
+	t.Helper()
+	if err := s.InsertEdges(e); err != nil {
+		t.Fatal(err)
+	}
+}

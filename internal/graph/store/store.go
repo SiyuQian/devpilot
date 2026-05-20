@@ -204,3 +204,39 @@ func (s *Store) CallersOf(id string) ([]string, error) {
 	}
 	return out, rows.Err()
 }
+
+// EdgesByDst returns all edges of the given kind that end at dst.
+func (s *Store) EdgesByDst(dst, kind string) ([]Edge, error) {
+	rows, err := s.db.Query(`SELECT src, dst, kind FROM edges WHERE dst = ? AND kind = ?`, dst, kind)
+	if err != nil {
+		return nil, fmt.Errorf("EdgesByDst: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	var out []Edge
+	for rows.Next() {
+		var e Edge
+		if err := rows.Scan(&e.Src, &e.Dst, &e.Kind); err != nil {
+			return nil, err
+		}
+		out = append(out, e)
+	}
+	return out, rows.Err()
+}
+
+// EdgesBySrc returns all edges of the given kind that start at src.
+func (s *Store) EdgesBySrc(src, kind string) ([]Edge, error) {
+	rows, err := s.db.Query(`SELECT src, dst, kind FROM edges WHERE src = ? AND kind = ?`, src, kind)
+	if err != nil {
+		return nil, fmt.Errorf("EdgesBySrc: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	var out []Edge
+	for rows.Next() {
+		var e Edge
+		if err := rows.Scan(&e.Src, &e.Dst, &e.Kind); err != nil {
+			return nil, err
+		}
+		out = append(out, e)
+	}
+	return out, rows.Err()
+}
