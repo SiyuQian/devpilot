@@ -3,6 +3,7 @@ package parser
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	sitter "github.com/smacker/go-tree-sitter"
 	tsLang "github.com/smacker/go-tree-sitter/typescript/typescript"
@@ -83,7 +84,68 @@ func (p *TypeScriptParser) Parse(path string, src []byte) (ParseResult, error) {
 			emitTypeAliasNode(&res, decl, src, path, exported)
 		}
 	}
+	if isTestFile(path) {
+		res.Edges = append(res.Edges, extractTSTestEdges(root, src, path)...)
+	}
 	return res, nil
+}
+
+func isTestFile(path string) bool {
+	for _, suf := range []string{".test.ts", ".spec.ts", ".test.tsx", ".spec.tsx", ".test.js", ".spec.js"} {
+		if strings.HasSuffix(path, suf) {
+			return true
+		}
+	}
+	return false
+}
+
+func extractTSTestEdges(root *sitter.Node, src []byte, path string) []store.Edge {
+	var out []store.Edge
+	var visit func(n *sitter.Node)
+	visit = func(n *sitter.Node) {
+		if n == nil {
+			return
+		}
+		if n.Type() == "call_expression" {
+			fn := n.ChildByFieldName("function")
+			if fn != nil && fn.Type() == "identifier" {
+				if name := fn.Content(src); name == "describe" || name == "it" || name == "test" {
+					args := n.ChildByFieldName("arguments")
+					if args != nil {
+						for i := 0; i < int(args.NamedChildCount()); i++ {
+							out = append(out, extractCallTargets(args.NamedChild(i), src, path)...)
+						}
+					}
+				}
+			}
+		}
+		for i := 0; i < int(n.NamedChildCount()); i++ {
+			visit(n.NamedChild(i))
+		}
+	}
+	visit(root)
+	return out
+}
+
+func extractCallTargets(n *sitter.Node, src []byte, path string) []store.Edge {
+	var out []store.Edge
+	var visit func(n *sitter.Node)
+	visit = func(n *sitter.Node) {
+		if n == nil {
+			return
+		}
+		if n.Type() == "call_expression" {
+			fn := n.ChildByFieldName("function")
+			if fn != nil && fn.Type() == "identifier" {
+				out = append(out, store.Edge{Src: path, Dst: "external::" + fn.Content(src), Kind: "tests"})
+			}
+		}
+		for i := 0; i < int(n.NamedChildCount()); i++ {
+			visit(n.NamedChild(i))
+		}
+	}
+	visit(n)
+	return out
 }
 
 func emitClassNode(res *ParseResult, decl *sitter.Node, src []byte, path string, exported bool, intra map[string]string) {
