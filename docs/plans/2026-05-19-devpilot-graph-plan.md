@@ -753,27 +753,27 @@ Apply the same TDD pattern. Add fixture additions (`type X struct`, `type Y inte
 - Create: `internal/graph/cache/ttl.go`
 - Create: `internal/graph/cache/builder.go` (orchestrates full + incremental build)
 
-**Tasks (half-day granularity):**
+**Tasks (half-day granularity): COMPLETE — see `docs/plans/2026-05-20-devpilot-graph-phase2-plan.md` for the bite-sized expansion (24 tasks) and `git log graph-phase-1..graph-phase-2 -- internal/graph/` for the commits.**
 
-- [ ] **2.1** TS parser: file/function/method/class/interface/type nodes + calls + imports (mirror Go parser tasks; use `tree-sitter-typescript`).
-- [ ] **2.2** TS path-alias resolver: parse `tsconfig.json` (incl. `extends` and `references`); rewrite import edges using `paths` map. Fixture: a workspace with two `tsconfig.json` files.
-- [ ] **2.3** TS `tests` edges: detect Jest/Mocha/Vitest patterns (`describe(...)`, `it(...)`, `test(...)`). Heuristic but documented in code comments.
-- [ ] **2.4** TS `implements` / `extends`: parse `class X implements Y` and `class X extends Y` — explicit syntax, no inference needed.
-- [ ] **2.5** JS parser: subset of TS parser, no types, same edge kinds where applicable.
-- [ ] **2.6** Rust parser: file/function/struct/trait/enum/type + calls + imports (`use` statements) + `impl Trait for Struct` → `implements`. Use `tree-sitter-rust`.
-- [ ] **2.7** Cache layout: `cache.RepoKey(absPath) string` (sha1 hex, 12 chars); `cache.GraphDB(repoKey)` returns path; `cache.PreflightTemp(repoKey)` returns timestamped path.
-- [ ] **2.8** Flock helper: wrap `golang.org/x/sys/unix.Flock` (or `github.com/gofrs/flock`); 60s wait timeout returns wrapped error.
-- [ ] **2.9** TTL sweeper: scan `~/.devpilot/preflight/`, delete files older than 7 days. Runs lazily at start of every `preflight` invocation.
-- [ ] **2.10** Builder orchestrator: walks repo, picks parser per extension, runs in parallel (errgroup), pipes results through resolver, batch-inserts into store. Records `meta.json` with HEAD SHA + parser versions.
-- [ ] **2.11** Incremental update: given `last_sha` and current HEAD, `git diff --name-status` → delete affected nodes/edges, re-parse changed files, re-run resolver on the subset, re-insert. If `last_sha` not ancestor of HEAD → full rebuild.
-- [ ] **2.12** Cache schema-version mismatch handling: read `meta.json`, if `schema_version != currentSchemaVersion`, delete cache directory and full rebuild.
+- [x] **2.1** TS parser
+- [x] **2.2** TS path-alias resolver
+- [x] **2.3** TS `tests` edges
+- [x] **2.4** TS `implements` / `extends`
+- [x] **2.5** JS parser
+- [x] **2.6** Rust parser
+- [x] **2.7** Cache layout
+- [x] **2.8** Flock helper
+- [x] **2.9** TTL sweeper
+- [x] **2.10** Builder orchestrator
+- [x] **2.11** Incremental update
+- [x] **2.12** Cache schema-version mismatch handling
 
-**Phase 2 acceptance:**
-- [ ] Parsers for all four languages green on their fixture suites.
-- [ ] `cache.RepoKey` deterministic and 12 chars.
-- [ ] Builder produces identical graph (snapshot match) on two consecutive full builds.
-- [ ] Incremental update on a 5-file change matches what a full rebuild would produce (snapshot equality on resulting graph.db dump).
-- [ ] Flock serializes two concurrent builders against the same repo-key.
+**Phase 2 acceptance: PASS** (see `internal/graph/cache/phase2_acceptance_test.go`):
+- [x] Parsers for all four languages green on their fixture suites.
+- [x] `cache.RepoKey` deterministic and 12 chars.
+- [x] Builder produces identical graph (snapshot match) on two consecutive full builds.
+- [x] Incremental update on a 5-file change matches what a full rebuild would produce (snapshot equality on resulting graph.db dump).
+- [x] Flock serializes two concurrent builders against the same repo-key.
 
 ---
 
