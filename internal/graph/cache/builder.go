@@ -157,6 +157,36 @@ func (b *Builder) FullBuild() (BuildResult, error) {
 	}, nil
 }
 
+// Build dispatches to FullBuild or BuildIncremental based on cache state.
+// Missing graph.db -> full. Schema-version mismatch -> wipe cache dir, full.
+// Otherwise -> incremental (currently stubbed to full; see Task 2.21).
+func (b *Builder) Build() (BuildResult, error) {
+	if _, err := os.Stat(GraphDB(b.home, b.key)); os.IsNotExist(err) {
+		return b.FullBuild()
+	}
+	m, err := ReadMeta(MetaFile(b.home, b.key))
+	if err != nil {
+		return BuildResult{}, err
+	}
+	if m.SchemaVersion != CurrentSchemaVersion {
+		if err := os.RemoveAll(GraphDir(b.home, b.key)); err != nil {
+			return BuildResult{}, fmt.Errorf("wipe cache dir: %w", err)
+		}
+		if err := EnsureDirs(b.home, b.key); err != nil {
+			return BuildResult{}, err
+		}
+		return b.FullBuild()
+	}
+	return b.BuildIncremental(m)
+}
+
+// BuildIncremental is a stub that delegates to FullBuild. Task 2.21 replaces
+// this with a real incremental rebuild driven by prev.HeadSHA / file mtimes.
+func (b *Builder) BuildIncremental(prev Meta) (BuildResult, error) {
+	_ = prev
+	return b.FullBuild()
+}
+
 func parserVersionTag(reg *parser.Registry) string {
 	return "phase2:" + strings.Join(reg.Languages(), ",")
 }
