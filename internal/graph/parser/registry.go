@@ -2,6 +2,7 @@ package parser
 
 import (
 	"path/filepath"
+	"sort"
 	"strings"
 )
 
@@ -52,5 +53,6 @@ func (r *Registry) Languages() []string {
 		seen[lang] = struct{}{}
 		out = append(out, lang)
 	}
+	sort.Strings(out)
 	return out
 }
