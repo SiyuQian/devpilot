@@ -50,8 +50,60 @@ func (p *TypeScriptParser) Parse(path string, src []byte) (ParseResult, error) {
 		if decl.Type() == "function_declaration" {
 			emitFunctionNode(&res, decl, src, path, exported)
 		}
+		if decl.Type() == "class_declaration" {
+			emitClassNode(&res, decl, src, path, exported)
+		}
 	}
 	return res, nil
+}
+
+func emitClassNode(res *ParseResult, decl *sitter.Node, src []byte, path string, exported bool) {
+	nameNode := decl.ChildByFieldName("name")
+	if nameNode == nil {
+		return
+	}
+	className := nameNode.Content(src)
+	classID := path + "::" + className
+	res.Nodes = append(res.Nodes, store.Node{
+		ID: classID, Kind: "class", Path: path, Name: className, Language: "typescript",
+		StartLine:  int(decl.StartPoint().Row) + 1,
+		EndLine:    int(decl.EndPoint().Row) + 1,
+		IsExported: exported,
+	})
+	res.Edges = append(res.Edges, store.Edge{Src: path, Dst: classID, Kind: "contains"})
+
+	body := decl.ChildByFieldName("body")
+	if body == nil {
+		return
+	}
+	for i := 0; i < int(body.NamedChildCount()); i++ {
+		member := body.NamedChild(i)
+		if member.Type() != "method_definition" {
+			continue
+		}
+		methodName := member.ChildByFieldName("name")
+		if methodName == nil {
+			continue
+		}
+		mName := methodName.Content(src)
+		mID := path + "::" + className + "." + mName
+		isPrivate := false
+		for j := 0; j < int(member.ChildCount()); j++ {
+			c := member.Child(j)
+			if c.Type() == "accessibility_modifier" && c.Content(src) == "private" {
+				isPrivate = true
+				break
+			}
+		}
+		res.Nodes = append(res.Nodes, store.Node{
+			ID: mID, Kind: "method", Path: path, Name: mName, Container: className,
+			Language:   "typescript",
+			StartLine:  int(member.StartPoint().Row) + 1,
+			EndLine:    int(member.EndPoint().Row) + 1,
+			IsExported: !isPrivate,
+		})
+		res.Edges = append(res.Edges, store.Edge{Src: classID, Kind: "contains", Dst: mID})
+	}
 }
 
 func emitFunctionNode(res *ParseResult, decl *sitter.Node, src []byte, path string, exported bool) {
