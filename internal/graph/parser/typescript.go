@@ -37,6 +37,21 @@ func (p *TypeScriptParser) Parse(path string, src []byte) (ParseResult, error) {
 	})
 
 	root := tree.RootNode()
+	intra := map[string]string{}
+	for i := 0; i < int(root.NamedChildCount()); i++ {
+		child := root.NamedChild(i)
+		decl := child
+		if child.Type() == "export_statement" && child.NamedChildCount() > 0 {
+			decl = child.NamedChild(0)
+		}
+		switch decl.Type() {
+		case "function_declaration":
+			if n := decl.ChildByFieldName("name"); n != nil {
+				intra[n.Content(src)] = path + "::" + n.Content(src)
+			}
+		}
+	}
+
 	for i := 0; i < int(root.NamedChildCount()); i++ {
 		child := root.NamedChild(i)
 		exported := false
@@ -49,9 +64,9 @@ func (p *TypeScriptParser) Parse(path string, src []byte) (ParseResult, error) {
 		}
 		switch decl.Type() {
 		case "function_declaration":
-			emitFunctionNode(&res, decl, src, path, exported)
+			emitFunctionNode(&res, decl, src, path, exported, intra)
 		case "class_declaration":
-			emitClassNode(&res, decl, src, path, exported)
+			emitClassNode(&res, decl, src, path, exported, intra)
 		case "interface_declaration":
 			emitInterfaceNode(&res, decl, src, path, exported)
 		case "type_alias_declaration":
@@ -61,7 +76,7 @@ func (p *TypeScriptParser) Parse(path string, src []byte) (ParseResult, error) {
 	return res, nil
 }
 
-func emitClassNode(res *ParseResult, decl *sitter.Node, src []byte, path string, exported bool) {
+func emitClassNode(res *ParseResult, decl *sitter.Node, src []byte, path string, exported bool, intra map[string]string) {
 	nameNode := decl.ChildByFieldName("name")
 	if nameNode == nil {
 		return
@@ -107,10 +122,13 @@ func emitClassNode(res *ParseResult, decl *sitter.Node, src []byte, path string,
 			IsExported: !isPrivate,
 		})
 		res.Edges = append(res.Edges, store.Edge{Src: classID, Dst: mID, Kind: "contains"})
+		if body := member.ChildByFieldName("body"); body != nil {
+			res.Edges = append(res.Edges, walkTSCalls(body, src, mID, intra)...)
+		}
 	}
 }
 
-func emitFunctionNode(res *ParseResult, decl *sitter.Node, src []byte, path string, exported bool) {
+func emitFunctionNode(res *ParseResult, decl *sitter.Node, src []byte, path string, exported bool, intra map[string]string) {
 	nameNode := decl.ChildByFieldName("name")
 	if nameNode == nil {
 		return
@@ -124,6 +142,44 @@ func emitFunctionNode(res *ParseResult, decl *sitter.Node, src []byte, path stri
 		IsExported: exported,
 	})
 	res.Edges = append(res.Edges, store.Edge{Src: path, Dst: id, Kind: "contains"})
+	if body := decl.ChildByFieldName("body"); body != nil {
+		res.Edges = append(res.Edges, walkTSCalls(body, src, id, intra)...)
+	}
+}
+
+func walkTSCalls(body *sitter.Node, src []byte, srcID string, intra map[string]string) []store.Edge {
+	var out []store.Edge
+	var visit func(n *sitter.Node)
+	visit = func(n *sitter.Node) {
+		if n == nil {
+			return
+		}
+		if n.Type() == "call_expression" {
+			fn := n.ChildByFieldName("function")
+			if fn != nil {
+				switch fn.Type() {
+				case "identifier":
+					name := fn.Content(src)
+					if dst, ok := intra[name]; ok {
+						out = append(out, store.Edge{Src: srcID, Dst: dst, Kind: "calls"})
+					} else {
+						out = append(out, store.Edge{Src: srcID, Dst: "external::" + name, Kind: "calls"})
+					}
+				case "member_expression":
+					obj := fn.ChildByFieldName("object")
+					prop := fn.ChildByFieldName("property")
+					if obj != nil && prop != nil {
+						out = append(out, store.Edge{Src: srcID, Dst: "external::" + obj.Content(src) + "." + prop.Content(src), Kind: "calls"})
+					}
+				}
+			}
+		}
+		for i := 0; i < int(n.NamedChildCount()); i++ {
+			visit(n.NamedChild(i))
+		}
+	}
+	visit(body)
+	return out
 }
 
 func emitInterfaceNode(res *ParseResult, decl *sitter.Node, src []byte, path string, exported bool) {
