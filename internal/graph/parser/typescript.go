@@ -47,13 +47,11 @@ func (p *TypeScriptParser) Parse(path string, src []byte) (ParseResult, error) {
 				decl = child.NamedChild(0)
 			}
 		}
-		if decl.Type() == "function_declaration" {
-			emitFunctionNode(&res, decl, src, path, exported)
-		}
-		if decl.Type() == "class_declaration" {
-			emitClassNode(&res, decl, src, path, exported)
-		}
 		switch decl.Type() {
+		case "function_declaration":
+			emitFunctionNode(&res, decl, src, path, exported)
+		case "class_declaration":
+			emitClassNode(&res, decl, src, path, exported)
 		case "interface_declaration":
 			emitInterfaceNode(&res, decl, src, path, exported)
 		case "type_alias_declaration":
@@ -159,9 +157,6 @@ func emitInterfaceNode(res *ParseResult, decl *sitter.Node, src []byte, path str
 		}
 	}
 	if len(methods) > 0 {
-		if res.InterfaceMethods == nil {
-			res.InterfaceMethods = map[string][]string{}
-		}
 		res.InterfaceMethods[id] = methods
 	}
 }
