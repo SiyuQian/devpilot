@@ -51,19 +51,30 @@ The inline comment template (`template.md`) shows `Confidence: high | medium | l
 
 The numeric score is internal to the fanout pipeline. The label is what the PR author sees.
 
+## Graph reconciliation (before filtering)
+
+When `references/graph.md` produced a preflight payload (mode=`built`), each finding is reconciled against it before the threshold filter runs:
+
+- **Corroborated** — the finding cites a symbol whose `changed_symbols[].callers` / `risk_factors` match the defect (e.g. "this exported function's caller in package X doesn't update for the new contract" and the named caller is in `callers.sample`). Confidence floor raised to 85, cap stays at 95 unless the diff itself shows literal-string evidence.
+- **Contradicted** — the finding asserts a caller relationship or hub status the graph denies (named caller absent from `callers.sample`; "this is a hub" with `in_hub:false`; "no tests" with `tests.has_tests:true`). Confidence capped at 50.
+- **Unsupported** — finding sits outside graph coverage (no symbol match, or `mode != "built"`). Original score stands; do not boost or penalize.
+
+A finding both corroborated on one dimension and contradicted on another takes the more conservative outcome (cap at 50).
+
 ## Merge procedure (after the fanout returns)
 
 1. **Collect** all findings from agents A–E into one list.
-2. **Filter:**
+2. **Reconcile** against `GRAPH_PREFLIGHT` per the section above (skip if graph fell back).
+3. **Filter:**
    - Drop `confidence < 70` (or the user-overridden threshold).
    - Drop anything matching the false-positive list in `eligibility.md`.
-3. **Dedupe:**
+4. **Dedupe:**
    - Same `(path, line)` and same defect class from multiple agents → one finding. Keep the highest confidence; merge the fixes if they differ.
    - **Same defect across multiple lines or files** (e.g. four files all log the same secret) → **one consolidated inline comment** anchored to the worst/most-representative occurrence. List the other `path:line` locations inside the comment body as a short bullet list (`Same defect also at: a.go:42, b.go:91, c.go:30`). Also note the recurrence count in the body sweep summary under "Blast radius". Do NOT post one near-identical comment per file — that is the noise inline-first is meant to avoid.
-4. **Anchor:**
+5. **Anchor:**
    - Every surviving finding needs `(path, line, side)`. Cross-cutting findings (e.g. "this PR has no tests") anchor to the most representative line — the new function's signature, the first new line of the changed file. The comment body MUST say so.
-5. **Count** by severity. The counts go in the body.
-6. **Derive the review event** (`REQUEST_CHANGES` / `COMMENT` / `APPROVE`) from the highest-severity surviving finding. See `posting.md` → "Event mapping".
+6. **Count** by severity. The counts go in the body.
+7. **Derive the review event** (`REQUEST_CHANGES` / `COMMENT` / `APPROVE`) from the highest-severity surviving finding. See `posting.md` → "Event mapping".
 
 ## What to do when the fanout returns nothing
 
