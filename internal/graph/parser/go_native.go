@@ -33,6 +33,11 @@ func (p *GoNativeParser) Extensions() []string {
 
 // Parse is intentionally a no-op; the native backend produces results via
 // LoadModule on the whole module, not per-file Parse.
+//
+// Unlike the tree-sitter GoParser (single-pass per-file with post-resolver
+// name-heuristic rewriting), this backend's LoadModule consumes go/types
+// info to emit fully-resolved cross-package edges in a single whole-module
+// pass — no `external::*` placeholders, no resolver dependency.
 func (p *GoNativeParser) Parse(path string, src []byte) (ParseResult, error) {
 	return ParseResult{}, nil
 }
@@ -138,9 +143,18 @@ func isGoTestFuncNative(fd *ast.FuncDecl, fname string, pkg *packages.Package) b
 }
 
 // LoadModule type-checks the whole Go module rooted at repoRoot and returns a
-// map keyed by repo-relative file path. Each ParseResult contains the file node
-// plus all top-level function and method nodes declared in that file, with
-// `contains` edges from file -> declaration.
+// map keyed by repo-relative file path. Each ParseResult contains:
+//
+//   - The file node (Kind: "file").
+//   - Top-level declaration nodes for that file: functions, methods, structs,
+//     interfaces, and type aliases.
+//   - Edges originating from the file or its declarations:
+//   - `contains` (file -> declaration)
+//   - `imports` (file -> in-module package's primary file)
+//   - `calls`   (caller declaration -> callee declaration; cross-package
+//     edges resolve via go/types — no `external::*` placeholders)
+//   - `tests`   (TestXxx function -> declarations it calls)
+//   - `implements` (concrete type -> interface, via types.Implements)
 //
 // Partial-package errors (per-package go/packages errors) are surfaced via
 // ParseResult.Errors under a synthetic "" key. The function only returns a
