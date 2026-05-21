@@ -17,3 +17,26 @@ func TestParseResultZero(t *testing.T) {
 		})
 	}
 }
+
+type contractTestLoader struct{}
+
+func (ct *contractTestLoader) LoadModule(repoRoot string) (map[string]ParseResult, error) {
+	return nil, nil
+}
+
+func TestPackageLoaderInterfaceContract(t *testing.T) {
+	// This test verifies that a struct implementing LoadModule(string) (map[string]ParseResult, error)
+	// is assignable to the PackageLoader interface.
+	tests := []struct {
+		name string
+	}{
+		{"contract_check"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// Verify contractTestLoader is assignable to PackageLoader.
+			var loader PackageLoader = &contractTestLoader{}
+			_ = loader // Suppress unused variable warning.
+		})
+	}
+}
