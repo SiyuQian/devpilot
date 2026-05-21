@@ -151,7 +151,7 @@ func TestLoadModuleProducesNodes(t *testing.T) {
 		}
 		for _, e := range r.Edges {
 			switch e.Kind {
-			case "contains", "calls", "implements", "tests":
+			case "contains", "calls", "implements", "tests", "imports":
 				// allowed in this task
 			default:
 				t.Errorf("result %q has unexpected edge kind %q", key, e.Kind)
@@ -316,6 +316,72 @@ func TestLoadModuleTestsEdges(t *testing.T) {
 		if e.Kind == "tests" && !strings.Contains(e.Src, "_test.go::") {
 			t.Errorf("tests edge originates from non-_test.go file: %+v", e)
 		}
+	}
+}
+
+func TestLoadModuleImportsEdges(t *testing.T) {
+	abs, err := filepath.Abs("testdata/go_native")
+	if err != nil {
+		t.Fatalf("abs testdata: %v", err)
+	}
+	results, err := NewGoNativeParser().LoadModule(abs)
+	if err != nil {
+		t.Fatalf("LoadModule: %v", err)
+	}
+
+	// Collect all edges across all results.
+	var allEdges []store.Edge
+	for _, r := range results {
+		allEdges = append(allEdges, r.Edges...)
+	}
+
+	hasEdge := func(src, dst, kind string) bool {
+		for _, e := range allEdges {
+			if e.Src == src && e.Dst == dst && e.Kind == kind {
+				return true
+			}
+		}
+		return false
+	}
+
+	// Main assertion: pkg/b/b.go imports pkg/a, should have edge to primary file (a.go).
+	if !hasEdge("pkg/b/b.go", "pkg/a/a.go", "imports") {
+		t.Errorf("missing imports edge pkg/b/b.go -> pkg/a/a.go; edges=%v", allEdges)
+	}
+
+	// Verify no imports edge to stdlib (fmt, testing) or third-party packages.
+	for _, e := range allEdges {
+		if e.Kind == "imports" {
+			// Both Src and Dst must be under our module.
+			if strings.Contains(e.Src, "fmt") || strings.Contains(e.Src, "testing") {
+				t.Errorf("imports edge from stdlib: %+v", e)
+			}
+			if strings.Contains(e.Dst, "fmt") || strings.Contains(e.Dst, "testing") {
+				t.Errorf("imports edge to stdlib: %+v", e)
+			}
+			// No external:: placeholders.
+			if strings.HasPrefix(e.Src, "external::") || strings.HasPrefix(e.Dst, "external::") {
+				t.Errorf("imports edge has external:: endpoint: %+v", e)
+			}
+		}
+	}
+
+	// Verify primary file selection: only a.go (not a_test.go) is used as target.
+	// Count how many import edges point to a.go vs a_test.go.
+	importsToAGo := 0
+	importsToATestGo := 0
+	for _, e := range allEdges {
+		if e.Kind == "imports" && strings.Contains(e.Dst, "pkg/a/") {
+			switch e.Dst {
+			case "pkg/a/a.go":
+				importsToAGo++
+			case "pkg/a/a_test.go":
+				importsToATestGo++
+			}
+		}
+	}
+	if importsToATestGo > 0 {
+		t.Errorf("imports edge should never target test file a_test.go; count=%d", importsToATestGo)
 	}
 }
 

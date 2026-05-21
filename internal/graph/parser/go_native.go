@@ -215,6 +215,42 @@ func (p *GoNativeParser) LoadModule(repoRoot string) (map[string]ParseResult, er
 	}
 	var pending []pendingCall
 
+	// primaryFile maps pkgPath -> relPath of the lexically smallest non-test .go file.
+	// Pre-built before the main loop so imports edges can target it in pass 1.
+	primaryFile := map[string]string{}
+	for _, ent := range entries {
+		if ent.isDotTest || len(ent.pkg.Syntax) == 0 || ent.pkg.PkgPath == "" {
+			continue
+		}
+
+		// Collect non-test files for this package.
+		type pkgFileEntry struct {
+			relPath string
+		}
+		var pkgFiles []pkgFileEntry
+		for _, f := range ent.pkg.Syntax {
+			pos := ent.pkg.Fset.Position(f.Pos())
+			fname := pos.Filename
+			if fname == "" || !strings.HasPrefix(fname, prefix) {
+				continue
+			}
+			relPath := filepath.ToSlash(strings.TrimPrefix(fname, prefix))
+			// Skip test files.
+			if strings.HasSuffix(relPath, "_test.go") {
+				continue
+			}
+			pkgFiles = append(pkgFiles, pkgFileEntry{relPath: relPath})
+		}
+
+		// Sort by relPath and pick the first (lexically smallest).
+		if len(pkgFiles) > 0 {
+			sort.Slice(pkgFiles, func(i, j int) bool {
+				return pkgFiles[i].relPath < pkgFiles[j].relPath
+			})
+			primaryFile[ent.pkg.PkgPath] = pkgFiles[0].relPath
+		}
+	}
+
 	var allErrors []ParseError
 	usable := 0
 
@@ -279,6 +315,28 @@ func (p *GoNativeParser) LoadModule(repoRoot string) (map[string]ParseResult, er
 			}
 			if seen[relPath] == nil {
 				seen[relPath] = map[string]bool{}
+			}
+
+			// Collect imports for this file (deduped).
+			seenImport := map[string]bool{}
+			for _, imp := range fe.file.Imports {
+				importPath := strings.Trim(imp.Path.Value, "\"")
+				if seenImport[importPath] {
+					continue
+				}
+				seenImport[importPath] = true
+				// Skip if not in this module (stdlib, third-party, etc.)
+				if !inModule[importPath] {
+					continue
+				}
+				// Look up the primary file for the imported package.
+				dstRel, ok := primaryFile[importPath]
+				if !ok || dstRel == "" {
+					continue // no primary file for this package
+				}
+				res.Edges = append(res.Edges, store.Edge{
+					Src: relPath, Dst: dstRel, Kind: "imports",
+				})
 			}
 
 			for _, decl := range fe.file.Decls {
