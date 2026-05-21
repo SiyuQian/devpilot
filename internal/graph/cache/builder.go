@@ -220,7 +220,7 @@ func (b *Builder) FullBuild() (BuildResult, error) {
 	}
 
 	return BuildResult{
-		FilesParsed: len(files),
+		FilesParsed: len(files) + len(nativeResults),
 		NodesInsert: len(allNodes),
 		EdgesInsert: len(allEdges),
 		Mode:        "full",
