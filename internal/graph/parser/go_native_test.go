@@ -94,6 +94,9 @@ func TestLoadModuleProducesNodes(t *testing.T) {
 		{"pkg/a/a_test.go::TestGreet", "function", "", true},
 		{"pkg/b/b.go::B", "function", "", true},
 		{"pkg/impl/impl.go::Console.Speak", "method", "Console", true},
+		{"pkg/iface/iface.go::Speaker", "interface", "", true},
+		{"pkg/impl/impl.go::Console", "struct", "", true},
+		{"pkg/iface/iface.go::Alias", "type", "", true},
 	}
 	for _, w := range wants {
 		n, ok := nodes[w.id]

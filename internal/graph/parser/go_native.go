@@ -3,6 +3,7 @@ package parser
 import (
 	"fmt"
 	"go/ast"
+	"go/token"
 	"go/types"
 	"path/filepath"
 	"sort"
@@ -65,9 +66,6 @@ func (p *GoNativeParser) LoadModule(repoRoot string) (map[string]ParseResult, er
 		return nil, fmt.Errorf("no packages loaded under %s", abs)
 	}
 
-	// Deterministic order: sort packages by ID (PkgPath collides for test variants).
-	sort.Slice(pkgs, func(i, j int) bool { return pkgs[i].ID < pkgs[j].ID })
-
 	// Process non-test-binary packages first to ensure source-package ownership
 	// wins over the `pkg.test` synthetic variant when a file appears in both.
 	type pkgEntry struct {
@@ -78,7 +76,7 @@ func (p *GoNativeParser) LoadModule(repoRoot string) (map[string]ParseResult, er
 	for _, pk := range pkgs {
 		entries = append(entries, pkgEntry{pkg: pk, isDotTest: strings.HasSuffix(pk.ID, ".test")})
 	}
-	sort.SliceStable(entries, func(i, j int) bool {
+	sort.Slice(entries, func(i, j int) bool {
 		if entries[i].isDotTest != entries[j].isDotTest {
 			return !entries[i].isDotTest // non-.test first
 		}
@@ -105,7 +103,7 @@ func (p *GoNativeParser) LoadModule(repoRoot string) (map[string]ParseResult, er
 				// e.Pos format: "file:line:col" (may be empty).
 				if e.Pos != "" {
 					parts := strings.SplitN(e.Pos, ":", 3)
-					pe.Path = relOrAbs(parts[0], prefix)
+					pe.Path = relFromPrefix(parts[0], prefix)
 					if len(parts) >= 2 {
 						var line int
 						if _, scanErr := fmt.Sscanf(parts[1], "%d", &line); scanErr == nil {
@@ -158,44 +156,97 @@ func (p *GoNativeParser) LoadModule(repoRoot string) (map[string]ParseResult, er
 			}
 
 			for _, decl := range fe.file.Decls {
+				// Handle function and method declarations.
 				fd, ok := decl.(*ast.FuncDecl)
-				if !ok || fd.Name == nil {
-					continue
-				}
-				name := fd.Name.Name
-				var (
-					declID    string
-					kind      string
-					container string
-				)
-				if fd.Recv != nil && len(fd.Recv.List) == 1 {
-					recvType := receiverTypeName(fd.Recv.List[0].Type)
-					if recvType != "" {
-						container = recvType
-						kind = "method"
-						declID = relPath + "::" + recvType + "." + name
+				if ok && fd.Name != nil {
+					name := fd.Name.Name
+					var (
+						declID    string
+						kind      string
+						container string
+					)
+					if fd.Recv != nil && len(fd.Recv.List) == 1 {
+						recvType := receiverTypeName(fd.Recv.List[0].Type)
+						if recvType != "" {
+							container = recvType
+							kind = "method"
+							declID = relPath + "::" + recvType + "." + name
+						}
 					}
-				}
-				if declID == "" {
-					kind = "function"
-					declID = relPath + "::" + name
-				}
-				if seen[relPath][declID] {
+					if declID == "" {
+						kind = "function"
+						declID = relPath + "::" + name
+					}
+					if seen[relPath][declID] {
+						continue
+					}
+					seen[relPath][declID] = true
+
+					startLine := pk.Fset.Position(fd.Pos()).Line
+					endLine := pk.Fset.Position(fd.End()).Line
+					res.Nodes = append(res.Nodes, store.Node{
+						ID: declID, Kind: kind, Path: relPath, Name: name,
+						Container: container, Language: "go",
+						StartLine: startLine, EndLine: endLine,
+						IsExported: ast.IsExported(name),
+					})
+					res.Edges = append(res.Edges, store.Edge{
+						Src: relPath, Dst: declID, Kind: "contains",
+					})
 					continue
 				}
-				seen[relPath][declID] = true
 
-				startLine := pk.Fset.Position(fd.Pos()).Line
-				endLine := pk.Fset.Position(fd.End()).Line
-				res.Nodes = append(res.Nodes, store.Node{
-					ID: declID, Kind: kind, Path: relPath, Name: name,
-					Container: container, Language: "go",
-					StartLine: startLine, EndLine: endLine,
-					IsExported: ast.IsExported(name),
-				})
-				res.Edges = append(res.Edges, store.Edge{
-					Src: relPath, Dst: declID, Kind: "contains",
-				})
+				// Handle type, interface, and struct declarations.
+				gd, ok := decl.(*ast.GenDecl)
+				if !ok || gd.Tok != token.TYPE {
+					continue
+				}
+				for _, spec := range gd.Specs {
+					ts, ok := spec.(*ast.TypeSpec)
+					if !ok || ts.Name == nil {
+						continue
+					}
+					name := ts.Name.Name
+					obj := pk.TypesInfo.Defs[ts.Name]
+					if obj == nil {
+						continue
+					}
+
+					// Determine kind: alias, interface, struct, or default type.
+					var kind string
+					if ts.Assign != token.NoPos {
+						// type Alias = X (alias form)
+						kind = "type"
+					} else {
+						// Inspect the underlying type.
+						switch obj.Type().Underlying().(type) {
+						case *types.Interface:
+							kind = "interface"
+						case *types.Struct:
+							kind = "struct"
+						default:
+							kind = "type"
+						}
+					}
+
+					declID := relPath + "::" + name
+					if seen[relPath][declID] {
+						continue
+					}
+					seen[relPath][declID] = true
+
+					startLine := pk.Fset.Position(ts.Pos()).Line
+					endLine := pk.Fset.Position(ts.End()).Line
+					res.Nodes = append(res.Nodes, store.Node{
+						ID: declID, Kind: kind, Path: relPath, Name: name,
+						Language:  "go",
+						StartLine: startLine, EndLine: endLine,
+						IsExported: ast.IsExported(name),
+					})
+					res.Edges = append(res.Edges, store.Edge{
+						Src: relPath, Dst: declID, Kind: "contains",
+					})
+				}
 			}
 			results[relPath] = res
 		}
@@ -251,10 +302,10 @@ func receiverTypeName(expr ast.Expr) string {
 	return t
 }
 
-// relOrAbs returns path relative to prefix if it lives inside prefix; otherwise
+// relFromPrefix returns path relative to prefix if it lives inside prefix; otherwise
 // the original (likely absolute) path is returned unchanged. Used for shaping
 // ParseError.Path consistently with node Path values.
-func relOrAbs(path, prefix string) string {
+func relFromPrefix(path, prefix string) string {
 	if strings.HasPrefix(path, prefix) {
 		return filepath.ToSlash(strings.TrimPrefix(path, prefix))
 	}
