@@ -1,10 +1,12 @@
 package cache
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -48,18 +50,66 @@ func (b *Builder) BuildIncremental(prev Meta) (BuildResult, error) {
 	}
 	defer func() { _ = st.Close() }()
 
+	// Native Go has no file-level incremental path: go/types needs the whole
+	// module. If a Go source file (or go.mod/go.sum) changed AND the registered
+	// Go parser is a PackageLoader, re-run LoadModule for the entire module,
+	// drop every Go-owned row, and inject the fresh native results into the
+	// merge. Non-Go files still take the existing per-file path.
+	goReload := false
+	for _, list := range [][]string{changed.Added, changed.Modified, changed.Deleted} {
+		for _, p := range list {
+			if filepath.Ext(p) == ".go" || p == "go.mod" || p == "go.sum" {
+				goReload = true
+				break
+			}
+		}
+		if goReload {
+			break
+		}
+	}
+	var nativeResults map[string]parser.ParseResult
+	useNative := false
+	if goReload {
+		if goP := b.reg.ForLanguage("go"); goP != nil {
+			if loader, ok := goP.(parser.PackageLoader); ok {
+				res, lerr := loadGoModule(loader, b.repo)
+				switch {
+				case lerr == nil:
+					useNative = true
+					nativeResults = res
+				case errors.Is(lerr, errNoGoModule):
+					// Non-module repo: fall through to per-file path.
+				default:
+					return BuildResult{}, fmt.Errorf("native Go load: %w", lerr)
+				}
+			}
+		}
+	}
+
 	// Wipe all nodes (and edges touching them) for modified+deleted files so
 	// re-parsed results can be inserted cleanly. Added files have nothing to
-	// delete.
+	// delete. When the native Go path is active, strip *.go entries — the
+	// language-wide DeleteByLanguage below covers them.
 	toDelete := append([]string{}, changed.Modified...)
 	toDelete = append(toDelete, changed.Deleted...)
+	if useNative {
+		toDelete = stripGoPaths(toDelete)
+	}
 	if _, _, err := st.DeleteByPaths(toDelete); err != nil {
 		return BuildResult{}, fmt.Errorf("delete stale paths: %w", err)
+	}
+	if useNative {
+		if _, _, err := st.DeleteByLanguage("go"); err != nil {
+			return BuildResult{}, fmt.Errorf("delete go rows: %w", err)
+		}
 	}
 
 	// Re-parse modified + added files; produces ParseResults for the new content.
 	toParse := append([]string{}, changed.Modified...)
 	toParse = append(toParse, changed.Added...)
+	if useNative {
+		toParse = stripGoPaths(toParse)
+	}
 	var newResults []parser.ParseResult
 	for _, p := range toParse {
 		par := b.reg.ForPath(p)
@@ -78,6 +128,21 @@ func (b *Builder) BuildIncremental(prev Meta) (BuildResult, error) {
 			return BuildResult{}, fmt.Errorf("parse %s: %w", p, err)
 		}
 		newResults = append(newResults, res)
+	}
+
+	// Inject native Go results before the resolver merge. Sort by key first so
+	// the ordering is deterministic and matches FullBuild.
+	if useNative {
+		keys := make([]string, 0, len(nativeResults))
+		for k := range nativeResults {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		nativeSorted := make([]parser.ParseResult, 0, len(keys))
+		for _, k := range keys {
+			nativeSorted = append(nativeSorted, nativeResults[k])
+		}
+		newResults = append(nativeSorted, newResults...)
 	}
 
 	// To let the resolver see existing nodes from the database (so cross-file
@@ -198,6 +263,20 @@ func gitChangedFiles(repo, from, to string) (changeSet, error) {
 		}
 	}
 	return cs, nil
+}
+
+// stripGoPaths filters out *.go, go.mod, and go.sum entries. Used when the
+// native Go path takes ownership of all Go-language rows so the per-file
+// fanout doesn't double-process them.
+func stripGoPaths(paths []string) []string {
+	out := paths[:0:0]
+	for _, p := range paths {
+		if filepath.Ext(p) == ".go" || p == "go.mod" || p == "go.sum" {
+			continue
+		}
+		out = append(out, p)
+	}
+	return out
 }
 
 // isAncestor reports whether commit a is an ancestor of commit b in repo.

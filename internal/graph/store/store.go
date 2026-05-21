@@ -187,6 +187,37 @@ func (s *Store) DeleteByPaths(paths []string) (nodes, edges int, err error) {
 	return nodes, edges, tx.Commit()
 }
 
+// DeleteByLanguage deletes every node whose language column equals lang,
+// plus every edge whose src or dst points to such a node. The whole wipe
+// runs inside a single transaction so partial failure rolls back.
+func (s *Store) DeleteByLanguage(lang string) (nodes, edges int, err error) {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return 0, 0, err
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	r, err := tx.Exec(
+		`DELETE FROM edges WHERE src IN (SELECT id FROM nodes WHERE language = ?)
+		    OR dst IN (SELECT id FROM nodes WHERE language = ?)`,
+		lang, lang,
+	)
+	if err != nil {
+		return 0, 0, err
+	}
+	en, _ := r.RowsAffected()
+	edges = int(en)
+
+	r, err = tx.Exec(`DELETE FROM nodes WHERE language = ?`, lang)
+	if err != nil {
+		return 0, 0, err
+	}
+	nn, _ := r.RowsAffected()
+	nodes = int(nn)
+
+	return nodes, edges, tx.Commit()
+}
+
 // CallersOf returns the source node IDs of all `calls` edges targeting id.
 func (s *Store) CallersOf(id string) ([]string, error) {
 	rows, err := s.db.Query(`SELECT src FROM edges WHERE dst = ? AND kind = 'calls'`, id)
