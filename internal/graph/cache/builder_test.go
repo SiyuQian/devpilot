@@ -244,6 +244,41 @@ func mustWrite(t *testing.T, path, content string) {
 	}
 }
 
+func TestParserVersionTagEncodesGoEnv(t *testing.T) {
+	// Native backend output depends on GOOS/GOARCH/CGO_ENABLED/GOFLAGS;
+	// changing any of these without touching files must still trigger a
+	// rebuild. parserVersionTag captures this in an env= suffix.
+	t.Setenv("DEVPILOT_GRAPH_GO_BACKEND", "native")
+
+	t.Setenv("CGO_ENABLED", "1")
+	t.Setenv("GOFLAGS", "")
+	tag1 := parserVersionTag(parser.DefaultRegistry())
+
+	t.Setenv("CGO_ENABLED", "0")
+	tag2 := parserVersionTag(parser.DefaultRegistry())
+
+	if tag1 == tag2 {
+		t.Errorf("CGO_ENABLED change must alter the tag; both=%q", tag1)
+	}
+
+	t.Setenv("CGO_ENABLED", "1")
+	t.Setenv("GOFLAGS", "-tags=integration")
+	tag3 := parserVersionTag(parser.DefaultRegistry())
+	if tag1 == tag3 {
+		t.Errorf("GOFLAGS change must alter the tag; both=%q", tag1)
+	}
+
+	// Tree-sitter backend ignores the env signature.
+	t.Setenv("DEVPILOT_GRAPH_GO_BACKEND", "")
+	t.Setenv("CGO_ENABLED", "1")
+	ts1 := parserVersionTag(parser.DefaultRegistry())
+	t.Setenv("CGO_ENABLED", "0")
+	ts2 := parserVersionTag(parser.DefaultRegistry())
+	if ts1 != ts2 {
+		t.Errorf("tree-sitter tag must NOT change with CGO_ENABLED; ts1=%q ts2=%q", ts1, ts2)
+	}
+}
+
 func TestParserVersionTagDiffersByBackend(t *testing.T) {
 	tests := []struct {
 		name    string

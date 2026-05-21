@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 	"time"
@@ -17,6 +18,18 @@ import (
 
 // defaultMaxWorkers is the parser fanout used when Builder.MaxWorkers is 0.
 const defaultMaxWorkers = 4
+
+// buildLockTimeout returns the build-lock acquisition deadline. The native
+// Go backend holds the lock for the entire packages.Load duration, which is
+// seconds-to-minutes on large modules; bump the timeout when it's selected
+// so concurrent invocations (e.g. preflight during an interactive build) get
+// a fair chance to wait instead of timing out at 60s.
+func buildLockTimeout(reg *parser.Registry) time.Duration {
+	if reg != nil && reg.GoBackend() == "native" {
+		return 5 * time.Minute
+	}
+	return 60 * time.Second
+}
 
 // Builder owns the cache directory for a single repo and produces graph.db.
 type Builder struct {
@@ -59,7 +72,7 @@ type BuildResult struct {
 // inserts into graph.db, and writes meta.json. It deletes any prior graph.db
 // first so two consecutive calls produce identical output.
 func (b *Builder) FullBuild() (BuildResult, error) {
-	rel, err := AcquireBuildLock(LockFile(b.home, b.key), 60*time.Second)
+	rel, err := AcquireBuildLock(LockFile(b.home, b.key), buildLockTimeout(b.reg))
 	if err != nil {
 		return BuildResult{}, fmt.Errorf("acquire build lock: %w", err)
 	}
@@ -99,8 +112,10 @@ func (b *Builder) FullBuild() (BuildResult, error) {
 			case errors.Is(lerr, errNoGoModule):
 				// Non-module repo: record a synthetic ParseError so the signal
 				// surfaces in results, but keep going via the tree-sitter fanout.
+				// Use a distinct sentinel path so this is not conflated with
+				// go_native.go's own synthetic errors (which key on "").
 				nativeErrs = append(nativeErrs, parser.ParseError{
-					Path:    "",
+					Path:    nonModuleErrorPath,
 					Message: "native Go backend skipped: " + lerr.Error(),
 				})
 			default:
@@ -263,5 +278,23 @@ func parserVersionTag(reg *parser.Registry) string {
 			parts[i] = lang
 		}
 	}
-	return "phase2:" + strings.Join(parts, ",")
+	tag := "phase2:" + strings.Join(parts, ",")
+	// The native Go backend's output depends on the ambient Go toolchain:
+	// packages.Load honors GOOS/GOARCH/CGO_ENABLED/GOFLAGS, so a graph built
+	// on macOS sees *_darwin.go and a Linux CI run sees *_linux.go. Encode
+	// those selectors in the tag so Build() rebuilds when the toolchain shape
+	// changes, even if no file changed.
+	if reg.GoBackend() == "native" {
+		tag += ";env=" + goToolchainEnvSignature()
+	}
+	return tag
+}
+
+// goToolchainEnvSignature captures the four env selectors that materially
+// alter packages.Load output. Kept short and deterministic so it round-trips
+// through meta.json.
+func goToolchainEnvSignature() string {
+	return fmt.Sprintf("goos=%s,goarch=%s,cgo=%s,goflags=%s",
+		runtime.GOOS, runtime.GOARCH,
+		os.Getenv("CGO_ENABLED"), os.Getenv("GOFLAGS"))
 }
