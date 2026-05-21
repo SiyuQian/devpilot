@@ -33,7 +33,7 @@ func (b *Builder) BuildIncremental(prev Meta) (BuildResult, error) {
 		return BuildResult{Mode: "incremental"}, nil
 	}
 
-	rel, err := AcquireBuildLock(LockFile(b.home, b.key), buildLockTimeout(b.reg))
+	rel, err := AcquireBuildLock(LockFile(b.home, b.key), buildLockTimeout())
 	if err != nil {
 		return BuildResult{}, fmt.Errorf("acquire build lock: %w", err)
 	}
@@ -58,7 +58,7 @@ func (b *Builder) BuildIncremental(prev Meta) (BuildResult, error) {
 	goReload := false
 	for _, list := range [][]string{changed.Added, changed.Modified, changed.Deleted} {
 		for _, p := range list {
-			if filepath.Ext(p) == ".go" || p == "go.mod" || p == "go.sum" || p == "go.work" || p == "go.work.sum" {
+			if isGoOwnedPath(p) {
 				goReload = true
 				break
 			}
@@ -80,7 +80,7 @@ func (b *Builder) BuildIncremental(prev Meta) (BuildResult, error) {
 		case lerr == nil:
 			useNative = true
 			nativeResults = res
-		case errors.Is(lerr, errNoGoModule):
+		case errors.Is(lerr, ErrNoGoModule):
 			return BuildResult{}, fmt.Errorf("native Go load: repo contains .go files but no go.mod/go.work at %s: %w", b.repo, lerr)
 		default:
 			return BuildResult{}, fmt.Errorf("native Go load: %w", lerr)
@@ -266,13 +266,15 @@ func gitChangedFiles(repo, from, to string) (changeSet, error) {
 	return cs, nil
 }
 
-// stripGoPaths filters out *.go, go.mod, and go.sum entries. Used when the
+// stripGoPaths filters out paths the native Go backend owns (see
+// isGoOwnedPath: *.go, go.mod, go.sum, go.work, go.work.sum). Used when the
 // native Go path takes ownership of all Go-language rows so the per-file
-// fanout doesn't double-process them.
+// fanout doesn't double-process them. Trigger set and filter set share the
+// same predicate so they can never drift.
 func stripGoPaths(paths []string) []string {
 	out := paths[:0:0]
 	for _, p := range paths {
-		if filepath.Ext(p) == ".go" || p == "go.mod" || p == "go.sum" {
+		if isGoOwnedPath(p) {
 			continue
 		}
 		out = append(out, p)

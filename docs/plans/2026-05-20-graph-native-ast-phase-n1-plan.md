@@ -179,6 +179,26 @@ Non-module Go repos are now a hard build error (no fallback). Acceptable
 regression: callers must add a `go.mod` (or `go.work`) for the Go phase to
 run.
 
+## Task N1.18 (deferred follow-up)
+
+Two follow-ups noted during the N1.17 review remain open and are intentionally
+deferred so the N1.17 diff stays focused on the tree-sitter Go removal. They
+will land as a follow-up PR before v0.19.0:
+
+- [ ] **`IllTyped` surfacing in the `usable++` counter.** Today the native Go
+  loader counts a package as usable even when `packages.Load` flags it
+  `IllTyped`, masking partial-graph builds that should be loud. Surface the
+  bit through the parse-error channel and treat ill-typed packages as a
+  warning (or hard error, TBD) rather than a silent pass.
+- [ ] **External-test-package filter (`_test [foo.test]`).** The synthetic
+  `*_test [foo.test]` package emitted by `go/packages` for black-box tests
+  produces duplicate nodes against the underlying package. Filter those
+  packages at load time (or de-duplicate downstream) so the graph stops
+  double-counting external test files.
+
+N1.17 shipped without N1.18 to keep the review surface small; N1.18 will land
+as a follow-up PR before v0.19.0.
+
 ---
 
 ## Phase N1 acceptance

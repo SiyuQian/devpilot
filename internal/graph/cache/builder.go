@@ -22,7 +22,7 @@ const defaultMaxWorkers = 4
 // buildLockTimeout returns the build-lock acquisition deadline. The native
 // Go backend holds the lock for the entire packages.Load duration, which is
 // seconds-to-minutes on large modules, so we use a generous timeout.
-func buildLockTimeout(_ *parser.Registry) time.Duration {
+func buildLockTimeout() time.Duration {
 	return 5 * time.Minute
 }
 
@@ -67,7 +67,7 @@ type BuildResult struct {
 // inserts into graph.db, and writes meta.json. It deletes any prior graph.db
 // first so two consecutive calls produce identical output.
 func (b *Builder) FullBuild() (BuildResult, error) {
-	rel, err := AcquireBuildLock(LockFile(b.home, b.key), buildLockTimeout(b.reg))
+	rel, err := AcquireBuildLock(LockFile(b.home, b.key), buildLockTimeout())
 	if err != nil {
 		return BuildResult{}, fmt.Errorf("acquire build lock: %w", err)
 	}
@@ -113,7 +113,7 @@ func (b *Builder) FullBuild() (BuildResult, error) {
 		case lerr == nil:
 			useNative = true
 			nativeResults = res
-		case errors.Is(lerr, errNoGoModule):
+		case errors.Is(lerr, ErrNoGoModule):
 			return BuildResult{}, fmt.Errorf("native Go load: repo contains .go files but no go.mod/go.work at %s: %w", b.repo, lerr)
 		default:
 			return BuildResult{}, fmt.Errorf("native Go load: %w", lerr)

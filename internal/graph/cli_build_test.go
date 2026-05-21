@@ -45,6 +45,38 @@ func TestRunBuildEmitsValidEnvelope(t *testing.T) {
 	}
 }
 
+func TestRunBuildGoNoModule(t *testing.T) {
+	repo := t.TempDir()
+	// A .go file without a go.mod/go.work must surface as go_no_module.
+	if err := os.WriteFile(filepath.Join(repo, "main.go"),
+		[]byte("package main\nfunc main(){}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("DEVPILOT_HOME", t.TempDir())
+
+	buf := captureStdout(t, func() {
+		if code := runBuild(repo); code != 1 {
+			t.Errorf("expected rc=1, got %d", code)
+		}
+	})
+
+	var env map[string]any
+	if err := json.Unmarshal(buf, &env); err != nil {
+		t.Fatalf("parse: %v\n%s", err, buf)
+	}
+	errInfo, ok := env["error"].(map[string]any)
+	if !ok {
+		t.Fatalf("error not object: %v", env["error"])
+	}
+	if errInfo["code"] != "go_no_module" {
+		t.Errorf("code=%v, want go_no_module (%s)", errInfo["code"], buf)
+	}
+	sugs, ok := env["next_tool_suggestions"].([]any)
+	if !ok || len(sugs) == 0 {
+		t.Errorf("expected suggestion preserved on go_no_module envelope: %s", buf)
+	}
+}
+
 func TestRunBuildBadRepo(t *testing.T) {
 	t.Setenv("DEVPILOT_HOME", t.TempDir())
 	buf := captureStdout(t, func() {
