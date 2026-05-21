@@ -91,6 +91,21 @@ func (p *GoNativeParser) LoadModule(repoRoot string) (map[string]ParseResult, er
 	seen := map[string]map[string]bool{}
 	// fileEmitted tracks which relPaths already have a file node in their result.
 	fileEmitted := map[string]bool{}
+	// objIndex maps a types.Object (func/method) to its emitted node ID. Built in
+	// pass 1 so pass 2 can resolve cross-package callees to real symbol IDs.
+	objIndex := map[types.Object]string{}
+	// inModule is the set of package paths owned by some non-.test package in
+	// this load — used to skip call edges targeting deps outside the module.
+	inModule := map[string]bool{}
+
+	// Each pendingCall is a callsite to resolve in pass 2 once objIndex is full.
+	type pendingCall struct {
+		relPath string
+		srcID   string
+		pkg     *packages.Package
+		body    *ast.BlockStmt
+	}
+	var pending []pendingCall
 
 	var allErrors []ParseError
 	usable := 0
@@ -124,6 +139,9 @@ func (p *GoNativeParser) LoadModule(repoRoot string) (map[string]ParseResult, er
 			continue
 		}
 		usable++
+		if pk.PkgPath != "" {
+			inModule[pk.PkgPath] = true
+		}
 
 		// Pair Syntax with CompiledGoFiles by index, but sort by filename for determinism.
 		type fileEntry struct {
@@ -193,6 +211,23 @@ func (p *GoNativeParser) LoadModule(repoRoot string) (map[string]ParseResult, er
 					res.Edges = append(res.Edges, store.Edge{
 						Src: relPath, Dst: declID, Kind: "contains",
 					})
+					// Record the func/method's *types.Func in the object index so
+					// pass 2 can resolve callsites (both qualified `pkg.Foo()` and
+					// bare `Foo()`) back to this ID.
+					if pk.TypesInfo != nil {
+						if obj := pk.TypesInfo.Defs[fd.Name]; obj != nil {
+							if _, ok := objIndex[obj]; !ok {
+								objIndex[obj] = declID
+							}
+						}
+					}
+					// Queue body for pass-2 call-edge extraction. Skip nil bodies
+					// (e.g. assembly stubs `func foo()` with no Go body).
+					if fd.Body != nil {
+						pending = append(pending, pendingCall{
+							relPath: relPath, srcID: declID, pkg: pk, body: fd.Body,
+						})
+					}
 					continue
 				}
 
@@ -254,6 +289,73 @@ func (p *GoNativeParser) LoadModule(repoRoot string) (map[string]ParseResult, er
 
 	if usable == 0 {
 		return nil, fmt.Errorf("no usable packages loaded under %s (errors: %d)", abs, len(allErrors))
+	}
+
+	// Pass 2: walk each queued function body and emit `calls` edges to symbols
+	// minted in pass 1. We resolve the callee via types.Info.Uses:
+	//   - `Foo()`         -> CallExpr.Fun is *ast.Ident; Uses[ident]
+	//   - `pkg.Foo()`     -> CallExpr.Fun is *ast.SelectorExpr; Uses[sel.Sel]
+	//   - `recv.Method()` -> same SelectorExpr form; Uses[sel.Sel] yields *types.Func
+	// Interface-method calls resolve to the *interface* method's *types.Func
+	// (the static reference), not any concrete impl — the eventual `implements`
+	// edge (N1.7) bridges interface methods to concrete implementations.
+	// We silently skip edges when the callee is nil (unresolvable), a builtin
+	// (obj.Pkg() == nil), outside this module, or not present in objIndex.
+	for _, pc := range pending {
+		ti := pc.pkg.TypesInfo
+		if ti == nil {
+			continue
+		}
+		// Collect edges for this caller, then dedupe (the same callee may be
+		// called multiple times within one body).
+		seenDst := map[string]bool{}
+		ast.Inspect(pc.body, func(n ast.Node) bool {
+			call, ok := n.(*ast.CallExpr)
+			if !ok {
+				return true
+			}
+			var ident *ast.Ident
+			switch fn := call.Fun.(type) {
+			case *ast.Ident:
+				ident = fn
+			case *ast.SelectorExpr:
+				ident = fn.Sel
+			default:
+				return true
+			}
+			if ident == nil {
+				return true
+			}
+			obj := ti.Uses[ident]
+			if obj == nil {
+				return true
+			}
+			fnObj, ok := obj.(*types.Func)
+			if !ok {
+				return true
+			}
+			pkg := fnObj.Pkg()
+			if pkg == nil { // builtin (len, append, new, ...)
+				return true
+			}
+			if !inModule[pkg.Path()] {
+				return true
+			}
+			dstID, ok := objIndex[fnObj]
+			if !ok {
+				return true
+			}
+			if seenDst[dstID] {
+				return true
+			}
+			seenDst[dstID] = true
+			res := results[pc.relPath]
+			res.Edges = append(res.Edges, store.Edge{
+				Src: pc.srcID, Dst: dstID, Kind: "calls",
+			})
+			results[pc.relPath] = res
+			return true
+		})
 	}
 
 	// Sort nodes/edges within each result for determinism.

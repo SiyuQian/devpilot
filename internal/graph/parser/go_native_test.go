@@ -150,12 +150,64 @@ func TestLoadModuleProducesNodes(t *testing.T) {
 			}
 		}
 		for _, e := range r.Edges {
-			if e.Kind != "contains" {
-				t.Errorf("result %q has non-contains edge kind %q", key, e.Kind)
+			switch e.Kind {
+			case "contains", "calls":
+				// allowed in this task
+			default:
+				t.Errorf("result %q has unexpected edge kind %q", key, e.Kind)
 			}
 			if strings.HasPrefix(e.Dst, "external::") {
 				t.Errorf("result %q has external edge dst %q", key, e.Dst)
 			}
+		}
+	}
+}
+
+func TestLoadModuleCallsEdges(t *testing.T) {
+	abs, err := filepath.Abs("testdata/go_native")
+	if err != nil {
+		t.Fatalf("abs testdata: %v", err)
+	}
+	results, err := NewGoNativeParser().LoadModule(abs)
+	if err != nil {
+		t.Fatalf("LoadModule: %v", err)
+	}
+
+	// Collect all edges (any kind) and the calls subset across all results.
+	var allEdges []store.Edge
+	for _, r := range results {
+		allEdges = append(allEdges, r.Edges...)
+	}
+
+	hasEdge := func(src, dst, kind string) bool {
+		for _, e := range allEdges {
+			if e.Src == src && e.Dst == dst && e.Kind == kind {
+				return true
+			}
+		}
+		return false
+	}
+
+	// Intra-package (same file) call: Run -> Greet.
+	if !hasEdge("pkg/a/a.go::Run", "pkg/a/a.go::Greet", "calls") {
+		t.Errorf("missing intra-package calls edge Run -> Greet; edges=%v", allEdges)
+	}
+	// Cross-package call: B (in pkg/b) -> Greet (in pkg/a).
+	if !hasEdge("pkg/b/b.go::B", "pkg/a/a.go::Greet", "calls") {
+		t.Errorf("missing cross-package calls edge B -> Greet; edges=%v", allEdges)
+	}
+
+	// Defensive invariant: no edge points at an external:: placeholder.
+	for _, e := range allEdges {
+		if strings.HasPrefix(e.Dst, "external::") {
+			t.Errorf("native parser emitted external:: edge: %+v", e)
+		}
+	}
+
+	// Builtin calls (e.g. len) must not produce calls edges.
+	for _, e := range allEdges {
+		if e.Kind == "calls" && e.Src == "pkg/a/a.go::UsesLen" {
+			t.Errorf("UsesLen should have no outgoing calls edges (builtin len), got %+v", e)
 		}
 	}
 }
