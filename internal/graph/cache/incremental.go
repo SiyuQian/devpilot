@@ -33,7 +33,7 @@ func (b *Builder) BuildIncremental(prev Meta) (BuildResult, error) {
 		return BuildResult{Mode: "incremental"}, nil
 	}
 
-	rel, err := AcquireBuildLock(LockFile(b.home, b.key), buildLockTimeout(b.reg))
+	rel, err := AcquireBuildLock(LockFile(b.home, b.key), buildLockTimeout())
 	if err != nil {
 		return BuildResult{}, fmt.Errorf("acquire build lock: %w", err)
 	}
@@ -58,7 +58,7 @@ func (b *Builder) BuildIncremental(prev Meta) (BuildResult, error) {
 	goReload := false
 	for _, list := range [][]string{changed.Added, changed.Modified, changed.Deleted} {
 		for _, p := range list {
-			if filepath.Ext(p) == ".go" || p == "go.mod" || p == "go.sum" || p == "go.work" || p == "go.work.sum" {
+			if isGoOwnedPath(p) {
 				goReload = true
 				break
 			}
@@ -69,27 +69,21 @@ func (b *Builder) BuildIncremental(prev Meta) (BuildResult, error) {
 	}
 	var nativeResults map[string]parser.ParseResult
 	useNative := false
-	// fallbackGo routes Go files through a tree-sitter parser when the registered
-	// Go parser is the native (no-op Parse) backend but LoadModule was skipped —
-	// i.e. on non-module repos. Without this, *.go entries would route through
-	// GoNativeParser.Parse which returns an empty ParseResult and Go nodes
-	// silently disappear from the incremental graph.
-	var fallbackGo parser.Parser
 	if goReload {
-		if goP := b.reg.ForLanguage("go"); goP != nil {
-			if loader, ok := goP.(parser.PackageLoader); ok {
-				res, lerr := loadGoModule(loader, b.repo)
-				switch {
-				case lerr == nil:
-					useNative = true
-					nativeResults = res
-				case errors.Is(lerr, errNoGoModule):
-					// Non-module repo: route Go files through tree-sitter.
-					fallbackGo = parser.NewGoParser()
-				default:
-					return BuildResult{}, fmt.Errorf("native Go load: %w", lerr)
-				}
-			}
+		goP := b.reg.ForLanguage("go")
+		loader, ok := goP.(parser.PackageLoader)
+		if !ok {
+			return BuildResult{}, fmt.Errorf("native Go load: registered Go parser does not implement PackageLoader")
+		}
+		res, lerr := loadGoModule(loader, b.repo)
+		switch {
+		case lerr == nil:
+			useNative = true
+			nativeResults = res
+		case errors.Is(lerr, ErrNoGoModule):
+			return BuildResult{}, fmt.Errorf("native Go load: repo contains .go files but no go.mod/go.work at %s: %w", b.repo, lerr)
+		default:
+			return BuildResult{}, fmt.Errorf("native Go load: %w", lerr)
 		}
 	}
 
@@ -122,9 +116,6 @@ func (b *Builder) BuildIncremental(prev Meta) (BuildResult, error) {
 		par := b.reg.ForPath(p)
 		if par == nil {
 			continue
-		}
-		if fallbackGo != nil && filepath.Ext(p) == ".go" {
-			par = fallbackGo
 		}
 		src, err := os.ReadFile(filepath.Join(b.repo, p))
 		if err != nil {
@@ -275,13 +266,15 @@ func gitChangedFiles(repo, from, to string) (changeSet, error) {
 	return cs, nil
 }
 
-// stripGoPaths filters out *.go, go.mod, and go.sum entries. Used when the
+// stripGoPaths filters out paths the native Go backend owns (see
+// isGoOwnedPath: *.go, go.mod, go.sum, go.work, go.work.sum). Used when the
 // native Go path takes ownership of all Go-language rows so the per-file
-// fanout doesn't double-process them.
+// fanout doesn't double-process them. Trigger set and filter set share the
+// same predicate so they can never drift.
 func stripGoPaths(paths []string) []string {
 	out := paths[:0:0]
 	for _, p := range paths {
-		if filepath.Ext(p) == ".go" || p == "go.mod" || p == "go.sum" {
+		if isGoOwnedPath(p) {
 			continue
 		}
 		out = append(out, p)

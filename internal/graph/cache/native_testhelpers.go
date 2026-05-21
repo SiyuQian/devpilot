@@ -1,4 +1,4 @@
-//go:build parity || bench
+//go:build bench
 
 package cache
 
@@ -11,7 +11,7 @@ import (
 )
 
 // findRepoRoot walks upward from this test file until it finds the go.mod that
-// declares the devpilot module. Shared by native_parity_test.go and native_bench_test.go.
+// declares the devpilot module. Used by native_bench_test.go.
 func findRepoRoot(tb testing.TB) string {
 	tb.Helper()
 	_, file, _, ok := runtime.Caller(1)
