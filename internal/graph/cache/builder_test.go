@@ -178,6 +178,48 @@ func main() { Greet("x") }
 	}
 }
 
+func TestParserVersionMismatchRebuilds(t *testing.T) {
+	repo := t.TempDir()
+	mustWrite(t, filepath.Join(repo, "main.go"), `package main
+func Greet(n string) string { return "hi " + n }
+func main() { Greet("x") }
+`)
+	home := t.TempDir()
+	b, err := NewBuilder(home, repo)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := b.FullBuild(); err != nil {
+		t.Fatal(err)
+	}
+
+	// Poison the on-disk parser version while keeping schema version valid.
+	metaPath := MetaFile(home, RepoKey(repo))
+	m, err := ReadMeta(metaPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	m.ParserVersion = "phase2:go=imaginary-backend"
+	if err := WriteMeta(metaPath, m); err != nil {
+		t.Fatal(err)
+	}
+
+	res, err := b.Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Mode != "full" {
+		t.Errorf("Mode=%q want full (parser-version mismatch should trigger rebuild)", res.Mode)
+	}
+	got, err := ReadMeta(metaPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.ParserVersion == "phase2:go=imaginary-backend" {
+		t.Errorf("parser version was not refreshed: %q", got.ParserVersion)
+	}
+}
+
 func itoa(i int) string {
 	if i == 0 {
 		return "0"

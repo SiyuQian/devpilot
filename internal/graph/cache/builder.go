@@ -162,8 +162,8 @@ func (b *Builder) FullBuild() (BuildResult, error) {
 }
 
 // Build dispatches to FullBuild or BuildIncremental based on cache state.
-// Missing graph.db -> full. Schema-version mismatch -> wipe cache dir, full.
-// Otherwise -> incremental (currently stubbed to full; see Task 2.21).
+// Missing graph.db -> full. Schema-version OR parser-version mismatch -> wipe
+// cache dir and full-build. Otherwise -> incremental.
 func (b *Builder) Build() (BuildResult, error) {
 	_ = SweepPreflight(b.home, 7*24*time.Hour)
 	if _, err := os.Stat(GraphDB(b.home, b.key)); os.IsNotExist(err) {
@@ -173,7 +173,7 @@ func (b *Builder) Build() (BuildResult, error) {
 	if err != nil {
 		return BuildResult{}, fmt.Errorf("read meta: %w", err)
 	}
-	if m.SchemaVersion != CurrentSchemaVersion {
+	if m.SchemaVersion != CurrentSchemaVersion || m.ParserVersion != parserVersionTag(b.reg) {
 		if err := os.RemoveAll(GraphDir(b.home, b.key)); err != nil {
 			return BuildResult{}, fmt.Errorf("wipe cache dir: %w", err)
 		}
