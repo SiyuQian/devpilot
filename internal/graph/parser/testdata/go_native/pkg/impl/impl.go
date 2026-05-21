@@ -6,9 +6,18 @@ func (Console) Speak() string {
 	return "console"
 }
 
-// PartialSpeaker exercises the negative implements case: missing Speak().
+// PartialSpeaker exercises the negative implements case and method key collision.
 type PartialSpeaker struct{}
 
-// Whisper is not part of the Speaker interface, so PartialSpeaker does not
-// implement Speaker.
-func (PartialSpeaker) Whisper() string { return "psst" }
+// Speak with extra args — does not satisfy the Speaker interface,
+// but the method name collides with Console.Speak. Exercises the
+// receiver-aware objIndex key.
+func (PartialSpeaker) Speak(volume int) string { return "psst" }
+
+// ExerciseSpeakers calls both Speak methods to ensure the parser
+// resolves them to distinct node IDs.
+func ExerciseSpeakers() string {
+	c := Console{}
+	p := PartialSpeaker{}
+	return c.Speak() + p.Speak(1)
+}

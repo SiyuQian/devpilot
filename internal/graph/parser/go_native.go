@@ -38,14 +38,40 @@ func (p *GoNativeParser) Parse(path string, src []byte) (ParseResult, error) {
 }
 
 // objIndexKey creates a string key for objIndex from a types.Object.
-// For *types.Func (functions and methods): "pkg/path::Name" or "pkg/path::RecvType.Name"
+// For *types.Func (functions and methods):
+//   - Functions: "pkg/path::Name"
+//   - Methods: "pkg/path::ReceiverTypeName.Name"
+//
 // For *types.TypeName: "pkg/path::Name"
+//
+// For methods, the receiver type is extracted from the function's signature,
+// with pointer layers stripped. This ensures two methods named Speak on
+// different receivers (e.g., Console.Speak and PartialSpeaker.Speak) collide
+// if they have different receiver types.
 func objIndexKey(obj types.Object) string {
 	if obj.Pkg() == nil {
 		return ""
 	}
 	switch t := obj.(type) {
 	case *types.Func:
+		sig, ok := t.Type().(*types.Signature)
+		if ok && sig.Recv() != nil {
+			recv := sig.Recv().Type()
+			// Strip pointer layers
+			for {
+				if p, ok := recv.(*types.Pointer); ok {
+					recv = p.Elem()
+					continue
+				}
+				break
+			}
+			// Get the recv type's name (handles named, alias, generic-instantiated)
+			if named, ok := recv.(*types.Named); ok {
+				return t.Pkg().Path() + "::" + named.Obj().Name() + "." + t.Name()
+			}
+			// Fallback for non-named receiver (extremely rare; e.g. method on alias of basic).
+			return t.Pkg().Path() + "::" + types.TypeString(recv, nil) + "." + t.Name()
+		}
 		return t.Pkg().Path() + "::" + t.Name()
 	case *types.TypeName:
 		return t.Pkg().Path() + "::" + t.Name()

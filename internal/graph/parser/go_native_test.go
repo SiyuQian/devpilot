@@ -319,6 +319,95 @@ func TestLoadModuleTestsEdges(t *testing.T) {
 	}
 }
 
+func TestLoadModuleMethodKeyDisambiguation(t *testing.T) {
+	abs, err := filepath.Abs("testdata/go_native")
+	if err != nil {
+		t.Fatalf("abs testdata: %v", err)
+	}
+	results, err := NewGoNativeParser().LoadModule(abs)
+	if err != nil {
+		t.Fatalf("LoadModule: %v", err)
+	}
+
+	// Flatten nodes and edges for easy lookup.
+	nodes := flattenNodes(t, results)
+	var allEdges []store.Edge
+	for _, r := range results {
+		allEdges = append(allEdges, r.Edges...)
+	}
+
+	// Helper to find edges with specific src, dst, and kind.
+	findEdges := func(src, dst, kind string) []store.Edge {
+		var result []store.Edge
+		for _, e := range allEdges {
+			if e.Src == src && e.Dst == dst && e.Kind == kind {
+				result = append(result, e)
+			}
+		}
+		return result
+	}
+
+	// After the fix, ExerciseSpeakers calls both Speak methods, producing
+	// two distinct calls edges (one to Console.Speak, one to PartialSpeaker.Speak).
+	exerciseSpeakersID := "pkg/impl/impl.go::ExerciseSpeakers"
+	consoleMethod := "pkg/impl/impl.go::Console.Speak"
+	partialMethod := "pkg/impl/impl.go::PartialSpeaker.Speak"
+
+	// Assert both methods exist in the node set.
+	if _, ok := nodes[consoleMethod]; !ok {
+		t.Errorf("expected node %q not found", consoleMethod)
+	}
+	if _, ok := nodes[partialMethod]; !ok {
+		t.Errorf("expected node %q not found", partialMethod)
+	}
+
+	// Verify both nodes have correct properties.
+	if n, ok := nodes[consoleMethod]; ok {
+		if n.Kind != "method" {
+			t.Errorf("%s kind = %q, want method", consoleMethod, n.Kind)
+		}
+		if n.Container != "Console" {
+			t.Errorf("%s Container = %q, want Console", consoleMethod, n.Container)
+		}
+	}
+	if n, ok := nodes[partialMethod]; ok {
+		if n.Kind != "method" {
+			t.Errorf("%s kind = %q, want method", partialMethod, n.Kind)
+		}
+		if n.Container != "PartialSpeaker" {
+			t.Errorf("%s Container = %q, want PartialSpeaker", partialMethod, n.Container)
+		}
+	}
+
+	// Assert ExerciseSpeakers has two distinct calls edges to the two methods.
+	callsToConsole := findEdges(exerciseSpeakersID, consoleMethod, "calls")
+	callsToPartial := findEdges(exerciseSpeakersID, partialMethod, "calls")
+
+	if len(callsToConsole) != 1 {
+		t.Errorf("expected 1 calls edge %s -> %s, got %d",
+			exerciseSpeakersID, consoleMethod, len(callsToConsole))
+	}
+	if len(callsToPartial) != 1 {
+		t.Errorf("expected 1 calls edge %s -> %s, got %d",
+			exerciseSpeakersID, partialMethod, len(callsToPartial))
+	}
+
+	// Assert the implements edge Console -> Speaker still exists
+	// (PartialSpeaker.Speak has different signature, so no implements edge).
+	consoleImplementsSpeaker := findEdges("pkg/impl/impl.go::Console", "pkg/iface/iface.go::Speaker", "implements")
+	if len(consoleImplementsSpeaker) != 1 {
+		t.Errorf("expected 1 implements edge Console -> Speaker, got %d",
+			len(consoleImplementsSpeaker))
+	}
+
+	// Assert PartialSpeaker does NOT implement Speaker.
+	partialImplementsSpeaker := findEdges("pkg/impl/impl.go::PartialSpeaker", "pkg/iface/iface.go::Speaker", "implements")
+	if len(partialImplementsSpeaker) != 0 {
+		t.Errorf("expected 0 implements edges PartialSpeaker -> Speaker (different Speak signature), got %d",
+			len(partialImplementsSpeaker))
+	}
+}
+
 func TestLoadModuleDeterministic(t *testing.T) {
 	abs, err := filepath.Abs("testdata/go_native")
 	if err != nil {
