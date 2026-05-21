@@ -235,31 +235,6 @@ func writeSampleSection(buf *strings.Builder, title string, edges []parityTriple
 	fmt.Fprintf(buf, "\n")
 }
 
-// findRepoRoot walks upward from this test file until it finds the go.mod that
-// declares the devpilot module.
-func findRepoRoot(t *testing.T) string {
-	t.Helper()
-	_, file, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("runtime.Caller failed")
-	}
-	dir := filepath.Dir(file)
-	for i := 0; i < 8; i++ {
-		gm := filepath.Join(dir, "go.mod")
-		if data, err := os.ReadFile(gm); err == nil {
-			if strings.Contains(string(data), "module github.com/siyuqian/devpilot") {
-				abs, err := filepath.Abs(dir)
-				if err != nil {
-					t.Fatalf("abs: %v", err)
-				}
-				return abs
-			}
-		}
-		dir = filepath.Dir(dir)
-	}
-	t.Fatal("could not locate devpilot module root")
-	return ""
-}
 
 type dumpNode struct{ ID string }
 type dumpEdge struct{ Src, Dst, Kind string }
