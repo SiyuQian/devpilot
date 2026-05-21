@@ -17,6 +17,11 @@ import (
 // signal to fall back to per-file Parse (tree-sitter) for Go files.
 var errNoGoModule = errors.New("no go.mod or go.work: falling back to per-file parse")
 
+// nonModuleErrorPath is the sentinel Path used on synthetic ParseErrors that
+// announce the native-backend non-module fallback. Distinct from "" so
+// downstream consumers do not conflate it with per-package error envelopes.
+const nonModuleErrorPath = "<native-go:non-module>"
+
 // loadGoModule invokes the parser's PackageLoader path.
 //
 // Detection rules:
@@ -48,10 +53,19 @@ func loadGoModule(loader parser.PackageLoader, repoRoot string) (map[string]pars
 		sort.Strings(usePaths)
 
 		merged := map[string]parser.ParseResult{}
+		var workspaceErrs []parser.ParseError
 		for _, up := range usePaths {
 			sub, lerr := loader.LoadModule(up)
 			if lerr != nil {
-				return nil, fmt.Errorf("load module %s: %w", up, lerr)
+				// One empty use-module (e.g. go.mod with zero Go files) must not
+				// brick the rest of the workspace. Record the per-module failure
+				// and continue. Hard config errors (e.g. malformed go.mod) still
+				// surface this way; callers can choose to escalate.
+				workspaceErrs = append(workspaceErrs, parser.ParseError{
+					Path:    up,
+					Message: "load workspace module: " + lerr.Error(),
+				})
+				continue
 			}
 			// Merge: first-seen key wins (sorted iteration over sub for determinism).
 			keys := make([]string, 0, len(sub))
@@ -65,6 +79,13 @@ func loadGoModule(loader parser.PackageLoader, repoRoot string) (map[string]pars
 				}
 				merged[k] = sub[k]
 			}
+		}
+		if len(workspaceErrs) > 0 {
+			// Stitch workspace errors into the synthetic "" key alongside any
+			// per-package errors LoadModule already collected there.
+			existing := merged[""]
+			existing.Errors = append(existing.Errors, workspaceErrs...)
+			merged[""] = existing
 		}
 		return merged, nil
 	}
