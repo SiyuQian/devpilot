@@ -171,6 +171,13 @@
       ]
     },
     {
+      "name": "devpilot-resolving-review-threads",
+      "description": "Use when responding to inline review comments after pushing fixes to a GitHub PR or GitLab MR — decide per thread whether to auto-resolve (fix verified at HEAD), reply with technical reasoning (reviewer misread or wrong), or leave open for the reviewer. Triggers on 'respond to review comments', 'resolve the review threads', 'I pushed the fixes, now reply to the comments', '/resolve-review'.",
+      "files": [
+        "SKILL.md"
+      ]
+    },
+    {
       "name": "devpilot-pr-review",
       "description": "Review a pull request via two paired passes — an 'Unknown Unknowns' behavior sweep and a code/architecture/testing/requirements/production-readiness checklist — with every per-line finding posted as an inline review comment so the author can act on each one in place.",
       "files": [
