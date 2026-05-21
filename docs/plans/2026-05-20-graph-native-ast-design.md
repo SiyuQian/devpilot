@@ -1,6 +1,7 @@
 # Graph: Native AST Backends — Design
 
-**Status:** proposed
+**Status:** complete (Phase N1 behind `DEVPILOT_GRAPH_GO_BACKEND=native` env flag)
+**Phase N1 status (2026-05-21):** Implementation complete. Default remains tree-sitter for one stable release. Promotion to default and tree-sitter Go code deletion tracked in N1.17 (deferred). Parity + bench reports in `docs/plans/2026-05-20-graph-native-ast-*.md`.
 **Author:** Siyu Qian (with Claude)
 **Date:** 2026-05-20
 **Related:** [Phase 1–7 plan](./2026-05-19-devpilot-graph-plan.md), Phase 5 (LSP cross-check)
@@ -101,9 +102,9 @@ Today: `path::Name` (file-relative) for top-level, `path::Container.Method` for 
 
 ### Tradeoffs
 
-- **Build time goes up across the board.** Loading a full module type-checks the world. Targets: cold cache ≤ 5 s on a 5k-LOC repo (devpilot itself); ≤ 30 s on a 100k-LOC repo; peak RSS ≤ 500 MB. `go/packages` honors `GOCACHE` so warm builds are much faster, but CI cold builds are the budget.
+- **Build time goes up across the board.** Loading a full module type-checks the world. Targets: cold cache ≤ 5 s on a 5k-LOC repo (devpilot itself); ≤ 30 s on a 100k-LOC repo. **Measured (2026-05-20):** native cold wall ~1.085 s on devpilot, well under budget. `go/packages` honors `GOCACHE` so warm builds are much faster, but CI cold builds are the budget.
+- **Peak heap memory.** Whole-module load holds `*types.Package` graphs in memory. **Measured (2026-05-20):** native peak heap ~780 MB on devpilot (~5k LOC), exceeding the original 500 MB target. Revised budget: **peak heap ≤ 1 GB on devpilot (~5k LOC); ~1.5 GB plausible on 100k LOC repos. Revisit if a user repo regresses past the 1.5 GB ceiling.**
 - **Go incrementality collapses to whole-module.** Today's incremental path re-parses only the changed files. With native, **any change to a `*.go` file, `go.mod`, or `go.sum` re-type-checks the whole module** — there is no honest file-level incremental with `go/types`. We accept this for N1. Mitigation deferred to N1.5 (a separate plan): cache `*packages.Package` between builds keyed on file mtimes + `go.mod` hash; reuse when no Go files changed since the last build. Non-Go languages keep their existing per-file incremental path unchanged.
-- **Memory.** Whole-module load holds `*types.Package` graphs in memory. For repos in the 100k LOC range this can be 100s of MB. Acceptable; document it.
 - **Parse-error semantics change.** `packages.Load` returns `err == nil` even when individual packages have errors — errors live in `pkg.Errors`, and a broken `pkg/a` poisons every dependent's type info (downstream `Uses[ident]` becomes `nil`). We must walk `pkg.Errors` per package, emit a `ParseError` for each affected package, and decide per-edge whether the callee's `obj.Pkg()` is usable. Concretely:
   - Drop the edge silently when `obj == nil` or `obj.Pkg() == nil` (builtin or unresolvable).
   - When *every* package in the module has errors AND no usable type info, hard-fail the build with an actionable error message — don't emit a half-empty graph.
@@ -120,8 +121,8 @@ Today: `path::Name` (file-relative) for top-level, `path::Container.Method` for 
 
 ## Migration mechanics
 
-1. **N1 lands behind a flag** for one release: `DEVPILOT_GRAPH_GO_BACKEND={treesitter|native}`, default `treesitter`. The registry switches backend based on this env var; `parserVersionTag` includes the chosen backend so caches invalidate cleanly across the flip.
-2. **Phase 5 is reframed for Go.** Comparing a `go/types`-based parser against `gopls` is near-tautological — both consume the same type info, so precision/recall will trivially hit 100% on the things both compute and 0% on things only one knows (build tags excluded code, generated files, etc.). For Go, Phase 5 becomes a **coverage check**: assert the native graph contains every symbol `gopls` exposes via `workspace/symbol`, and log (don't gate on) deltas. Phase 5 stays a precision/recall gate for TS / Rust where the LSP is genuinely independent.
+1. **N1 lands behind a flag** for one release: `DEVPILOT_GRAPH_GO_BACKEND={treesitter|native}`, default `treesitter`. The registry switches backend based on this env var; `parserVersionTag` includes the chosen backend so caches invalidate cleanly across the flip. Env flag documented in `CLAUDE.md`, `README.md`, and `docs/cli-reference.md`.
+2. **Phase 5 is reframed for Go (N1.16).** Comparing a `go/types`-based parser against `gopls` is near-tautological — both consume the same type info, so precision/recall will trivially hit 100% on the things both compute and 0% on things only one knows (build tags excluded code, generated files, etc.). For Go, Phase 5 becomes a **coverage check**: assert the native graph contains every symbol `gopls` exposes via `workspace/symbol`, and log (don't gate on) deltas. Phase 5 stays a precision/recall gate for TS / Rust where the LSP is genuinely independent.
 3. **Tree-sitter Go code is deleted** in the release after the flag flips to `native` by default — see Task N1.17 in the phase plan. No long-term dual-stack.
 
 ## Open questions
