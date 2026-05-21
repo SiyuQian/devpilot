@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -11,12 +12,28 @@ type Registry struct {
 	byExt map[string]Parser
 }
 
+// goBackendFromEnv returns the configured Go parser backend based on the
+// DEVPILOT_GRAPH_GO_BACKEND environment variable.
+// Returns "native" if the flag is set to exactly "native", otherwise "treesitter".
+func goBackendFromEnv() string {
+	if v := os.Getenv("DEVPILOT_GRAPH_GO_BACKEND"); v == "native" {
+		return "native"
+	}
+	return "treesitter"
+}
+
 // DefaultRegistry returns a Registry populated with all built-in parsers
-// (Go, TypeScript, JavaScript, Rust).
+// (Go, TypeScript, JavaScript, Rust). The Go parser backend is selected based on
+// the DEVPILOT_GRAPH_GO_BACKEND environment variable: "native" for GoNativeParser,
+// or "treesitter" (default) for GoParser.
 func DefaultRegistry() *Registry {
 	r := &Registry{byExt: make(map[string]Parser)}
+	var goParser Parser = NewGoParser()
+	if goBackendFromEnv() == "native" {
+		goParser = NewGoNativeParser()
+	}
 	for _, p := range []Parser{
-		NewGoParser(),
+		goParser,
 		NewTypeScriptParser(),
 		NewJavaScriptParser(),
 		NewRustParser(),
@@ -55,4 +72,17 @@ func (r *Registry) Languages() []string {
 	}
 	sort.Strings(out)
 	return out
+}
+
+// GoBackend returns the Go parser backend in use by this registry.
+// Returns "native" if the .go files are handled by GoNativeParser, or "treesitter" otherwise.
+func (r *Registry) GoBackend() string {
+	if r == nil {
+		return "treesitter"
+	}
+	p := r.byExt[".go"]
+	if _, ok := p.(*GoNativeParser); ok {
+		return "native"
+	}
+	return "treesitter"
 }

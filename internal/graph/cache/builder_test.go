@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/siyuqian/devpilot/internal/graph/parser"
 	_ "modernc.org/sqlite"
 )
 
@@ -199,6 +200,49 @@ func mustWrite(t *testing.T, path, content string) {
 	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
 		t.Fatal(err)
 	}
+}
+
+func TestParserVersionTagDiffersByBackend(t *testing.T) {
+	tests := []struct {
+		name    string
+		envVal  string
+		wantTag string
+	}{
+		{
+			name:    "treesitter backend",
+			envVal:  "",
+			wantTag: "go=treesitter",
+		},
+		{
+			name:    "native backend",
+			envVal:  "native",
+			wantTag: "go=native",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv("DEVPILOT_GRAPH_GO_BACKEND", tt.envVal)
+			reg := parser.DefaultRegistry()
+			tag := parserVersionTag(reg)
+			if !strings.Contains(tag, tt.wantTag) {
+				t.Errorf("parserVersionTag() = %q, want to contain %q", tag, tt.wantTag)
+			}
+		})
+	}
+
+	// Verify that the two tags differ
+	t.Run("tags differ between backends", func(t *testing.T) {
+		t.Setenv("DEVPILOT_GRAPH_GO_BACKEND", "")
+		tag1 := parserVersionTag(parser.DefaultRegistry())
+
+		t.Setenv("DEVPILOT_GRAPH_GO_BACKEND", "native")
+		tag2 := parserVersionTag(parser.DefaultRegistry())
+
+		if tag1 == tag2 {
+			t.Errorf("tags should differ: treesitter=%q, native=%q", tag1, tag2)
+		}
+	})
 }
 
 func dumpDB(t *testing.T, path string) string {

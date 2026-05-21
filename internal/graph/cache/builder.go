@@ -186,5 +186,14 @@ func (b *Builder) Build() (BuildResult, error) {
 }
 
 func parserVersionTag(reg *parser.Registry) string {
-	return "phase2:" + strings.Join(reg.Languages(), ",")
+	langs := reg.Languages()
+	parts := make([]string, len(langs))
+	for i, lang := range langs {
+		if lang == "go" {
+			parts[i] = "go=" + reg.GoBackend()
+		} else {
+			parts[i] = lang
+		}
+	}
+	return "phase2:" + strings.Join(parts, ",")
 }

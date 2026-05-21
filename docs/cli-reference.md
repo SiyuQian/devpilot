@@ -2,6 +2,14 @@
 
 Full command surface. CLAUDE.md links here; this file is read on demand.
 
+## Environment Flags
+
+**`DEVPILOT_GRAPH_GO_BACKEND`** — Go parser backend selector. Default: `treesitter`.
+Set to `native` to use the experimental `go/packages` + `go/types` backend,
+which produces real cross-package call/implements/tests edges instead of
+name-heuristic guesses. The cache invalidates automatically when the value
+changes. See `docs/plans/2026-05-20-graph-native-ast-design.md`.
+
 ## Build & Development
 
 ```bash
