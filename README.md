@@ -115,6 +115,16 @@ npx skills add siyuqian/devpilot
 |---------|-------------|
 | `devpilot slack send --channel "#channel"` | Send a Slack message |
 
+### Graph Commands
+
+| Command | Description |
+|---------|-------------|
+| `devpilot graph build <repo>` | Build a code graph; auto-incremental from cache |
+| `devpilot graph preflight --base <sha> --head <sha>` | Get changed symbols and cross-module impact |
+| `devpilot graph query <pattern> <target>` | Query edges (callers, tests, implementors, etc.) |
+
+For Go repos, use `DEVPILOT_GRAPH_GO_BACKEND=native` to enable the type-aware `go/packages` backend (experimental; trade-off: slower build, higher memory). See `docs/plans/2026-05-20-graph-native-ast-design.md` for details.
+
 ### Generation Commands
 
 | Command | Description |

@@ -52,3 +52,62 @@ func TestRegistryByExtension(t *testing.T) {
 		}
 	}
 }
+
+func TestDefaultRegistryGoBackendFlag(t *testing.T) {
+	tests := []struct {
+		name           string
+		envValue       string
+		wantBackend    string
+		wantParserType string // "GoNativeParser" or "GoParser"
+	}{
+		{
+			name:           "unset defaults to treesitter",
+			envValue:       "",
+			wantBackend:    "treesitter",
+			wantParserType: "GoParser",
+		},
+		{
+			name:           "native flag selects native backend",
+			envValue:       "native",
+			wantBackend:    "native",
+			wantParserType: "GoNativeParser",
+		},
+		{
+			name:           "invalid value falls back to treesitter",
+			envValue:       "garbage",
+			wantBackend:    "treesitter",
+			wantParserType: "GoParser",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv("DEVPILOT_GRAPH_GO_BACKEND", tt.envValue)
+
+			r := DefaultRegistry()
+
+			// Check GoBackend() returns expected value
+			if got := r.GoBackend(); got != tt.wantBackend {
+				t.Errorf("GoBackend() = %q, want %q", got, tt.wantBackend)
+			}
+
+			// Check ForPath("x.go") returns the correct parser type
+			p := r.ForPath("x.go")
+			if p == nil {
+				t.Fatalf("ForPath(\"x.go\") = nil, want parser")
+			}
+
+			// Type-switch to verify parser type
+			switch tt.wantParserType {
+			case "GoNativeParser":
+				if _, ok := p.(*GoNativeParser); !ok {
+					t.Errorf("ForPath(\"x.go\") returned %T, want *GoNativeParser", p)
+				}
+			case "GoParser":
+				if _, ok := p.(*GoParser); !ok {
+					t.Errorf("ForPath(\"x.go\") returned %T, want *GoParser", p)
+				}
+			}
+		})
+	}
+}
