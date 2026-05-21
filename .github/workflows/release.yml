@@ -9,26 +9,58 @@ permissions:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-14
+            goos: darwin
+            goarch: arm64
+          - runner: macos-13
+            goos: darwin
+            goarch: amd64
+          - runner: ubuntu-latest
+            goos: linux
+            goarch: amd64
+    runs-on: ${{ matrix.runner }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
 
-      - name: Build binaries
+      - name: Build binary
+        env:
+          CGO_ENABLED: "1"
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
         run: |
           VERSION=${{ github.event.release.tag_name }}
-          LDFLAGS="-X main.version=${VERSION}"
-          GOOS=darwin GOARCH=arm64 go build -ldflags "${LDFLAGS}" -o devpilot-darwin-arm64 ./cmd/devpilot
-          GOOS=darwin GOARCH=amd64 go build -ldflags "${LDFLAGS}" -o devpilot-darwin-amd64 ./cmd/devpilot
-          GOOS=linux  GOARCH=amd64 go build -ldflags "${LDFLAGS}" -o devpilot-linux-amd64  ./cmd/devpilot
+          OUT=devpilot-${{ matrix.goos }}-${{ matrix.goarch }}
+          go build -ldflags "-X main.version=${VERSION}" -o "${OUT}" ./cmd/devpilot
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: devpilot-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: devpilot-${{ matrix.goos }}-${{ matrix.goarch }}
+          if-no-files-found: error
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          path: dist
+          merge-multiple: true
 
       - name: Generate checksums
+        working-directory: dist
         run: sha256sum devpilot-* > checksums.txt
 
       - name: Upload release assets
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release upload ${{ github.event.release.tag_name }} devpilot-* checksums.txt
+        working-directory: dist
+        run: gh release upload ${{ github.event.release.tag_name }} devpilot-* checksums.txt --repo ${{ github.repository }}
