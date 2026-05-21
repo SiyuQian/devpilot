@@ -451,7 +451,8 @@ Fields not derivable from grep (`tests`, `implements`, `community`, `risk_factor
 
 Drive `gopls`, `tsc --noEmit --listFiles`, and `rust-analyzer` programmatically against fixture repos. For each `find references` and `goto definition` result, assert the corresponding edge exists in our graph (or that its absence is justified, e.g., dynamic dispatch). Acceptance target:
 
-- ≥ 90% precision and ≥ 90% recall on `callers_of`, `tests_for`, `implementors_of`
+- **For Go (N1.16 native backend):** coverage check, not a precision/recall gate. Because the native backend consumes `go/types` (same as `gopls`), agreement is near-tautological on the things both compute and diverges only on build-tag-gated or generated code. Concretely: assert every entry returned by `gopls workspace/symbol` appears in the native graph; log deltas; do not fail CI on the gap.
+- **For TS and Rust:** ≥ 90% precision and ≥ 90% recall on `callers_of`, `tests_for`, `implementors_of`
 - Measured on devpilot itself, code-review-graph (as an OSS fixture), and one each for TS/JS/Rust
 
 The LSP test layer is tagged `//go:build lsp_check` and runs in a nightly CI job, not on every PR (the LSP servers are heavy and flaky).

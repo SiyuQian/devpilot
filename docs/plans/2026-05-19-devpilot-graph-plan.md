@@ -856,6 +856,8 @@ Apply the same TDD pattern. Add fixture additions (`type X struct`, `type Y inte
 
 **Goal:** Validate parser/resolver accuracy against language servers. Runs nightly, not per-PR. Tagged `//go:build lsp_check`.
 
+**N1.16 reframe for Go:** Phase 5 for Go is a **coverage check**, not a precision/recall gate. Because the native backend consumes `go/types` (same as `gopls`), agreement is near-tautological on the things both compute and diverges only on build-tag-gated or generated code. Concretely: assert every entry returned by `gopls workspace/symbol` appears in the native graph; log deltas; do not fail CI on the gap. Precision/recall gating with a ≥ 90% threshold remains for TS and Rust where the LSP is genuinely independent of our parser implementation.
+
 **File map:**
 - Create: `internal/graph/lsp/gopls.go` + test
 - Create: `internal/graph/lsp/tsc.go` + test
@@ -868,13 +870,13 @@ Apply the same TDD pattern. Add fixture additions (`type X struct`, `type Y inte
 - [ ] **5.1** `gopls` driver: spawn gopls in JSON-RPC mode, `initialize`, `textDocument/references`, parse results into a comparable map.
 - [ ] **5.2** `tsc` driver: invoke `tsc --listFiles` + use `ts-morph` via subprocess or call `tsserver`'s `references` request via stdin.
 - [ ] **5.3** `rust-analyzer` driver: similar JSON-RPC, `textDocument/references`.
-- [ ] **5.4** Cross-check test: for each fixture repo, build graph; for a curated list of ~30 symbols across languages, compare graph's `CallersOf` with LSP's `references` result. Output a precision/recall report.
-- [ ] **5.5** Precision/recall ≥ 90% gate enforced in test (failure if below).
+- [ ] **5.4** Cross-check test: for each fixture repo, build graph; for a curated list of ~30 symbols across languages, compare graph's `CallersOf` with LSP's `references` result. Output a precision/recall report. For Go, verify coverage via `workspace/symbol` instead.
+- [ ] **5.5** For TS and Rust: precision/recall ≥ 90% gate enforced in test (failure if below). For Go: coverage check, log deltas without CI gate.
 - [ ] **5.6** GitHub Actions workflow runs the `lsp_check` build tag on a nightly cron.
 
 **Phase 5 acceptance:**
 - [ ] All three LSP drivers operational against their reference servers.
-- [ ] Cross-check report on devpilot + one OSS fixture per language shows ≥ 90% precision and recall on `callers_of`, `tests_for`, `implementors_of`.
+- [ ] Cross-check report on devpilot + one OSS fixture per language: coverage check passed for Go; ≥ 90% precision and recall for TS and Rust on `callers_of`, `tests_for`, `implementors_of`.
 - [ ] Nightly workflow green for 5 consecutive nights.
 
 ---

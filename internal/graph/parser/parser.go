@@ -17,6 +17,13 @@ type Parser interface {
 	Parse(path string, src []byte) (ParseResult, error)
 }
 
+// PackageLoader is an additive interface implemented by parsers that need
+// whole-module type info (e.g. the native Go backend). cache.Builder dispatches
+// to LoadModule when available, falling back to per-file Parse otherwise.
+type PackageLoader interface {
+	LoadModule(repoRoot string) (map[string]ParseResult, error)
+}
+
 // ParseResult is the output of parsing a single source file.
 type ParseResult struct {
 	Nodes            []store.Node

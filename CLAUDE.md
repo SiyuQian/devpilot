@@ -25,6 +25,13 @@ make lint     # golangci-lint; must pass before commit
 - When adding/removing a skill under `skills/`, update `skills/index.json` in the same PR.
 - Skill helper scripts use Python 3.
 
+## Optional env flags
+- `DEVPILOT_GRAPH_GO_BACKEND=native` — switch the `devpilot graph` Go parser
+  to the experimental `go/packages` + `go/types` backend. Default is `treesitter`.
+  Native produces real cross-package call/implements/tests edges (no `external::*`
+  placeholders). Trade-off: slower cold builds (~1 s vs ~70 ms on devpilot) and
+  higher RSS (~780 MB vs ~4 MB). See `docs/plans/2026-05-20-graph-native-ast-design.md`.
+
 ## Pointers (read on demand; do not inline)
 - System shape + invariants: `ARCHITECTURE.md`
 - Taste calls: `GOLDEN_PRINCIPLES.md`

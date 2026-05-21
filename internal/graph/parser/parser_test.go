@@ -17,3 +17,13 @@ func TestParseResultZero(t *testing.T) {
 		})
 	}
 }
+
+// Compile-time assertion that any type implementing the contract is assignable
+// to PackageLoader. If this file no longer compiles, the interface broke.
+var _ PackageLoader = (*packageLoaderContract)(nil)
+
+type packageLoaderContract struct{}
+
+func (packageLoaderContract) LoadModule(repoRoot string) (map[string]ParseResult, error) {
+	return nil, nil
+}
