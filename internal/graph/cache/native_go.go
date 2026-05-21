@@ -13,14 +13,9 @@ import (
 )
 
 // errNoGoModule is the sentinel returned by loadGoModule when the repo has
-// neither a go.mod nor a go.work — callers should treat it as a non-error
-// signal to fall back to per-file Parse (tree-sitter) for Go files.
-var errNoGoModule = errors.New("no go.mod or go.work: falling back to per-file parse")
-
-// nonModuleErrorPath is the sentinel Path used on synthetic ParseErrors that
-// announce the native-backend non-module fallback. Distinct from "" so
-// downstream consumers do not conflate it with per-package error envelopes.
-const nonModuleErrorPath = "<native-go:non-module>"
+// neither a go.mod nor a go.work. The native Go backend requires a module
+// boundary; callers surface this as a hard build error.
+var errNoGoModule = errors.New("no go.mod or go.work")
 
 // loadGoModule invokes the parser's PackageLoader path.
 //

@@ -10,6 +10,10 @@ import (
 
 func TestRunBuildEmitsValidEnvelope(t *testing.T) {
 	repo := t.TempDir()
+	if err := os.WriteFile(filepath.Join(repo, "go.mod"),
+		[]byte("module example.com/cli-build-test\n\ngo 1.22\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	if err := os.WriteFile(filepath.Join(repo, "main.go"),
 		[]byte("package main\nfunc main(){}\n"), 0o644); err != nil {
 		t.Fatal(err)

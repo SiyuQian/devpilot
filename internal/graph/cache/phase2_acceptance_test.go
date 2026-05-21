@@ -125,6 +125,19 @@ func TestPhase2Acceptance(t *testing.T) {
 func setupRepo(t *testing.T, files map[string]string) string {
 	t.Helper()
 	repo := t.TempDir()
+	// The native Go backend requires a go.mod when .go files are present.
+	hasGo := false
+	for p := range files {
+		if filepath.Ext(p) == ".go" {
+			hasGo = true
+			break
+		}
+	}
+	if hasGo {
+		if _, ok := files["go.mod"]; !ok {
+			mustWrite(t, filepath.Join(repo, "go.mod"), "module example.com/test\n\ngo 1.22\n")
+		}
+	}
 	for p, c := range files {
 		mustWrite(t, filepath.Join(repo, p), c)
 	}

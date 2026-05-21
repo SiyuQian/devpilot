@@ -69,27 +69,21 @@ func (b *Builder) BuildIncremental(prev Meta) (BuildResult, error) {
 	}
 	var nativeResults map[string]parser.ParseResult
 	useNative := false
-	// fallbackGo routes Go files through a tree-sitter parser when the registered
-	// Go parser is the native (no-op Parse) backend but LoadModule was skipped —
-	// i.e. on non-module repos. Without this, *.go entries would route through
-	// GoNativeParser.Parse which returns an empty ParseResult and Go nodes
-	// silently disappear from the incremental graph.
-	var fallbackGo parser.Parser
 	if goReload {
-		if goP := b.reg.ForLanguage("go"); goP != nil {
-			if loader, ok := goP.(parser.PackageLoader); ok {
-				res, lerr := loadGoModule(loader, b.repo)
-				switch {
-				case lerr == nil:
-					useNative = true
-					nativeResults = res
-				case errors.Is(lerr, errNoGoModule):
-					// Non-module repo: route Go files through tree-sitter.
-					fallbackGo = parser.NewGoParser()
-				default:
-					return BuildResult{}, fmt.Errorf("native Go load: %w", lerr)
-				}
-			}
+		goP := b.reg.ForLanguage("go")
+		loader, ok := goP.(parser.PackageLoader)
+		if !ok {
+			return BuildResult{}, fmt.Errorf("native Go load: registered Go parser does not implement PackageLoader")
+		}
+		res, lerr := loadGoModule(loader, b.repo)
+		switch {
+		case lerr == nil:
+			useNative = true
+			nativeResults = res
+		case errors.Is(lerr, errNoGoModule):
+			return BuildResult{}, fmt.Errorf("native Go load: repo contains .go files but no go.mod/go.work at %s: %w", b.repo, lerr)
+		default:
+			return BuildResult{}, fmt.Errorf("native Go load: %w", lerr)
 		}
 	}
 
@@ -122,9 +116,6 @@ func (b *Builder) BuildIncremental(prev Meta) (BuildResult, error) {
 		par := b.reg.ForPath(p)
 		if par == nil {
 			continue
-		}
-		if fallbackGo != nil && filepath.Ext(p) == ".go" {
-			par = fallbackGo
 		}
 		src, err := os.ReadFile(filepath.Join(b.repo, p))
 		if err != nil {

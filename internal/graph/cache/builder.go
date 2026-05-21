@@ -21,14 +21,9 @@ const defaultMaxWorkers = 4
 
 // buildLockTimeout returns the build-lock acquisition deadline. The native
 // Go backend holds the lock for the entire packages.Load duration, which is
-// seconds-to-minutes on large modules; bump the timeout when it's selected
-// so concurrent invocations (e.g. preflight during an interactive build) get
-// a fair chance to wait instead of timing out at 60s.
-func buildLockTimeout(reg *parser.Registry) time.Duration {
-	if reg != nil && reg.GoBackend() == "native" {
-		return 5 * time.Minute
-	}
-	return 60 * time.Second
+// seconds-to-minutes on large modules, so we use a generous timeout.
+func buildLockTimeout(_ *parser.Registry) time.Duration {
+	return 5 * time.Minute
 }
 
 // Builder owns the cache directory for a single repo and produces graph.db.
@@ -95,39 +90,35 @@ func (b *Builder) FullBuild() (BuildResult, error) {
 		return b.reg.ForPath(p) != nil
 	})
 
-	// Native Go backend dispatch: when the registered Go parser implements
-	// PackageLoader (the native backend), call LoadModule once per module and
-	// strip Go files from the per-file fanout. On non-module repos we silently
-	// fall back to per-file Parse so the build doesn't crash on stray inputs.
+	// Native Go backend: when Go files are present, call LoadModule once per
+	// module and strip Go files from the per-file fanout. A non-module repo
+	// containing Go files is a hard error — there is no fallback parser.
 	var nativeResults map[string]parser.ParseResult
-	var nativeErrs []parser.ParseError
 	useNative := false
-	if goP := b.reg.ForLanguage("go"); goP != nil {
-		if loader, ok := goP.(parser.PackageLoader); ok {
-			res, lerr := loadGoModule(loader, b.repo)
-			switch {
-			case lerr == nil:
-				useNative = true
-				nativeResults = res
-			case errors.Is(lerr, errNoGoModule):
-				// Non-module repo: record a synthetic ParseError so the signal
-				// surfaces in results, but keep going via the tree-sitter fanout.
-				// Use a distinct sentinel path so this is not conflated with
-				// go_native.go's own synthetic errors (which key on "").
-				nativeErrs = append(nativeErrs, parser.ParseError{
-					Path:    nonModuleErrorPath,
-					Message: "native Go backend skipped: " + lerr.Error(),
-				})
-			default:
-				return BuildResult{}, fmt.Errorf("native Go load: %w", lerr)
-			}
+	hasGoFiles := false
+	for _, p := range files {
+		if filepath.Ext(p) == ".go" {
+			hasGoFiles = true
+			break
 		}
 	}
-	// fallbackGo is used for Go files when useNative is false but the registered
-	// Go parser is the native (no-op Parse) backend — i.e. on non-module repos.
-	// We route Go files through a tree-sitter parser so the build still produces
-	// nodes. nil means "use the registry parser as-is".
-	var fallbackGo parser.Parser
+	if hasGoFiles {
+		goP := b.reg.ForLanguage("go")
+		loader, ok := goP.(parser.PackageLoader)
+		if !ok {
+			return BuildResult{}, fmt.Errorf("native Go load: registered Go parser does not implement PackageLoader")
+		}
+		res, lerr := loadGoModule(loader, b.repo)
+		switch {
+		case lerr == nil:
+			useNative = true
+			nativeResults = res
+		case errors.Is(lerr, errNoGoModule):
+			return BuildResult{}, fmt.Errorf("native Go load: repo contains .go files but no go.mod/go.work at %s: %w", b.repo, lerr)
+		default:
+			return BuildResult{}, fmt.Errorf("native Go load: %w", lerr)
+		}
+	}
 	if useNative {
 		nonGo := files[:0:0]
 		for _, p := range files {
@@ -136,8 +127,6 @@ func (b *Builder) FullBuild() (BuildResult, error) {
 			}
 		}
 		files = nonGo
-	} else if len(nativeErrs) > 0 {
-		fallbackGo = parser.NewGoParser()
 	}
 
 	st, err := store.Open(dbPath)
@@ -160,9 +149,6 @@ func (b *Builder) FullBuild() (BuildResult, error) {
 		i, relPath := i, relPath
 		g.Go(func() error {
 			p := b.reg.ForPath(relPath)
-			if fallbackGo != nil && filepath.Ext(relPath) == ".go" {
-				p = fallbackGo
-			}
 			src, err := os.ReadFile(filepath.Join(b.repo, relPath))
 			if err != nil {
 				return fmt.Errorf("read %s: %w", relPath, err)
@@ -182,7 +168,7 @@ func (b *Builder) FullBuild() (BuildResult, error) {
 	// Merge native Go results (sorted by key) ahead of the non-Go per-file
 	// results so the final ordering is deterministic. The non-Go results are
 	// already in files-order from the fanout slice.
-	if useNative || len(nativeErrs) > 0 {
+	if useNative {
 		keys := make([]string, 0, len(nativeResults))
 		for k := range nativeResults {
 			keys = append(keys, k)
@@ -191,9 +177,6 @@ func (b *Builder) FullBuild() (BuildResult, error) {
 		merged := make([]parser.ParseResult, 0, len(keys)+len(results))
 		for _, k := range keys {
 			merged = append(merged, nativeResults[k])
-		}
-		if len(nativeErrs) > 0 {
-			merged = append(merged, parser.ParseResult{Errors: nativeErrs})
 		}
 		merged = append(merged, results...)
 		results = merged
@@ -273,7 +256,7 @@ func parserVersionTag(reg *parser.Registry) string {
 	parts := make([]string, len(langs))
 	for i, lang := range langs {
 		if lang == "go" {
-			parts[i] = "go=" + reg.GoBackend()
+			parts[i] = "go=native"
 		} else {
 			parts[i] = lang
 		}
@@ -284,8 +267,11 @@ func parserVersionTag(reg *parser.Registry) string {
 	// on macOS sees *_darwin.go and a Linux CI run sees *_linux.go. Encode
 	// those selectors in the tag so Build() rebuilds when the toolchain shape
 	// changes, even if no file changed.
-	if reg.GoBackend() == "native" {
-		tag += ";env=" + goToolchainEnvSignature()
+	for _, lang := range langs {
+		if lang == "go" {
+			tag += ";env=" + goToolchainEnvSignature()
+			break
+		}
 	}
 	return tag
 }
