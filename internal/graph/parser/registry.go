@@ -54,6 +54,21 @@ func (r *Registry) ForPath(path string) Parser {
 	return r.byExt[strings.ToLower(filepath.Ext(path))]
 }
 
+// ForLanguage returns the registered parser whose Language() matches lang,
+// or nil if no parser claims that language. Used by callers (e.g. cache.Builder)
+// that need a language-keyed lookup instead of file-extension routing.
+func (r *Registry) ForLanguage(lang string) Parser {
+	if r == nil {
+		return nil
+	}
+	for _, p := range r.byExt {
+		if p.Language() == lang {
+			return p
+		}
+	}
+	return nil
+}
+
 // Languages returns the deduplicated list of languages supported by the
 // registry.
 func (r *Registry) Languages() []string {

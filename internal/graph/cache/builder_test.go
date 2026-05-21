@@ -287,6 +287,146 @@ func TestParserVersionTagDiffersByBackend(t *testing.T) {
 	})
 }
 
+// copyGoNativeFixture materialises the parser package's testdata/go_native
+// fixture into dst. We can't reference the testdata directly because it lives
+// behind go test's testdata convention of a different package; copying gives
+// us a writable repo root the builder can lock.
+func copyGoNativeFixture(t *testing.T, dst string) {
+	t.Helper()
+	files := map[string]string{
+		"go.mod": "module example.com/native\n\ngo 1.22\n",
+		"pkg/a/a.go": `package a
+
+func Greet(name string) string {
+	return "hi " + name
+}
+
+func Run() string {
+	return Greet("world")
+}
+`,
+		"pkg/b/b.go": `package b
+
+import "example.com/native/pkg/a"
+
+func B() string {
+	return a.Greet("y")
+}
+`,
+	}
+	for rel, content := range files {
+		mustWrite(t, filepath.Join(dst, rel), content)
+	}
+}
+
+func TestBuilderFullBuildNativeGoBackend(t *testing.T) {
+	t.Setenv("DEVPILOT_GRAPH_GO_BACKEND", "native")
+	repo := t.TempDir()
+	copyGoNativeFixture(t, repo)
+
+	home := t.TempDir()
+	b, err := NewBuilder(home, repo)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err := b.FullBuild()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.NodesInsert == 0 {
+		t.Fatalf("NodesInsert=0, want > 0")
+	}
+
+	db, err := sql.Open("sqlite", GraphDB(home, RepoKey(repo)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = db.Close() }()
+
+	var n int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM nodes WHERE id = ?`, "pkg/a/a.go::Greet").Scan(&n); err != nil {
+		t.Fatal(err)
+	}
+	if n != 1 {
+		t.Errorf("expected node pkg/a/a.go::Greet, got count=%d", n)
+	}
+
+	if err := db.QueryRow(`SELECT COUNT(*) FROM edges WHERE src = ? AND dst = ? AND kind = ?`,
+		"pkg/b/b.go::B", "pkg/a/a.go::Greet", "calls").Scan(&n); err != nil {
+		t.Fatal(err)
+	}
+	if n != 1 {
+		t.Errorf("expected calls edge pkg/b/b.go::B -> pkg/a/a.go::Greet, got count=%d", n)
+	}
+
+	if err := db.QueryRow(`SELECT COUNT(*) FROM edges WHERE dst LIKE 'external::%'`).Scan(&n); err != nil {
+		t.Fatal(err)
+	}
+	if n != 0 {
+		t.Errorf("expected zero external:: edges, got %d", n)
+	}
+}
+
+func TestBuilderFullBuildNativeGoDeterministic(t *testing.T) {
+	t.Setenv("DEVPILOT_GRAPH_GO_BACKEND", "native")
+	repo := t.TempDir()
+	copyGoNativeFixture(t, repo)
+
+	home := t.TempDir()
+	b, err := NewBuilder(home, repo)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := b.FullBuild(); err != nil {
+		t.Fatal(err)
+	}
+	d1 := dumpDB(t, GraphDB(home, RepoKey(repo)))
+	if _, err := b.FullBuild(); err != nil {
+		t.Fatal(err)
+	}
+	d2 := dumpDB(t, GraphDB(home, RepoKey(repo)))
+	if d1 != d2 {
+		t.Errorf("two native-backend full builds produced different dumps:\n%s\n----\n%s", d1, d2)
+	}
+}
+
+func TestBuilderFullBuildNonGoModuleFallback(t *testing.T) {
+	t.Setenv("DEVPILOT_GRAPH_GO_BACKEND", "native")
+	repo := t.TempDir()
+	// Note: no go.mod, no go.work — native path must skip and fall back to
+	// tree-sitter for the Go file.
+	mustWrite(t, filepath.Join(repo, "main.go"), `package main
+func Greet(n string) string { return "hi " + n }
+func main() { Greet("x") }
+`)
+
+	home := t.TempDir()
+	b, err := NewBuilder(home, repo)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err := b.FullBuild()
+	if err != nil {
+		t.Fatalf("FullBuild failed on non-module repo: %v", err)
+	}
+	if res.NodesInsert == 0 {
+		t.Errorf("expected fallback parse to produce nodes, got NodesInsert=0")
+	}
+
+	db, err := sql.Open("sqlite", GraphDB(home, RepoKey(repo)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = db.Close() }()
+	var n int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM nodes WHERE id = ?`, "main.go").Scan(&n); err != nil {
+		t.Fatal(err)
+	}
+	if n != 1 {
+		t.Errorf("expected file node main.go from tree-sitter fallback, count=%d", n)
+	}
+}
+
 func dumpDB(t *testing.T, path string) string {
 	t.Helper()
 	db, err := sql.Open("sqlite", path)

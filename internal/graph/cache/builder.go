@@ -1,9 +1,11 @@
 package cache
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -80,6 +82,49 @@ func (b *Builder) FullBuild() (BuildResult, error) {
 		return b.reg.ForPath(p) != nil
 	})
 
+	// Native Go backend dispatch: when the registered Go parser implements
+	// PackageLoader (the native backend), call LoadModule once per module and
+	// strip Go files from the per-file fanout. On non-module repos we silently
+	// fall back to per-file Parse so the build doesn't crash on stray inputs.
+	var nativeResults map[string]parser.ParseResult
+	var nativeErrs []parser.ParseError
+	useNative := false
+	if goP := b.reg.ForLanguage("go"); goP != nil {
+		if loader, ok := goP.(parser.PackageLoader); ok {
+			res, lerr := loadGoModule(loader, b.repo)
+			switch {
+			case lerr == nil:
+				useNative = true
+				nativeResults = res
+			case errors.Is(lerr, errNoGoModule):
+				// Non-module repo: record a synthetic ParseError so the signal
+				// surfaces in results, but keep going via the tree-sitter fanout.
+				nativeErrs = append(nativeErrs, parser.ParseError{
+					Path:    "",
+					Message: "native Go backend skipped: " + lerr.Error(),
+				})
+			default:
+				return BuildResult{}, fmt.Errorf("native Go load: %w", lerr)
+			}
+		}
+	}
+	// fallbackGo is used for Go files when useNative is false but the registered
+	// Go parser is the native (no-op Parse) backend — i.e. on non-module repos.
+	// We route Go files through a tree-sitter parser so the build still produces
+	// nodes. nil means "use the registry parser as-is".
+	var fallbackGo parser.Parser
+	if useNative {
+		nonGo := files[:0:0]
+		for _, p := range files {
+			if filepath.Ext(p) != ".go" {
+				nonGo = append(nonGo, p)
+			}
+		}
+		files = nonGo
+	} else if len(nativeErrs) > 0 {
+		fallbackGo = parser.NewGoParser()
+	}
+
 	st, err := store.Open(dbPath)
 	if err != nil {
 		return BuildResult{}, fmt.Errorf("open graph.db: %w", err)
@@ -100,6 +145,9 @@ func (b *Builder) FullBuild() (BuildResult, error) {
 		i, relPath := i, relPath
 		g.Go(func() error {
 			p := b.reg.ForPath(relPath)
+			if fallbackGo != nil && filepath.Ext(relPath) == ".go" {
+				p = fallbackGo
+			}
 			src, err := os.ReadFile(filepath.Join(b.repo, relPath))
 			if err != nil {
 				return fmt.Errorf("read %s: %w", relPath, err)
@@ -114,6 +162,26 @@ func (b *Builder) FullBuild() (BuildResult, error) {
 	}
 	if err := g.Wait(); err != nil {
 		return BuildResult{}, fmt.Errorf("parse fanout: %w", err)
+	}
+
+	// Merge native Go results (sorted by key) ahead of the non-Go per-file
+	// results so the final ordering is deterministic. The non-Go results are
+	// already in files-order from the fanout slice.
+	if useNative || len(nativeErrs) > 0 {
+		keys := make([]string, 0, len(nativeResults))
+		for k := range nativeResults {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		merged := make([]parser.ParseResult, 0, len(keys)+len(results))
+		for _, k := range keys {
+			merged = append(merged, nativeResults[k])
+		}
+		if len(nativeErrs) > 0 {
+			merged = append(merged, parser.ParseResult{Errors: nativeErrs})
+		}
+		merged = append(merged, results...)
+		results = merged
 	}
 
 	results = resolver.Resolve(results)
