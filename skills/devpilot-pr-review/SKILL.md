@@ -40,8 +40,9 @@ Every finding tied to a specific line goes in as an inline review comment, never
 ```
 0. Eligibility gate         → references/eligibility.md
 1. Load PR                  → gh / git / pasted patch
+1.5 Graph enrichment        → references/graph.md (preflight once; fallback OK)
 2. Parallel fanout          → references/fanout.md (5 subagents, parallel)
-3. Filter + merge           → references/confidence.md (threshold 70, dedupe)
+3. Filter + merge + reconcile against graph → references/confidence.md
 4. Draft review             → references/template.md + style.md
 5. Post one combined POST   → references/posting.md
 Self-check before post      → references/rationalizations.md
@@ -65,6 +66,12 @@ gh pr diff <url>
 
 Or `git diff <base>...HEAD` for a local branch, or read a pasted patch directly. Capture the **head SHA** — link rendering depends on it (see `references/posting.md`). A PR with no stated intent is itself a finding.
 
+### 1.5. Graph enrichment
+
+Run `devpilot graph preflight --base <base-sha> --head <head-sha>` once. Cache the JSON to `/tmp/pr_review_graph.json` and inject it into the shared header that every fanout brief sees. The payload tells subagents — before they read any code — which symbols changed, who calls each, which are hubs, which lack tests, and which cross-community edges this PR adds. Agent A's blast-radius answer comes from this payload, not from grep.
+
+If the graph cache is missing, the language is unsupported, or preflight fails, **fall back** to the grep-only path and note `Behavior trace: grep-only (graph unavailable: <reason>)` in the body's sweep summary. Do not auto-run `devpilot graph build`. See `references/graph.md` for the full payload schema, fallback triggers, and confidence-weighting rules.
+
 ### 2. Parallel fanout (5 subagents)
 
 Dispatch all five in a single message so they run in parallel. Each receives the PR metadata, the diff, and one focused brief. Each returns findings with `Confidence: 0–100` and `Severity`. See `references/fanout.md` for the prompts.
@@ -85,6 +92,7 @@ The main session does NOT also do these passes itself. Subagent context savings 
 
 Apply the rubric in `references/confidence.md`:
 
+- **Reconcile against the graph payload** (see `references/graph.md` → "Confidence weighting"): findings whose blast-radius claim is corroborated by `changed_symbols[].callers` have their confidence floor raised to 85; findings contradicted by the graph (claimed caller doesn't exist; "hub" claim when `in_hub:false`) are capped at 50 — which drops them under the threshold.
 - Drop findings with `Confidence < 70`.
 - Drop findings that match the false-positive list in `references/eligibility.md` (pre-existing issues, lines the PR did not modify, linter/typechecker-catchable, ignored-by-comment, **already raised by an existing review comment at the same anchor**, etc.). The existing-comments file from step 0 is the source of truth for the duplicate check.
 - Dedupe across agents (same line, same defect → one inline comment, take the higher confidence).
@@ -111,8 +119,9 @@ Before posting, walk `references/rationalizations.md` self-check.
 | File | What's in it |
 |---|---|
 | `references/eligibility.md` | Gate rules + false-positive list (when to skip review entirely, what to never flag). |
-| `references/fanout.md` | Five subagent prompts (Behavior, Bug scan, CLAUDE.md, Git history, In-file comments). |
-| `references/confidence.md` | 0–100 rubric, threshold 70, severity vs. confidence axes, dedupe rules. |
+| `references/graph.md` | `devpilot graph preflight` payload schema, fallback triggers, confidence-weighting rules consumed by step 3. |
+| `references/fanout.md` | Five subagent prompts (Behavior, Bug scan, CLAUDE.md, Git history, In-file comments) — all receive the graph payload. |
+| `references/confidence.md` | 0–100 rubric, threshold 70, severity vs. confidence axes, dedupe rules, graph reconciliation. |
 | `references/unknown-unknowns.md` | Behavior sweep details — Agent A's playbook. |
 | `references/checklist.md` | Quality dimensions referenced by Agent B's bug scan and Agent A's checklist tail. |
 | `references/template.md` | Inline comment template + review body template (Verdict, Strengths, sweep, counts). |

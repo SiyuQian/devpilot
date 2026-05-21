@@ -37,6 +37,10 @@ Common shortcuts the reviewer may reach for, and what to do instead. The "Realit
 | "Disclaimer feels defensive, I'll skip or shorten it." | Keep the disclaimer. It protects authors from treating AI findings as authoritative. |
 | "I'll ask 'what happens when X?' so the author clarifies." | If the code can answer it, state the answer. Author questions live in Open Questions only. |
 | "I have a better approach but I'll stay neutral." | Name it, one sentence on why, ask the author to confirm. |
+| "Graph says this symbol has 0 callers — must be dead code, skip it." | `callers.count: 0` means *no static caller in the indexed languages*. Reflection, codegen, RPC, CLI dispatch tables, and test main files are invisible to the graph. Confirm with one grep before claiming dead code. |
+| "Graph says change_type=modified, so the symbol's behavior changed." | `change_type` is line-overlap based; neighboring edits can mark a struct/function "modified" without changing its shape. Diff the symbol body before treating it as a behavior change. |
+| "Graph is unavailable, so I'll skip the blast-radius question." | Fall back to grep and note `grep-only fallback` in the sweep summary. The question still has to be answered; only the source of the answer changes. |
+| "Graph corroborated my finding, so I'll skip reading the caller file." | Graph confirms the edge exists; it does not confirm the caller still satisfies the new contract. Open the caller. |
 
 ## Self-check before posting
 

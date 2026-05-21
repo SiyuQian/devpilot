@@ -1,6 +1,20 @@
 # Parallel Fanout: Five Subagent Briefs
 
-Dispatch all five subagents in a **single message with five parallel Task calls** so they run concurrently. Each subagent gets the same PR header (URL, title, head SHA, base SHA, files changed list, full diff) and one focused brief from this file.
+Dispatch all five subagents in a **single message with five parallel Task calls** so they run concurrently. Each subagent gets the same PR header (URL, title, head SHA, base SHA, files changed list, full diff) **plus the graph preflight payload** (or the `graph_unavailable: <reason>` marker if step 1.5 fell back) and one focused brief from this file.
+
+## Shared graph header (injected into every brief)
+
+When graph is available, the dispatch prepends this block to every Agent's prompt:
+
+```
+GRAPH_PREFLIGHT (authoritative for callers, hubs, untested public surface):
+- changed_symbols: <id, kind, is_exported, callers.count, callers.sample[], in_hub, tests.has_tests, risk_factors[]>
+- cross_community_edges: <from → to, count_added, samples[]>
+- risk_summary: <hub_nodes_modified, untested_public_changes, interface_changes, new_cross_community_edges>
+Source of truth for "who calls X" and "is X a hub". Do NOT re-derive these via grep.
+```
+
+When graph fell back, the block instead reads `graph_unavailable: <reason>; use grep, expect lower confidence on blast-radius claims`. See `references/graph.md` for the full payload schema and fallback rules.
 
 Each subagent returns a JSON-ish list of findings:
 
@@ -28,23 +42,24 @@ You are reviewing a pull request for behavior-level defects. Your job is the fiv
 **Inputs:**
 - PR URL, title, body, head SHA, base SHA, files changed.
 - Full diff (`gh pr diff <url>`).
+- The shared graph preflight payload (above) — authoritative for callers / hubs / untested surface.
 
 **Process:**
 1. Read the diff end-to-end. Then read the full files touched (not just the hunks).
 2. Run the five blind-spot questions from `references/unknown-unknowns.md`:
    1. Local pattern fit
-   2. Blast radius (grep callers of every exported symbol changed)
+   2. **Blast radius — consume `GRAPH_PREFLIGHT.changed_symbols[].callers` directly.** For each exported / behaviorally-modified symbol, list every caller from the payload, check each in turn against the change, and ask: does this caller still satisfy its contract after the change? Only fall back to grep if the shared header says `graph_unavailable`, or if the change involves reflection / codegen / string-keyed dispatch the static graph cannot see — name the reason explicitly. A symbol with `risk_factors: ["untested_public"]` is a Should-fix finding by itself. A symbol with `callers.in_hub: true` escalates severity for any behavior change.
    3. Known pitfalls for this change class (auth, concurrency, migration, DB query, retry, cache, LLM, input boundary, data write, reversibility)
    4. Stale-training check (verify versions in `go.mod`/`package.json`)
    5. Hand-rolled vs. off-the-shelf (search repo + deps for existing utilities)
-3. Trace at least one golden-path input and one edge-case input through the change. Record the observable behavior delta.
-4. Produce a one-line summary per question for the body (`### Unknown-Unknowns Sweep` section). Concrete defects discovered during the sweep ALSO become individual findings anchored to lines.
+3. Trace at least one golden-path input and one edge-case input through the change. Record the observable behavior delta. Use `GRAPH_PREFLIGHT.cross_community_edges` to spot whether this PR newly widens a package boundary — a Consider-level finding when unexpected.
+4. Produce a one-line summary per question for the body (`### Unknown-Unknowns Sweep` section). Concrete defects discovered during the sweep ALSO become individual findings anchored to lines. The blast-radius line MUST cite the caller count from the graph payload (or say `grep-only fallback` with the reason).
 
 **Output:** Findings list (one per concrete defect) + a `sweep_summary` block with five lines (one per question).
 
 **Confidence calibration:**
 - 100: literal-string evidence in the diff (e.g. "log statement leaks the token").
-- 85–95: traced through code on this branch; you opened the relevant files.
+- 85–95: traced through code on this branch; you opened the relevant files. Findings whose caller chain is corroborated by `GRAPH_PREFLIGHT` start at this floor.
 - 70–84: defect inferred from a clear pattern, but you didn't trace every path.
 - 50–69: plausible but you couldn't open the caller/test that would confirm.
 - < 50: speculation. Drop unless you can raise confidence.
