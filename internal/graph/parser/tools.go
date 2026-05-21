@@ -6,5 +6,4 @@ package parser
 
 import (
 	_ "github.com/smacker/go-tree-sitter"
-	_ "github.com/smacker/go-tree-sitter/golang"
 )

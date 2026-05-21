@@ -1,7 +1,7 @@
 # Graph: Native AST Backends — Design
 
-**Status:** complete (Phase N1 behind `DEVPILOT_GRAPH_GO_BACKEND=native` env flag)
-**Phase N1 status (2026-05-21):** Implementation complete. Default remains tree-sitter for one stable release. Promotion to default and tree-sitter Go code deletion tracked in N1.17 (deferred). Parity + bench reports in `docs/plans/2026-05-20-graph-native-ast-*.md`.
+**Status:** complete (Phase N1; native `go/packages` + `go/types` is the only Go backend)
+**Phase N1 status (2026-05-21):** Implementation complete and the tree-sitter Go backend has been removed (Task N1.17). Native is the only Go parser; the `DEVPILOT_GRAPH_GO_BACKEND` env flag no longer exists. Parity + bench reports in `docs/plans/2026-05-20-graph-native-ast-*.md` are retained as historical references.
 **Author:** Siyu Qian (with Claude)
 **Date:** 2026-05-20
 **Related:** [Phase 1–7 plan](./2026-05-19-devpilot-graph-plan.md), Phase 5 (LSP cross-check)
@@ -123,7 +123,7 @@ Today: `path::Name` (file-relative) for top-level, `path::Container.Method` for 
 
 1. **N1 lands behind a flag** for one release: `DEVPILOT_GRAPH_GO_BACKEND={treesitter|native}`, default `treesitter`. The registry switches backend based on this env var; `parserVersionTag` includes the chosen backend so caches invalidate cleanly across the flip. Env flag documented in `CLAUDE.md`, `README.md`, and `docs/cli-reference.md`.
 2. **Phase 5 is reframed for Go (N1.16).** Comparing a `go/types`-based parser against `gopls` is near-tautological — both consume the same type info, so precision/recall will trivially hit 100% on the things both compute and 0% on things only one knows (build tags excluded code, generated files, etc.). For Go, Phase 5 becomes a **coverage check**: assert the native graph contains every symbol `gopls` exposes via `workspace/symbol`, and log (don't gate on) deltas. Phase 5 stays a precision/recall gate for TS / Rust where the LSP is genuinely independent.
-3. **Tree-sitter Go code is deleted** in the release after the flag flips to `native` by default — see Task N1.17 in the phase plan. No long-term dual-stack.
+3. **Tree-sitter Go code has been deleted** (Task N1.17, 2026-05-21). Native is now the only Go backend; the env flag is gone. Non-module Go repos are a hard build error.
 
 ## Open questions
 

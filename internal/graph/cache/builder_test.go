@@ -13,6 +13,13 @@ import (
 	_ "modernc.org/sqlite"
 )
 
+// writeGoMod drops a minimal go.mod into dir so the native Go backend can
+// type-check the fixture. The native backend rejects non-module repos.
+func writeGoMod(t *testing.T, dir, module string) {
+	t.Helper()
+	mustWrite(t, filepath.Join(dir, "go.mod"), "module "+module+"\n\ngo 1.22\n")
+}
+
 func TestBuildSweepsStalePreflight(t *testing.T) {
 	home := t.TempDir()
 	preDir := filepath.Join(home, "preflight")
@@ -29,6 +36,7 @@ func TestBuildSweepsStalePreflight(t *testing.T) {
 	}
 
 	repo := t.TempDir()
+	writeGoMod(t, repo, "example.com/sweep")
 	mustWrite(t, filepath.Join(repo, "main.go"), "package main\nfunc main() {}\n")
 
 	b, err := NewBuilder(home, repo)
@@ -45,6 +53,7 @@ func TestBuildSweepsStalePreflight(t *testing.T) {
 
 func TestBuilderFullBuildOnTempRepo(t *testing.T) {
 	repo := t.TempDir()
+	writeGoMod(t, repo, "example.com/temp")
 	mustWrite(t, filepath.Join(repo, "main.go"), `package main
 func Greet(n string) string { return "hi " + n }
 func main() { Greet("x") }
@@ -60,8 +69,10 @@ func main() { Greet("x") }
 	if err != nil {
 		t.Fatal(err)
 	}
-	if res.FilesParsed != 1 {
-		t.Errorf("FilesParsed=%d want 1", res.FilesParsed)
+	// Native backend owns Go files via LoadModule, so the per-file fanout
+	// only sees zero remaining files (main.go is filtered out).
+	if res.NodesInsert == 0 {
+		t.Errorf("NodesInsert=%d want > 0", res.NodesInsert)
 	}
 	if _, err := os.Stat(GraphDB(home, RepoKey(repo))); err != nil {
 		t.Errorf("graph.db missing: %v", err)
@@ -77,6 +88,7 @@ func main() { Greet("x") }
 
 func TestBuilderFullBuildDeterministic(t *testing.T) {
 	repo := t.TempDir()
+	writeGoMod(t, repo, "example.com/det")
 	mustWrite(t, filepath.Join(repo, "main.go"), `package main
 func A() {}
 func B() { A() }
@@ -101,6 +113,7 @@ func B() { A() }
 
 func TestBuilderParallelMatchesSequential(t *testing.T) {
 	repo := t.TempDir()
+	writeGoMod(t, repo, "example.com/par")
 	for i := 0; i < 20; i++ {
 		name := filepath.Join(repo, "pkg", "file"+itoa(i)+".go")
 		mustWrite(t, name, "package pkg\nfunc F"+itoa(i)+"() {}\n")
@@ -135,6 +148,7 @@ func TestBuilderParallelMatchesSequential(t *testing.T) {
 
 func TestSchemaMismatchRebuilds(t *testing.T) {
 	repo := t.TempDir()
+	writeGoMod(t, repo, "example.com/schema")
 	mustWrite(t, filepath.Join(repo, "main.go"), `package main
 func Greet(n string) string { return "hi " + n }
 func main() { Greet("x") }
@@ -180,6 +194,7 @@ func main() { Greet("x") }
 
 func TestParserVersionMismatchRebuilds(t *testing.T) {
 	repo := t.TempDir()
+	writeGoMod(t, repo, "example.com/parserversion")
 	mustWrite(t, filepath.Join(repo, "main.go"), `package main
 func Greet(n string) string { return "hi " + n }
 func main() { Greet("x") }
@@ -248,8 +263,6 @@ func TestParserVersionTagEncodesGoEnv(t *testing.T) {
 	// Native backend output depends on GOOS/GOARCH/CGO_ENABLED/GOFLAGS;
 	// changing any of these without touching files must still trigger a
 	// rebuild. parserVersionTag captures this in an env= suffix.
-	t.Setenv("DEVPILOT_GRAPH_GO_BACKEND", "native")
-
 	t.Setenv("CGO_ENABLED", "1")
 	t.Setenv("GOFLAGS", "")
 	tag1 := parserVersionTag(parser.DefaultRegistry())
@@ -267,65 +280,18 @@ func TestParserVersionTagEncodesGoEnv(t *testing.T) {
 	if tag1 == tag3 {
 		t.Errorf("GOFLAGS change must alter the tag; both=%q", tag1)
 	}
+}
 
-	// Tree-sitter backend ignores the env signature.
-	t.Setenv("DEVPILOT_GRAPH_GO_BACKEND", "")
-	t.Setenv("CGO_ENABLED", "1")
-	ts1 := parserVersionTag(parser.DefaultRegistry())
-	t.Setenv("CGO_ENABLED", "0")
-	ts2 := parserVersionTag(parser.DefaultRegistry())
-	if ts1 != ts2 {
-		t.Errorf("tree-sitter tag must NOT change with CGO_ENABLED; ts1=%q ts2=%q", ts1, ts2)
+func TestParserVersionTagEncodesNativeBackend(t *testing.T) {
+	tag := parserVersionTag(parser.DefaultRegistry())
+	if !strings.Contains(tag, "go=native") {
+		t.Errorf("parserVersionTag() = %q, want to contain %q", tag, "go=native")
 	}
 }
 
-func TestParserVersionTagDiffersByBackend(t *testing.T) {
-	tests := []struct {
-		name    string
-		envVal  string
-		wantTag string
-	}{
-		{
-			name:    "treesitter backend",
-			envVal:  "",
-			wantTag: "go=treesitter",
-		},
-		{
-			name:    "native backend",
-			envVal:  "native",
-			wantTag: "go=native",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Setenv("DEVPILOT_GRAPH_GO_BACKEND", tt.envVal)
-			reg := parser.DefaultRegistry()
-			tag := parserVersionTag(reg)
-			if !strings.Contains(tag, tt.wantTag) {
-				t.Errorf("parserVersionTag() = %q, want to contain %q", tag, tt.wantTag)
-			}
-		})
-	}
-
-	// Verify that the two tags differ
-	t.Run("tags differ between backends", func(t *testing.T) {
-		t.Setenv("DEVPILOT_GRAPH_GO_BACKEND", "")
-		tag1 := parserVersionTag(parser.DefaultRegistry())
-
-		t.Setenv("DEVPILOT_GRAPH_GO_BACKEND", "native")
-		tag2 := parserVersionTag(parser.DefaultRegistry())
-
-		if tag1 == tag2 {
-			t.Errorf("tags should differ: treesitter=%q, native=%q", tag1, tag2)
-		}
-	})
-}
-
-// copyGoNativeFixture materialises the parser package's testdata/go_native
-// fixture into dst. We can't reference the testdata directly because it lives
-// behind go test's testdata convention of a different package; copying gives
-// us a writable repo root the builder can lock.
+// copyGoNativeFixture materialises a small two-package Go module fixture
+// into dst. Lives here (rather than referencing the parser package's
+// testdata) so the cache tests own their fixtures.
 func copyGoNativeFixture(t *testing.T, dst string) {
 	t.Helper()
 	files := map[string]string{
@@ -355,7 +321,6 @@ func B() string {
 }
 
 func TestBuilderFullBuildNativeGoBackend(t *testing.T) {
-	t.Setenv("DEVPILOT_GRAPH_GO_BACKEND", "native")
 	repo := t.TempDir()
 	copyGoNativeFixture(t, repo)
 
@@ -403,7 +368,6 @@ func TestBuilderFullBuildNativeGoBackend(t *testing.T) {
 }
 
 func TestBuilderFullBuildNativeGoDeterministic(t *testing.T) {
-	t.Setenv("DEVPILOT_GRAPH_GO_BACKEND", "native")
 	repo := t.TempDir()
 	copyGoNativeFixture(t, repo)
 
@@ -425,11 +389,10 @@ func TestBuilderFullBuildNativeGoDeterministic(t *testing.T) {
 	}
 }
 
-func TestBuilderFullBuildNonGoModuleFallback(t *testing.T) {
-	t.Setenv("DEVPILOT_GRAPH_GO_BACKEND", "native")
+func TestBuilderFullBuildNonGoModuleErrors(t *testing.T) {
 	repo := t.TempDir()
-	// Note: no go.mod, no go.work — native path must skip and fall back to
-	// tree-sitter for the Go file.
+	// No go.mod, no go.work — the native backend must surface this as a
+	// hard error rather than silently dropping the .go file.
 	mustWrite(t, filepath.Join(repo, "main.go"), `package main
 func Greet(n string) string { return "hi " + n }
 func main() { Greet("x") }
@@ -440,25 +403,8 @@ func main() { Greet("x") }
 	if err != nil {
 		t.Fatal(err)
 	}
-	res, err := b.FullBuild()
-	if err != nil {
-		t.Fatalf("FullBuild failed on non-module repo: %v", err)
-	}
-	if res.NodesInsert == 0 {
-		t.Errorf("expected fallback parse to produce nodes, got NodesInsert=0")
-	}
-
-	db, err := sql.Open("sqlite", GraphDB(home, RepoKey(repo)))
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() { _ = db.Close() }()
-	var n int
-	if err := db.QueryRow(`SELECT COUNT(*) FROM nodes WHERE id = ?`, "main.go").Scan(&n); err != nil {
-		t.Fatal(err)
-	}
-	if n != 1 {
-		t.Errorf("expected file node main.go from tree-sitter fallback, count=%d", n)
+	if _, err := b.FullBuild(); err == nil {
+		t.Fatal("FullBuild succeeded on non-module Go repo; expected hard error")
 	}
 }
 

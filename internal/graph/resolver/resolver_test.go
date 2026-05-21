@@ -1,8 +1,6 @@
 package resolver
 
 import (
-	"os"
-	"path/filepath"
 	"testing"
 
 	"github.com/siyuqian/devpilot/internal/graph/parser"
@@ -15,105 +13,6 @@ func TestResolve(t *testing.T) {
 		setup func(t *testing.T) []parser.ParseResult
 		check func(t *testing.T, resolved []parser.ParseResult)
 	}{
-		{
-			name: "intra_module_calls",
-			setup: func(t *testing.T) []parser.ParseResult {
-				p := parser.NewGoParser()
-				dir := filepath.Join("..", "parser", "testdata", "go", "multifile")
-				aSrc, err := os.ReadFile(filepath.Join(dir, "a.go"))
-				if err != nil {
-					t.Fatal(err)
-				}
-				bSrc, err := os.ReadFile(filepath.Join(dir, "b.go"))
-				if err != nil {
-					t.Fatal(err)
-				}
-				rA, err := p.Parse("multifile/a.go", aSrc)
-				if err != nil {
-					t.Fatal(err)
-				}
-				rB, err := p.Parse("multifile/b.go", bSrc)
-				if err != nil {
-					t.Fatal(err)
-				}
-				_ = store.Node{} // keep store import used
-				return []parser.ParseResult{rA, rB}
-			},
-			check: func(t *testing.T, resolved []parser.ParseResult) {
-				var foundCall bool
-				for _, r := range resolved {
-					for _, e := range r.Edges {
-						if e.Kind == "calls" && e.Src == "multifile/a.go::A" && e.Dst == "multifile/b.go::B" {
-							foundCall = true
-						}
-					}
-				}
-				if !foundCall {
-					var seen []string
-					for _, r := range resolved {
-						for _, e := range r.Edges {
-							if e.Kind == "calls" && e.Src == "multifile/a.go::A" {
-								seen = append(seen, e.Dst)
-							}
-						}
-					}
-					t.Fatalf("expected calls edge multifile/a.go::A -> multifile/b.go::B, saw dsts: %v", seen)
-				}
-
-				var foundFmt bool
-				for _, r := range resolved {
-					for _, e := range r.Edges {
-						if e.Kind == "calls" && e.Src == "multifile/a.go::A" && e.Dst == "external::fmt.Println" {
-							foundFmt = true
-						}
-					}
-				}
-				if !foundFmt {
-					t.Errorf("external::fmt.Println edge was wrongly rewritten")
-				}
-
-				if len(resolved) != 2 {
-					t.Errorf("expected 2 ParseResults out, got %d", len(resolved))
-				}
-			},
-		},
-		{
-			name: "implements_edges",
-			setup: func(t *testing.T) []parser.ParseResult {
-				p := parser.NewGoParser()
-				dir := filepath.Join("..", "parser", "testdata", "go", "iface")
-				src, err := os.ReadFile(filepath.Join(dir, "iface.go"))
-				if err != nil {
-					t.Fatal(err)
-				}
-				r, err := p.Parse("iface/iface.go", src)
-				if err != nil {
-					t.Fatal(err)
-				}
-				return []parser.ParseResult{r}
-			},
-			check: func(t *testing.T, resolved []parser.ParseResult) {
-				wantSrc := "iface/iface.go::Console"
-				wantDst := "iface/iface.go::Greeter"
-				var have, haveMute bool
-				for _, rr := range resolved {
-					for _, e := range rr.Edges {
-						if e.Kind == "implements" && e.Src == wantSrc && e.Dst == wantDst {
-							have = true
-						}
-						if e.Kind == "implements" && e.Src == "iface/iface.go::Mute" && e.Dst == wantDst {
-							haveMute = true
-						}
-					}
-				}
-				if !have {
-					t.Errorf("missing implements edge Console -> Greeter")
-				}
-				if haveMute {
-					t.Errorf("Mute should NOT implement Greeter (no methods)")
-				}
-			},
-		},
 		{
 			name: "no_op_when_no_externals",
 			setup: func(t *testing.T) []parser.ParseResult {
@@ -134,7 +33,6 @@ func TestResolve(t *testing.T) {
 				}
 			},
 			check: func(t *testing.T, resolved []parser.ParseResult) {
-				// Verify the result is byte-identical and of expected length.
 				if len(resolved) != 1 {
 					t.Errorf("expected 1 result, got %d", len(resolved))
 				}
@@ -144,7 +42,6 @@ func TestResolve(t *testing.T) {
 				if len(resolved[0].Edges) != 1 {
 					t.Errorf("expected 1 edge, got %d", len(resolved[0].Edges))
 				}
-				// Check that the edge is unchanged.
 				if resolved[0].Edges[0].Src != "test.go::Foo" || resolved[0].Edges[0].Dst != "test.go::Bar" {
 					t.Errorf("edge was modified: got %v -> %v", resolved[0].Edges[0].Src, resolved[0].Edges[0].Dst)
 				}
@@ -179,7 +76,6 @@ func TestResolve(t *testing.T) {
 				}
 			},
 			check: func(t *testing.T, resolved []parser.ParseResult) {
-				// Verify the external::Bar edge was rewritten to b.go::Bar.
 				if len(resolved) != 2 {
 					t.Errorf("expected 2 results, got %d", len(resolved))
 				}
@@ -192,6 +88,73 @@ func TestResolve(t *testing.T) {
 				}
 				if edge.Src != "a.go::Foo" || edge.Kind != "calls" {
 					t.Errorf("edge src/kind were modified: src=%s kind=%s", edge.Src, edge.Kind)
+				}
+			},
+		},
+		{
+			name: "preserves_external_pkg_dotted",
+			setup: func(t *testing.T) []parser.ParseResult {
+				// `external::pkg.Sym` (with a dot) is a real external symbol —
+				// the resolver must NOT try to rewrite it as an intra-module name.
+				return []parser.ParseResult{
+					{
+						Nodes: []store.Node{
+							{ID: "a.go::A", Name: "A", Kind: "function", Path: "a.go"},
+						},
+						Edges: []store.Edge{
+							{Src: "a.go::A", Dst: "external::fmt.Println", Kind: "calls"},
+						},
+					},
+				}
+			},
+			check: func(t *testing.T, resolved []parser.ParseResult) {
+				for _, r := range resolved {
+					for _, e := range r.Edges {
+						if e.Kind == "calls" && e.Src == "a.go::A" && e.Dst != "external::fmt.Println" {
+							t.Errorf("external::fmt.Println edge was wrongly rewritten to %q", e.Dst)
+						}
+					}
+				}
+			},
+		},
+		{
+			name: "implements_edges_from_interface_methods",
+			setup: func(t *testing.T) []parser.ParseResult {
+				// Two type nodes plus a method node and an InterfaceMethods
+				// declaration. Console implements Greeter (has Greet); Mute does not.
+				return []parser.ParseResult{
+					{
+						Nodes: []store.Node{
+							{ID: "iface.go::Greeter", Name: "Greeter", Kind: "interface", Path: "iface.go"},
+							{ID: "iface.go::Console", Name: "Console", Kind: "struct", Path: "iface.go"},
+							{ID: "iface.go::Mute", Name: "Mute", Kind: "struct", Path: "iface.go"},
+							{ID: "iface.go::Console.Greet", Name: "Greet", Kind: "method", Path: "iface.go", Container: "Console"},
+						},
+						InterfaceMethods: map[string][]string{
+							"iface.go::Greeter": {"Greet"},
+						},
+					},
+				}
+			},
+			check: func(t *testing.T, resolved []parser.ParseResult) {
+				wantSrc := "iface.go::Console"
+				wantDst := "iface.go::Greeter"
+				var have, haveMute bool
+				for _, rr := range resolved {
+					for _, e := range rr.Edges {
+						if e.Kind == "implements" && e.Src == wantSrc && e.Dst == wantDst {
+							have = true
+						}
+						if e.Kind == "implements" && e.Src == "iface.go::Mute" && e.Dst == wantDst {
+							haveMute = true
+						}
+					}
+				}
+				if !have {
+					t.Errorf("missing implements edge Console -> Greeter")
+				}
+				if haveMute {
+					t.Errorf("Mute should NOT implement Greeter (no methods)")
 				}
 			},
 		},

@@ -12,15 +12,26 @@ import (
 	"github.com/siyuqian/devpilot/internal/graph/parser"
 )
 
-// errNoGoModule is the sentinel returned by loadGoModule when the repo has
-// neither a go.mod nor a go.work — callers should treat it as a non-error
-// signal to fall back to per-file Parse (tree-sitter) for Go files.
-var errNoGoModule = errors.New("no go.mod or go.work: falling back to per-file parse")
+// ErrNoGoModule is the sentinel returned by loadGoModule when the repo has
+// neither a go.mod nor a go.work. The native Go backend requires a module
+// boundary; callers surface this as a hard build error. Exported so the CLI
+// layer can use errors.Is to surface a distinct envelope code.
+var ErrNoGoModule = errors.New("no go.mod or go.work")
 
-// nonModuleErrorPath is the sentinel Path used on synthetic ParseErrors that
-// announce the native-backend non-module fallback. Distinct from "" so
-// downstream consumers do not conflate it with per-package error envelopes.
-const nonModuleErrorPath = "<native-go:non-module>"
+// isGoOwnedPath reports whether p is a path the native Go backend takes
+// ownership of (Go sources plus the module-shape files). Used by both the
+// incremental reload trigger and the per-file fanout filter so the two stay
+// in lockstep.
+func isGoOwnedPath(p string) bool {
+	if filepath.Ext(p) == ".go" {
+		return true
+	}
+	switch p {
+	case "go.mod", "go.sum", "go.work", "go.work.sum":
+		return true
+	}
+	return false
+}
 
 // loadGoModule invokes the parser's PackageLoader path.
 //
@@ -29,7 +40,7 @@ const nonModuleErrorPath = "<native-go:non-module>"
 //     call LoadModule once per module directory, merging results. On key
 //     collision the first-seen (sorted by use-directive resolved path) wins.
 //   - repoRoot/go.mod exists: call LoadModule(repoRoot) once.
-//   - neither: return errNoGoModule so the caller falls back to tree-sitter.
+//   - neither: return errNoGoModule; callers escalate to a hard build error (no fallback parser).
 func loadGoModule(loader parser.PackageLoader, repoRoot string) (map[string]parser.ParseResult, error) {
 	workPath := filepath.Join(repoRoot, "go.work")
 	if data, err := os.ReadFile(workPath); err == nil {
@@ -94,5 +105,5 @@ func loadGoModule(loader parser.PackageLoader, repoRoot string) (map[string]pars
 		return loader.LoadModule(repoRoot)
 	}
 
-	return nil, errNoGoModule
+	return nil, ErrNoGoModule
 }

@@ -1,3 +1,0 @@
-package multifile
-
-func B() {}

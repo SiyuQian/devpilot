@@ -1,7 +1,6 @@
 package cache
 
 import (
-	"database/sql"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -19,6 +18,7 @@ func TestIncrementalMatchesFullRebuild(t *testing.T) {
 	mustGit(t, repo, "init", "-q")
 	mustGit(t, repo, "config", "user.email", "t@t")
 	mustGit(t, repo, "config", "user.name", "t")
+	writeGoMod(t, repo, "example.com/inc")
 	mustWrite(t, filepath.Join(repo, "a.go"), "package x\nfunc A(){}\n")
 	mustWrite(t, filepath.Join(repo, "b.go"), "package x\nfunc B(){ A() }\n")
 	mustGit(t, repo, "add", ".")
@@ -79,7 +79,6 @@ func TestIncrementalNativeGoMatchesFullRebuild(t *testing.T) {
 	if _, err := exec.LookPath("git"); err != nil {
 		t.Skip("git not on PATH")
 	}
-	t.Setenv("DEVPILOT_GRAPH_GO_BACKEND", "native")
 
 	repo := t.TempDir()
 	copyGoNativeFixture(t, repo)
@@ -149,7 +148,6 @@ func TestIncrementalNativeGoNonGoChangeSkipsLoadModule(t *testing.T) {
 	if _, err := exec.LookPath("git"); err != nil {
 		t.Skip("git not on PATH")
 	}
-	t.Setenv("DEVPILOT_GRAPH_GO_BACKEND", "native")
 
 	repo := t.TempDir()
 	copyGoNativeFixture(t, repo)
@@ -187,95 +185,4 @@ func TestIncrementalNativeGoNonGoChangeSkipsLoadModule(t *testing.T) {
 	if elapsed > time.Second {
 		t.Errorf("non-Go incremental took %v; expected < 1s (LoadModule should not run)", elapsed)
 	}
-}
-
-// TestIncrementalNativeGoNonModuleFallback covers the case the native flag is
-// set but the repo has no go.mod / go.work. BuildIncremental must route Go
-// files through tree-sitter instead of the native parser's no-op Parse.
-// Regression test for the data-loss bug where edits to *.go files silently
-// dropped from the graph.
-func TestIncrementalNativeGoNonModuleFallback(t *testing.T) {
-	if _, err := exec.LookPath("git"); err != nil {
-		t.Skip("git not on PATH")
-	}
-	t.Setenv("DEVPILOT_GRAPH_GO_BACKEND", "native")
-
-	repo := t.TempDir()
-	// Bare main.go, no go.mod — non-module repo.
-	mustWrite(t, filepath.Join(repo, "main.go"), `package main
-func Greet(n string) string { return "hi " + n }
-func main() { Greet("x") }
-`)
-	mustGit(t, repo, "init", "-q")
-	mustGit(t, repo, "config", "user.email", "t@t")
-	mustGit(t, repo, "config", "user.name", "t")
-	mustGit(t, repo, "add", ".")
-	mustGit(t, repo, "commit", "-qm", "initial")
-
-	home := t.TempDir()
-	b, err := NewBuilder(home, repo)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := b.FullBuild(); err != nil {
-		t.Fatal(err)
-	}
-	beforeNodes := countNodes(t, GraphDB(home, RepoKey(repo)))
-	if beforeNodes == 0 {
-		t.Fatal("FullBuild produced no nodes — fallback to tree-sitter expected")
-	}
-
-	// Mutate main.go: add a function so the graph must change.
-	mustWrite(t, filepath.Join(repo, "main.go"), `package main
-func Greet(n string) string { return "hi " + n }
-func Farewell(n string) string { return "bye " + n }
-func main() { Greet("x"); Farewell("y") }
-`)
-	mustGit(t, repo, "add", ".")
-	mustGit(t, repo, "commit", "-qm", "add Farewell")
-
-	res, err := b.Build()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if res.Mode != "incremental" {
-		t.Errorf("mode=%q want incremental", res.Mode)
-	}
-
-	afterNodes := countNodes(t, GraphDB(home, RepoKey(repo)))
-	if afterNodes <= beforeNodes {
-		t.Errorf("expected node count to grow after adding Farewell; before=%d after=%d", beforeNodes, afterNodes)
-	}
-	// Specifically, Farewell must have a node — the bug would silently lose it.
-	if !nodeExists(t, GraphDB(home, RepoKey(repo)), "main.go::Farewell") {
-		t.Errorf("main.go::Farewell missing after incremental rebuild (non-module fallback regression)")
-	}
-}
-
-func countNodes(t *testing.T, dbPath string) int {
-	t.Helper()
-	db, err := sql.Open("sqlite", dbPath)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() { _ = db.Close() }()
-	var n int
-	if err := db.QueryRow(`SELECT COUNT(*) FROM nodes`).Scan(&n); err != nil {
-		t.Fatal(err)
-	}
-	return n
-}
-
-func nodeExists(t *testing.T, dbPath, id string) bool {
-	t.Helper()
-	db, err := sql.Open("sqlite", dbPath)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() { _ = db.Close() }()
-	var n int
-	if err := db.QueryRow(`SELECT COUNT(*) FROM nodes WHERE id = ?`, id).Scan(&n); err != nil {
-		t.Fatal(err)
-	}
-	return n > 0
 }
