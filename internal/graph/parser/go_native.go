@@ -97,6 +97,12 @@ func (p *GoNativeParser) LoadModule(repoRoot string) (map[string]ParseResult, er
 	// inModule is the set of package paths owned by some non-.test package in
 	// this load — used to skip call edges targeting deps outside the module.
 	inModule := map[string]bool{}
+	// Candidate types gathered in pass 1 for the implements pass. Aliases are
+	// excluded (skipped). typeFile maps a type-name object to the relPath of
+	// the file that declares it.
+	var concreteTypes []*types.TypeName
+	var interfaceTypes []*types.TypeName
+	typeFile := map[*types.TypeName]string{}
 
 	// Each pendingCall is a callsite to resolve in pass 2 once objIndex is full.
 	type pendingCall struct {
@@ -281,6 +287,24 @@ func (p *GoNativeParser) LoadModule(repoRoot string) (map[string]ParseResult, er
 					res.Edges = append(res.Edges, store.Edge{
 						Src: relPath, Dst: declID, Kind: "contains",
 					})
+
+					// Index the type-name object so the implements pass can look
+					// up its node ID. Also bucket it for the implements pass
+					// (interfaces vs concretes; aliases excluded since they're
+					// not subjects of types.Implements).
+					tn, isTN := obj.(*types.TypeName)
+					if isTN && ts.Assign == token.NoPos {
+						if _, ok := objIndex[obj]; !ok {
+							objIndex[obj] = declID
+						}
+						typeFile[tn] = relPath
+						switch obj.Type().Underlying().(type) {
+						case *types.Interface:
+							interfaceTypes = append(interfaceTypes, tn)
+						default:
+							concreteTypes = append(concreteTypes, tn)
+						}
+					}
 				}
 			}
 			results[relPath] = res
@@ -356,6 +380,68 @@ func (p *GoNativeParser) LoadModule(repoRoot string) (map[string]ParseResult, er
 			results[pc.relPath] = res
 			return true
 		})
+	}
+
+	// Pass 3: emit `implements` edges using types.Implements over the in-module
+	// (T, I) cross-product. We treat T as implementing I if either the value
+	// method set or the pointer method set satisfies I — matching the
+	// convention used by go vet / gopls. Empty interfaces are skipped to avoid
+	// emitting noise (every type "implements" any).
+	sortTN := func(s []*types.TypeName) {
+		sort.Slice(s, func(i, j int) bool {
+			pi, pj := "", ""
+			if p := s[i].Pkg(); p != nil {
+				pi = p.Path()
+			}
+			if p := s[j].Pkg(); p != nil {
+				pj = p.Path()
+			}
+			if pi != pj {
+				return pi < pj
+			}
+			return s[i].Name() < s[j].Name()
+		})
+	}
+	sortTN(concreteTypes)
+	sortTN(interfaceTypes)
+	for _, T := range concreteTypes {
+		if T.Pkg() == nil || !inModule[T.Pkg().Path()] {
+			continue
+		}
+		srcID, ok := objIndex[T]
+		if !ok {
+			continue
+		}
+		relPath, ok := typeFile[T]
+		if !ok {
+			continue
+		}
+		Tt := T.Type()
+		Tp := types.NewPointer(Tt)
+		for _, I := range interfaceTypes {
+			if I.Pkg() == nil || !inModule[I.Pkg().Path()] {
+				continue
+			}
+			iface, ok := I.Type().Underlying().(*types.Interface)
+			if !ok {
+				continue
+			}
+			if iface.NumMethods() == 0 {
+				continue
+			}
+			if !types.Implements(Tt, iface) && !types.Implements(Tp, iface) {
+				continue
+			}
+			dstID, ok := objIndex[I]
+			if !ok {
+				continue
+			}
+			res := results[relPath]
+			res.Edges = append(res.Edges, store.Edge{
+				Src: srcID, Dst: dstID, Kind: "implements",
+			})
+			results[relPath] = res
+		}
 	}
 
 	// Sort nodes/edges within each result for determinism.

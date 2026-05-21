@@ -151,7 +151,7 @@ func TestLoadModuleProducesNodes(t *testing.T) {
 		}
 		for _, e := range r.Edges {
 			switch e.Kind {
-			case "contains", "calls":
+			case "contains", "calls", "implements":
 				// allowed in this task
 			default:
 				t.Errorf("result %q has unexpected edge kind %q", key, e.Kind)
@@ -208,6 +208,51 @@ func TestLoadModuleCallsEdges(t *testing.T) {
 	for _, e := range allEdges {
 		if e.Kind == "calls" && e.Src == "pkg/a/a.go::UsesLen" {
 			t.Errorf("UsesLen should have no outgoing calls edges (builtin len), got %+v", e)
+		}
+	}
+}
+
+func TestLoadModuleImplementsEdges(t *testing.T) {
+	abs, err := filepath.Abs("testdata/go_native")
+	if err != nil {
+		t.Fatalf("abs testdata: %v", err)
+	}
+	results, err := NewGoNativeParser().LoadModule(abs)
+	if err != nil {
+		t.Fatalf("LoadModule: %v", err)
+	}
+
+	var implEdges []store.Edge
+	for _, r := range results {
+		for _, e := range r.Edges {
+			if e.Kind == "implements" {
+				implEdges = append(implEdges, e)
+			}
+		}
+	}
+
+	// Exactly one implements edge: Console -> Speaker.
+	wantSrc := "pkg/impl/impl.go::Console"
+	wantDst := "pkg/iface/iface.go::Speaker"
+	if len(implEdges) != 1 {
+		t.Fatalf("want exactly 1 implements edge, got %d: %+v", len(implEdges), implEdges)
+	}
+	if implEdges[0].Src != wantSrc || implEdges[0].Dst != wantDst {
+		t.Errorf("implements edge = %+v, want Src=%q Dst=%q",
+			implEdges[0], wantSrc, wantDst)
+	}
+
+	// Negative case: PartialSpeaker must not implement Speaker.
+	for _, e := range implEdges {
+		if e.Src == "pkg/impl/impl.go::PartialSpeaker" {
+			t.Errorf("PartialSpeaker should not implement anything, got %+v", e)
+		}
+	}
+
+	// No external:: placeholders on either side.
+	for _, e := range implEdges {
+		if strings.HasPrefix(e.Src, "external::") || strings.HasPrefix(e.Dst, "external::") {
+			t.Errorf("implements edge has external:: endpoint: %+v", e)
 		}
 	}
 }
