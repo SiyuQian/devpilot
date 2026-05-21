@@ -24,9 +24,9 @@ jobs:
             goarch: amd64
     runs-on: ${{ matrix.runner }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
 
@@ -40,7 +40,7 @@ jobs:
           OUT=devpilot-${{ matrix.goos }}-${{ matrix.goarch }}
           go build -ldflags "-X main.version=${VERSION}" -o "${OUT}" ./cmd/devpilot
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: devpilot-${{ matrix.goos }}-${{ matrix.goarch }}
           path: devpilot-${{ matrix.goos }}-${{ matrix.goarch }}
@@ -50,7 +50,7 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           path: dist
           merge-multiple: true
