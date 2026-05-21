@@ -37,6 +37,80 @@ func (p *GoNativeParser) Parse(path string, src []byte) (ParseResult, error) {
 	return ParseResult{}, nil
 }
 
+// objIndexKey creates a string key for objIndex from a types.Object.
+// For *types.Func (functions and methods): "pkg/path::Name" or "pkg/path::RecvType.Name"
+// For *types.TypeName: "pkg/path::Name"
+func objIndexKey(obj types.Object) string {
+	if obj.Pkg() == nil {
+		return ""
+	}
+	switch t := obj.(type) {
+	case *types.Func:
+		return t.Pkg().Path() + "::" + t.Name()
+	case *types.TypeName:
+		return t.Pkg().Path() + "::" + t.Name()
+	default:
+		return ""
+	}
+}
+
+// isGoTestFuncNative checks if a function declaration is a valid Go test function.
+// A test function must:
+// - be declared in a file ending in _test.go
+// - have a name starting with "Test"
+// - have exactly one parameter
+// - that parameter's type is *testing.T
+//
+// The function uses resolved type information (Types.Info.Defs) to confirm
+// the parameter type, avoiding fragile string matching on import aliases.
+func isGoTestFuncNative(fd *ast.FuncDecl, fname string, pkg *packages.Package) bool {
+	if fd.Name == nil || !strings.HasSuffix(fname, "_test.go") {
+		return false
+	}
+	if !strings.HasPrefix(fd.Name.Name, "Test") {
+		return false
+	}
+	if fd.Type == nil || fd.Type.Params == nil || len(fd.Type.Params.List) != 1 {
+		return false
+	}
+	param := fd.Type.Params.List[0]
+	if len(param.Names) == 0 {
+		return false
+	}
+	paramIdent := param.Names[0]
+	if pkg.TypesInfo == nil {
+		return false
+	}
+	obj := pkg.TypesInfo.Defs[paramIdent]
+	if obj == nil {
+		return false
+	}
+	// obj should be a *types.Var; get its type.
+	v, ok := obj.(*types.Var)
+	if !ok {
+		return false
+	}
+	t := v.Type()
+	// Should be *testing.T: a pointer to a named type T in package "testing".
+	ptr, ok := t.(*types.Pointer)
+	if !ok {
+		return false
+	}
+	named, ok := ptr.Elem().(*types.Named)
+	if !ok {
+		return false
+	}
+	tyObj := named.Obj()
+	if tyObj == nil {
+		return false
+	}
+	tyPkg := tyObj.Pkg()
+	if tyPkg == nil {
+		return false
+	}
+	return tyPkg.Path() == "testing" && tyObj.Name() == "T"
+}
+
 // LoadModule type-checks the whole Go module rooted at repoRoot and returns a
 // map keyed by repo-relative file path. Each ParseResult contains the file node
 // plus all top-level function and method nodes declared in that file, with
@@ -91,9 +165,10 @@ func (p *GoNativeParser) LoadModule(repoRoot string) (map[string]ParseResult, er
 	seen := map[string]map[string]bool{}
 	// fileEmitted tracks which relPaths already have a file node in their result.
 	fileEmitted := map[string]bool{}
-	// objIndex maps a types.Object (func/method) to its emitted node ID. Built in
+	// objIndex maps a (package path, symbol name) to its emitted node ID. Built in
 	// pass 1 so pass 2 can resolve cross-package callees to real symbol IDs.
-	objIndex := map[types.Object]string{}
+	// Stored as pkg.Path()::Name for functions, and pkg.Path()::ReceiverType.Name for methods.
+	objIndex := map[string]string{}
 	// inModule is the set of package paths owned by some non-.test package in
 	// this load — used to skip call edges targeting deps outside the module.
 	inModule := map[string]bool{}
@@ -110,6 +185,7 @@ func (p *GoNativeParser) LoadModule(repoRoot string) (map[string]ParseResult, er
 		srcID   string
 		pkg     *packages.Package
 		body    *ast.BlockStmt
+		isTest  bool
 	}
 	var pending []pendingCall
 
@@ -217,13 +293,16 @@ func (p *GoNativeParser) LoadModule(repoRoot string) (map[string]ParseResult, er
 					res.Edges = append(res.Edges, store.Edge{
 						Src: relPath, Dst: declID, Kind: "contains",
 					})
-					// Record the func/method's *types.Func in the object index so
-					// pass 2 can resolve callsites (both qualified `pkg.Foo()` and
-					// bare `Foo()`) back to this ID.
+					// Record the func/method in the object index so pass 2 can resolve
+					// callsites (both qualified `pkg.Foo()` and bare `Foo()`) back to
+					// this ID. We index by (pkg.Path(), name) to handle cross-package
+					// resolution where different TypesInfo instances produce different
+					// *types.Func pointers for the same symbol.
 					if pk.TypesInfo != nil {
 						if obj := pk.TypesInfo.Defs[fd.Name]; obj != nil {
-							if _, ok := objIndex[obj]; !ok {
-								objIndex[obj] = declID
+							key := objIndexKey(obj)
+							if key != "" && objIndex[key] == "" {
+								objIndex[key] = declID
 							}
 						}
 					}
@@ -232,6 +311,7 @@ func (p *GoNativeParser) LoadModule(repoRoot string) (map[string]ParseResult, er
 					if fd.Body != nil {
 						pending = append(pending, pendingCall{
 							relPath: relPath, srcID: declID, pkg: pk, body: fd.Body,
+							isTest: isGoTestFuncNative(fd, fname, pk),
 						})
 					}
 					continue
@@ -294,8 +374,9 @@ func (p *GoNativeParser) LoadModule(repoRoot string) (map[string]ParseResult, er
 					// not subjects of types.Implements).
 					tn, isTN := obj.(*types.TypeName)
 					if isTN && ts.Assign == token.NoPos {
-						if _, ok := objIndex[obj]; !ok {
-							objIndex[obj] = declID
+						key := objIndexKey(obj)
+						if key != "" && objIndex[key] == "" {
+							objIndex[key] = declID
 						}
 						typeFile[tn] = relPath
 						switch obj.Type().Underlying().(type) {
@@ -325,14 +406,18 @@ func (p *GoNativeParser) LoadModule(repoRoot string) (map[string]ParseResult, er
 	// edge (N1.7) bridges interface methods to concrete implementations.
 	// We silently skip edges when the callee is nil (unresolvable), a builtin
 	// (obj.Pkg() == nil), outside this module, or not present in objIndex.
+	//
+	// For test functions (TestXxx(*testing.T) in *_test.go files), we additionally
+	// emit `tests` edges with the same (Src, Dst) for each resolved call site.
 	for _, pc := range pending {
 		ti := pc.pkg.TypesInfo
 		if ti == nil {
 			continue
 		}
-		// Collect edges for this caller, then dedupe (the same callee may be
-		// called multiple times within one body).
-		seenDst := map[string]bool{}
+		// Collect edges for this caller, then dedupe. The key is now (Dst, Kind)
+		// so that we can emit both "calls" and "tests" edges for the same destination
+		// from a test function, without duplication.
+		seenEdge := map[string]map[string]bool{} // seenEdge[Dst][Kind]
 		ast.Inspect(pc.body, func(n ast.Node) bool {
 			call, ok := n.(*ast.CallExpr)
 			if !ok {
@@ -365,18 +450,29 @@ func (p *GoNativeParser) LoadModule(repoRoot string) (map[string]ParseResult, er
 			if !inModule[pkg.Path()] {
 				return true
 			}
-			dstID, ok := objIndex[fnObj]
+			key := objIndexKey(fnObj)
+			dstID, ok := objIndex[key]
 			if !ok {
 				return true
 			}
-			if seenDst[dstID] {
-				return true
-			}
-			seenDst[dstID] = true
 			res := results[pc.relPath]
-			res.Edges = append(res.Edges, store.Edge{
-				Src: pc.srcID, Dst: dstID, Kind: "calls",
-			})
+			// Emit "calls" edge (always).
+			if seenEdge[dstID] == nil {
+				seenEdge[dstID] = map[string]bool{}
+			}
+			if !seenEdge[dstID]["calls"] {
+				seenEdge[dstID]["calls"] = true
+				res.Edges = append(res.Edges, store.Edge{
+					Src: pc.srcID, Dst: dstID, Kind: "calls",
+				})
+			}
+			// Emit "tests" edge if this is a test function.
+			if pc.isTest && !seenEdge[dstID]["tests"] {
+				seenEdge[dstID]["tests"] = true
+				res.Edges = append(res.Edges, store.Edge{
+					Src: pc.srcID, Dst: dstID, Kind: "tests",
+				})
+			}
 			results[pc.relPath] = res
 			return true
 		})
@@ -408,7 +504,8 @@ func (p *GoNativeParser) LoadModule(repoRoot string) (map[string]ParseResult, er
 		if T.Pkg() == nil || !inModule[T.Pkg().Path()] {
 			continue
 		}
-		srcID, ok := objIndex[T]
+		tKey := objIndexKey(T)
+		srcID, ok := objIndex[tKey]
 		if !ok {
 			continue
 		}
@@ -432,7 +529,8 @@ func (p *GoNativeParser) LoadModule(repoRoot string) (map[string]ParseResult, er
 			if !types.Implements(Tt, iface) && !types.Implements(Tp, iface) {
 				continue
 			}
-			dstID, ok := objIndex[I]
+			iKey := objIndexKey(I)
+			dstID, ok := objIndex[iKey]
 			if !ok {
 				continue
 			}

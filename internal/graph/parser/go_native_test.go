@@ -151,7 +151,7 @@ func TestLoadModuleProducesNodes(t *testing.T) {
 		}
 		for _, e := range r.Edges {
 			switch e.Kind {
-			case "contains", "calls", "implements":
+			case "contains", "calls", "implements", "tests":
 				// allowed in this task
 			default:
 				t.Errorf("result %q has unexpected edge kind %q", key, e.Kind)
@@ -253,6 +253,68 @@ func TestLoadModuleImplementsEdges(t *testing.T) {
 	for _, e := range implEdges {
 		if strings.HasPrefix(e.Src, "external::") || strings.HasPrefix(e.Dst, "external::") {
 			t.Errorf("implements edge has external:: endpoint: %+v", e)
+		}
+	}
+}
+
+func TestLoadModuleTestsEdges(t *testing.T) {
+	abs, err := filepath.Abs("testdata/go_native")
+	if err != nil {
+		t.Fatalf("abs testdata: %v", err)
+	}
+	results, err := NewGoNativeParser().LoadModule(abs)
+	if err != nil {
+		t.Fatalf("LoadModule: %v", err)
+	}
+
+	// Collect all edges across all results.
+	var allEdges []store.Edge
+	for _, r := range results {
+		allEdges = append(allEdges, r.Edges...)
+	}
+
+	hasEdge := func(src, dst, kind string) bool {
+		for _, e := range allEdges {
+			if e.Src == src && e.Dst == dst && e.Kind == kind {
+				return true
+			}
+		}
+		return false
+	}
+
+	// Main assertion: TestGreet should have a "tests" edge to Greet.
+	testGreetSrc := "pkg/a/a_test.go::TestGreet"
+	greetDst := "pkg/a/a.go::Greet"
+	if !hasEdge(testGreetSrc, greetDst, "tests") {
+		t.Errorf("missing tests edge %s -> %s; edges=%v", testGreetSrc, greetDst, allEdges)
+	}
+
+	// Verify that the same call site also produces a "calls" edge (both coexist).
+	if !hasEdge(testGreetSrc, greetDst, "calls") {
+		t.Errorf("missing calls edge %s -> %s; both calls and tests should exist", testGreetSrc, greetDst)
+	}
+
+	// Negative case: a non-test function calling Greet (Run) should have a "calls"
+	// edge but NOT a "tests" edge.
+	runSrc := "pkg/a/a.go::Run"
+	if hasEdge(runSrc, greetDst, "tests") {
+		t.Errorf("non-test function Run should NOT have a tests edge to Greet")
+	}
+	if !hasEdge(runSrc, greetDst, "calls") {
+		t.Errorf("non-test function Run should have a calls edge to Greet")
+	}
+
+	// Defensive invariant: no "tests" edge should point at an external:: placeholder.
+	for _, e := range allEdges {
+		if e.Kind == "tests" && strings.HasPrefix(e.Dst, "external::") {
+			t.Errorf("tests edge points at external placeholder: %+v", e)
+		}
+	}
+
+	// Defensive invariant: no "tests" edge originates from a non-_test.go file.
+	for _, e := range allEdges {
+		if e.Kind == "tests" && !strings.Contains(e.Src, "_test.go::") {
+			t.Errorf("tests edge originates from non-_test.go file: %+v", e)
 		}
 	}
 }
