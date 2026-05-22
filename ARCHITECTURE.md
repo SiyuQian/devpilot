@@ -44,7 +44,7 @@ Each `internal/<domain>/` is self-contained. The important ones:
 Violations break the system non-obviously. Pair each with a sensor where possible.
 
 1. **`internal/auth/` is the only package that reads credentials from disk.** Other domains receive a `Service` and call it.
-2. **Cobra commands live with their domain.** There is no central `cli/` router. `cmd/devpilot/main.go` only wires.
+2. **Cobra commands live with their domain.** There is no central `cli/` router. `cmd/devpilot/main.go` only wires. Each domain owns its commands in `commands.go`, with one exception: **`internal/graph/`** has a large subcommand surface (`build`, `preflight`, `query`, `impact`, `hubs`, `context`, `status`, `clean`, `detect-changes`) and splits its Cobra declarations into per-subcommand `cli_<name>.go` files. `commands.go` there owns only the root `graph` group and registration. Domains adding fewer than ~4 subcommands MUST still use a single `commands.go`.
 3. **External service clients live in the same package as their domain logic.** Don't create `internal/httpclient/` or similar shared client packages.
 4. **One error-wrap style:** `fmt.Errorf("doing X: %w", err)` at layer boundaries.
 5. **`skills/` and `.claude/skills/` must stay in sync**, and every `skills/<name>/` directory must have an entry in `skills/index.json`.
