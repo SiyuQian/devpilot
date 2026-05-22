@@ -420,6 +420,12 @@ func (p *GoNativeParser) LoadModule(repoRoot string) (map[string]ParseResult, er
 				if !ok || gd.Tok != token.TYPE {
 					continue
 				}
+				// Mirror the func-decl branch's guard above: when packages.Load
+				// returns a package that failed to type-check, TypesInfo can be
+				// nil and dereferencing it panics. Skip the type-spec block.
+				if pk.TypesInfo == nil {
+					continue
+				}
 				for _, spec := range gd.Specs {
 					ts, ok := spec.(*ast.TypeSpec)
 					if !ok || ts.Name == nil {
