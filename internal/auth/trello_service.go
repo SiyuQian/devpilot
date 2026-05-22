@@ -86,9 +86,14 @@ func (t *TrelloService) IsLoggedIn() bool {
 }
 
 func (t *TrelloService) verify(apiKey, token string) error {
-	url := fmt.Sprintf("%s/1/members/me?key=%s&token=%s", t.getBaseURL(), apiKey, token)
+	req, err := http.NewRequest(http.MethodGet, t.getBaseURL()+"/1/members/me", nil)
+	if err != nil {
+		return fmt.Errorf("create request: %w", err)
+	}
+	req.Header.Set("Authorization", fmt.Sprintf(`OAuth oauth_consumer_key="%s", oauth_token="%s"`, apiKey, token))
+
 	client := &http.Client{Timeout: 10 * time.Second}
-	resp, err := client.Get(url)
+	resp, err := client.Do(req)
 	if err != nil {
 		return fmt.Errorf("failed to connect to Trello: %w", err)
 	}
