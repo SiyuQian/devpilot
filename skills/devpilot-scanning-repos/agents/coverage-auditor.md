@@ -29,7 +29,7 @@ You will receive a path to a manifest file (default `/tmp/devpilot-scan-manifest
 1. **Use codegraph as the authoritative test-coverage oracle (MANDATORY).** The same-package filename heuristic (`foo.go → foo_test.go`) misses cross-file and cross-package coverage. For each exported symbol in each manifest file:
 
    ```bash
-   bin/devpilot graph query tests_for '<file>::<symbol>'
+   devpilot graph query tests_for '<file>::<symbol>'
    ```
 
    - **Empty test set** → real `cov:no-test-file` candidate. Proceed to step 2's "is it worth a test?" filter.
@@ -45,8 +45,8 @@ You will receive a path to a manifest file (default `/tmp/devpilot-scan-manifest
    - Python: `foo.py` → `test_foo.py` or `tests/test_foo.py`.
 
 2. For each production file whose exported symbols all returned empty `tests_for` sets: decide if any of them deserve a test under the rules above. If yes, emit **one finding per file** (not per symbol — group them); list the uncovered symbols in `evidence`.
-3. For each production file that **has** at least one symbol with a non-empty test set: spot-check whether the error branches are asserted. Use `grep -n "if err != nil\\|return.*err" <file>` and compare to the bodies of the named tests (`bin/devpilot graph query context --id '<test-id>' --depth 0` to read each quickly). If the happy path has many assertions and every error path is untouched, that's one `cov:error-paths` finding.
-4. For recently-churny production files (`bin/devpilot graph detect-changes --base 'HEAD~50' --head HEAD` is the precise check; or fall back to `git log --oneline --since=90.days.ago -- <file> | wc -l > 5`) where `tests_for` returns empty OR a test file whose mtime is older than the production file's last meaningful change, emit `cov:stale-test`.
+3. For each production file that **has** at least one symbol with a non-empty test set: spot-check whether the error branches are asserted. Use `grep -n "if err != nil\\|return.*err" <file>` and compare to the bodies of the named tests (`devpilot graph query context --id '<test-id>' --depth 0` to read each quickly). If the happy path has many assertions and every error path is untouched, that's one `cov:error-paths` finding.
+4. For recently-churny production files (`devpilot graph detect-changes --base 'HEAD~50' --head HEAD` is the precise check; or fall back to `git log --oneline --since=90.days.ago -- <file> | wc -l > 5`) where `tests_for` returns empty OR a test file whose mtime is older than the production file's last meaningful change, emit `cov:stale-test`.
 
 ## Output format
 

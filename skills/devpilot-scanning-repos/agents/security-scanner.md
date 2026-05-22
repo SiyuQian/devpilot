@@ -39,7 +39,7 @@ You will receive a path to a manifest file (default `/tmp/devpilot-scan-manifest
 4. **Verify reachability via codegraph (MANDATORY for `sec:injection`, `sec:path-traversal`, `sec:ssrf-csrf`, `sec:tls-misconfig`, `sec:deserialization`, and any finding whose claim is "untrusted input reaches X").** Before emitting the finding:
 
    ```bash
-   bin/devpilot graph query callers_of '<file>::<symbol>' --depth 4
+   devpilot graph query callers_of '<file>::<symbol>' --depth 4
    ```
 
    - **Caller set traces back to an entry point that accepts untrusted input** (CLI flag handler, HTTP/RPC route, env-var read, file read from a user-supplied path) → finding **confirmed**. Append the proven chain to `evidence` as a trailing `graph:` block: list 1–3 callers + the entry point + which input field flows in.

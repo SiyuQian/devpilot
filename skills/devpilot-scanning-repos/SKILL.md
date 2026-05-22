@@ -49,8 +49,8 @@ A whole-repo sweep that dispatches **four parallel specialist sub-agents** (secu
 2.4. **Build (or refresh) the codegraph — MANDATORY.** The security, edge-case, and coverage scanners all use `devpilot graph` queries (`callers_of`, `tests_for`, hubs) to verify findings before emitting them; without the graph their output is grep-only noise.
 
    ```bash
-   bin/devpilot graph build --repo .
-   bin/devpilot graph hubs --threshold 5 > /tmp/devpilot-graph-hubs.json
+   devpilot graph build --repo .
+   devpilot graph hubs --threshold 5 > /tmp/devpilot-graph-hubs.json
    ```
 
    - Build is incremental on re-runs (~1–2s on devpilot-sized repos, <30s on most monorepos).
@@ -64,7 +64,7 @@ A whole-repo sweep that dispatches **four parallel specialist sub-agents** (secu
      1. Find every entry-point file, case-insensitive, anywhere in the repo: `fd -HI -t f -i '^(claude|agents|readme)\.md$'` (fallback: `find . -type f -iregex '.*/\(claude\|agents\|readme\)\.md'`).
      2. Parse markdown links from each — both inline `[text](path)` and reference `[text]: path` forms — keep only relative targets that resolve to existing files with doc-ish extensions (`.md`, `.mdx`, `.txt`, `.rst`) or living under a `docs/`-style directory. Strip `#anchor` for resolution but keep it for the scanner's reporting.
      3. Recurse one hop at a time, dedupe by absolute path, cap at depth 3 and at 200 doc files total. Write the resulting list to `/tmp/devpilot-doc-manifest.txt`. Print to the user: total entry points found, total docs in the manifest, and a tree showing which entry point pulled in which linked doc.
-3. **Dispatch scanners in parallel.** In ONE message, launch four sub-agents using the prompts in `agents/`. Pass each of the first three the manifest path AND `/tmp/devpilot-graph-hubs.json`; they will run `bin/devpilot graph query …` as their reachability oracle.
+3. **Dispatch scanners in parallel.** In ONE message, launch four sub-agents using the prompts in `agents/`. Pass each of the first three the manifest path AND `/tmp/devpilot-graph-hubs.json`; they will run `devpilot graph query …` as their reachability oracle.
    - `agents/security-scanner.md` — pass `/tmp/devpilot-scan-manifest.txt` + hubs file
    - `agents/edge-case-hunter.md` — pass `/tmp/devpilot-scan-manifest.txt` + hubs file
    - `agents/coverage-auditor.md` — pass `/tmp/devpilot-scan-manifest.txt` + hubs file

@@ -54,10 +54,10 @@ You will receive a path to a manifest file (default `/tmp/devpilot-scan-manifest
 6. **Codegraph verification (MANDATORY for `edge:nil-deref`, `edge:bounds-overflow`, `edge:input-validation`, and any finding marked "reachability unclear").** Before emitting:
 
    ```bash
-   bin/devpilot graph query callers_of '<file>::<symbol>' --depth 3
+   devpilot graph query callers_of '<file>::<symbol>' --depth 3
    ```
 
-   For each caller listed, read enough of it (`bin/devpilot graph query context --id '<caller-id>' --depth 0` is the fastest path) to answer the specific question that decides the finding:
+   For each caller listed, read enough of it (`devpilot graph query context --id '<caller-id>' --depth 0` is the fastest path) to answer the specific question that decides the finding:
    - **Nil-deref of a parameter** — does any caller visibly pass nil (or pass a value that could be nil after an unchecked error path)? If **yes**, severity is at least `medium`. If **no caller could pass nil**, drop.
    - **Bounds / overflow on a parameter** — does any caller pass user-controlled / unbounded data? If yes, confirmed.
    - **Empty caller set** — symbol is exported library API or registered entry point: treat as "any caller could pass anything", keep finding. If unexported with zero callers, it's dead code — drop the edge finding (or surface as `cov:no-callers` if your sibling skill cares).
