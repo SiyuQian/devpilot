@@ -51,6 +51,24 @@ You will receive a path to a manifest file (default `/tmp/devpilot-scan-manifest
 3. For each error return: is the error path as correct as the happy path? Look for the pattern `if err != nil { return ... }` where the `...` discards context or returns a partial result.
 4. For each goroutine / channel / mutex: is there a reachable deadlock or leak?
 5. For each external input → internal sink, trace from input to sink and ask "what's the smallest / weirdest input that breaks this?"
+6. **Codegraph verification (MANDATORY for `edge:nil-deref`, `edge:bounds-overflow`, `edge:input-validation`, and any finding marked "reachability unclear").** Before emitting:
+
+   ```bash
+   bin/devpilot graph query callers_of '<file>::<symbol>' --depth 3
+   ```
+
+   For each caller listed, read enough of it (`bin/devpilot graph query context --id '<caller-id>' --depth 0` is the fastest path) to answer the specific question that decides the finding:
+   - **Nil-deref of a parameter** — does any caller visibly pass nil (or pass a value that could be nil after an unchecked error path)? If **yes**, severity is at least `medium`. If **no caller could pass nil**, drop.
+   - **Bounds / overflow on a parameter** — does any caller pass user-controlled / unbounded data? If yes, confirmed.
+   - **Empty caller set** — symbol is exported library API or registered entry point: treat as "any caller could pass anything", keep finding. If unexported with zero callers, it's dead code — drop the edge finding (or surface as `cov:no-callers` if your sibling skill cares).
+
+   Append a `graph:` line to `evidence` summarizing the answer ("graph: 3 callers, 1 passes result of an ignored-error path → nil reachable").
+
+   **Hub priority.** If the finding's symbol appears in `/tmp/devpilot-graph-hubs.json`, upgrade severity by one step — a bug in a fan-in 10+ function blasts across the codebase.
+
+   **`devpilot graph` unavailable** → emit with `graph: unavailable — reachability not verified` and let scoring downgrade.
+
+   The old rule ("If reachability is unclear, say so in `why_it_matters` and mark `severity: low`") only applies AFTER you've run callers_of and the answer was still genuinely unclear (e.g. caller passes a value whose origin you couldn't trace within the manifest). No more "low because I didn't check."
 
 ## Output format
 
@@ -79,6 +97,8 @@ Return ONLY a JSON array (no prose) of findings using the repo-scan Finding sche
 - `severity: low` — hardening opportunity; would surprise a reader but needs effort to hit.
 
 Be over-inclusive — filtering happens downstream.
+
+Every reachability-class finding's `evidence` block MUST end with a `graph:` line (confirmed chain, downgrade reason, or "unavailable"). Findings without it are rejected by the validator.
 
 **Context-pressure trailer.** If you can't read every manifest file before exhausting context, append `{"_meta": {"manifest_size": <M>, "files_scanned": <N>, "stopped_reason": "context_budget"}}` as the last element of the JSON array. Never silently truncate.
 

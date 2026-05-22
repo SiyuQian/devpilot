@@ -36,7 +36,23 @@ You will receive a path to a manifest file (default `/tmp/devpilot-scan-manifest
    ```
    Per-pattern cap: **40 hits**. If a pattern exceeds 40, prefer hits in files that also appear in the recent-churn list (the orchestrator can provide it via `git log --since=90.days.ago --name-only --pretty=format:`); ancient hits sort lower. Log skipped hits explicitly in your output as `skipped: N additional <pattern> hits not verified` — never silently drop them.
 3. When a sink is in the verify set, **read the surrounding function** to confirm user-controlled input reaches it. A sink with a hardcoded literal is not a finding.
-4. Record the finding in the required format (below). Set `subcategory` from the enum at the bottom of this prompt.
+4. **Verify reachability via codegraph (MANDATORY for `sec:injection`, `sec:path-traversal`, `sec:ssrf-csrf`, `sec:tls-misconfig`, `sec:deserialization`, and any finding whose claim is "untrusted input reaches X").** Before emitting the finding:
+
+   ```bash
+   bin/devpilot graph query callers_of '<file>::<symbol>' --depth 4
+   ```
+
+   - **Caller set traces back to an entry point that accepts untrusted input** (CLI flag handler, HTTP/RPC route, env-var read, file read from a user-supplied path) → finding **confirmed**. Append the proven chain to `evidence` as a trailing `graph:` block: list 1–3 callers + the entry point + which input field flows in.
+   - **Caller set is internal-only, all literals or whitelisted constants** → **downgrade to `severity: low`** with `why_it_matters` explicitly noting "reachable only from internal code", OR **drop** if the only reason it looked dangerous was the sink pattern.
+   - **Empty caller set** → either dead code or symbol is a registered entry point (HTTP handler attached via reflection, init() side effect, exported library API). Re-read the file to classify. If genuinely dead, drop. If entry point, treat as "directly reachable from external input" — confirmed.
+
+   For `sec:crypto` and `sec:secrets`: skip reachability unless the primitive is being used as a security boundary (e.g. sha1 as auth hash). In that case `callers_of` decides if a real auth-touching caller exists; otherwise drop.
+
+   **Hub priority.** The orchestrator places `/tmp/devpilot-graph-hubs.json` next to the manifest — a list of high-fanin symbols. If a confirmed finding's containing function appears in the hub list, **upgrade `severity` by one step** (low→medium, medium→high) and add `graph: hub (fanin=N)` to the evidence.
+
+   **If `devpilot graph` is unavailable** (binary missing, exit non-zero, repo unsupported language): emit findings with the trailing `graph: unavailable — reachability not verified` line and let the scoring pass downgrade them. Never silently skip the step.
+
+5. Record the finding in the required format (below). Set `subcategory` from the enum at the bottom of this prompt.
 
 **Hard rules under context pressure:** if your context budget runs out before all manifest files are scanned, stop and emit what you have. As the LAST element of the JSON array, append a single meta object so the orchestrator can see coverage: `{"_meta": {"manifest_size": <M>, "files_scanned": <N>, "patterns_capped": ["exec.Command", ...], "stopped_reason": "context_budget"}}`. The validator skips objects with a `_meta` key. Never silently truncate.
 
@@ -83,3 +99,4 @@ If a finding doesn't fit any of these, pick the closest fit OR drop the finding.
 
 - Be over-inclusive. The scoring pass will filter. Better to report a finding at `severity: low` than to silently drop it.
 - Every finding MUST have an `evidence` block with quoted source lines. Speculation without quotable code = don't emit it.
+- For every reachability-class finding (the categories listed in step 4), the `evidence` block MUST end with a `graph:` line summarizing the codegraph verification — confirmed chain, downgrade reason, or "unavailable". A finding without a `graph:` line is incomplete; the validator will reject it.

@@ -46,17 +46,29 @@ A whole-repo sweep that dispatches **four parallel specialist sub-agents** (secu
    5. **Print the reconciliation summary** to the user before continuing: `N reused, R renamed (old → new), M created` — so they can spot a wrong rename or reuse before issues get filed.
 
    `area:*` labels follow the same three-bucket rule but are reconciled lazily at filing time (step 7): for each finding, check the snapshot for an existing area-ish label covering the same top-level dir; rename it to `area:<dir>` if it's a semantic match with a non-canonical name, otherwise create.
+2.4. **Build (or refresh) the codegraph — MANDATORY.** The security, edge-case, and coverage scanners all use `devpilot graph` queries (`callers_of`, `tests_for`, hubs) to verify findings before emitting them; without the graph their output is grep-only noise.
+
+   ```bash
+   bin/devpilot graph build --repo .
+   bin/devpilot graph hubs --threshold 5 > /tmp/devpilot-graph-hubs.json
+   ```
+
+   - Build is incremental on re-runs (~1–2s on devpilot-sized repos, <30s on most monorepos).
+   - The hubs snapshot is passed to every scanner so they can upgrade severity for high-fanin symbols.
+   - **If `devpilot graph build` fails** (unsupported language, parser crash, no git): record the failure reason, print it to the user, and continue WITHOUT the graph. Every scanner is then told `graph: unavailable` — they will emit findings with that marker, and the scoring pass downgrades them aggressively (typically below the 75 threshold). Do NOT silently skip — the user must see that confidence is degraded.
+   - **Never skip this step to "save time."** The whole skill is minutes long; the graph adds seconds and is the single biggest precision improvement.
+
 2.5. **Build the file manifest AND the doc manifest.**
    - **Source manifest** (`/tmp/devpilot-scan-manifest.txt`): one walk, sampled path list of production source files for the security / edge-case / coverage scanners. They MUST NOT re-walk — they may only read paths in this manifest. See "Scaling for large repos" below. Default cap: **800 files** (`--full` raises to 2000, `--scope <dir>` constrains to a subtree).
    - **Doc manifest** (`/tmp/devpilot-doc-manifest.txt`): built independently for the doc-drift scanner. Steps:
      1. Find every entry-point file, case-insensitive, anywhere in the repo: `fd -HI -t f -i '^(claude|agents|readme)\.md$'` (fallback: `find . -type f -iregex '.*/\(claude\|agents\|readme\)\.md'`).
      2. Parse markdown links from each — both inline `[text](path)` and reference `[text]: path` forms — keep only relative targets that resolve to existing files with doc-ish extensions (`.md`, `.mdx`, `.txt`, `.rst`) or living under a `docs/`-style directory. Strip `#anchor` for resolution but keep it for the scanner's reporting.
      3. Recurse one hop at a time, dedupe by absolute path, cap at depth 3 and at 200 doc files total. Write the resulting list to `/tmp/devpilot-doc-manifest.txt`. Print to the user: total entry points found, total docs in the manifest, and a tree showing which entry point pulled in which linked doc.
-3. **Dispatch scanners in parallel.** In ONE message, launch four sub-agents using the prompts in `agents/`:
-   - `agents/security-scanner.md` — pass `/tmp/devpilot-scan-manifest.txt`
-   - `agents/edge-case-hunter.md` — pass `/tmp/devpilot-scan-manifest.txt`
-   - `agents/coverage-auditor.md` — pass `/tmp/devpilot-scan-manifest.txt`
-   - `agents/doc-consistency-auditor.md` — pass `/tmp/devpilot-doc-manifest.txt`
+3. **Dispatch scanners in parallel.** In ONE message, launch four sub-agents using the prompts in `agents/`. Pass each of the first three the manifest path AND `/tmp/devpilot-graph-hubs.json`; they will run `bin/devpilot graph query …` as their reachability oracle.
+   - `agents/security-scanner.md` — pass `/tmp/devpilot-scan-manifest.txt` + hubs file
+   - `agents/edge-case-hunter.md` — pass `/tmp/devpilot-scan-manifest.txt` + hubs file
+   - `agents/coverage-auditor.md` — pass `/tmp/devpilot-scan-manifest.txt` + hubs file
+   - `agents/doc-consistency-auditor.md` — pass `/tmp/devpilot-doc-manifest.txt` (no graph needed; doc claims are textual)
    Each returns a list of `Finding` objects (see format below). Scanners are told to emit everything they notice — including low-severity — because filtering happens in step 4, not in the scanner.
 3.5. **Validate scanner output.** Pipe each scanner's JSON array through `python3 scripts/check-findings.py`. The `--manifest` flag is mandatory and chooses the manifest the scanner was dispatched against:
    - security / edge-case / coverage → `--manifest /tmp/devpilot-scan-manifest.txt`
@@ -96,6 +108,14 @@ Every scanner returns a JSON array of objects with exactly these fields:
 For doc-drift, the `file` field is the **doc** containing the wrong claim (e.g. `README.md`, `docs/cli-reference.md`), not the source file the claim is about. The source file (or its absence) goes in `evidence`.
 
 `evidence` is mandatory. A finding without quotable code is speculation — drop it at the scanner level.
+
+**Graph evidence is mandatory for reachability-class findings.** Every `sec:injection`, `sec:path-traversal`, `sec:ssrf-csrf`, `sec:tls-misconfig`, `sec:deserialization`, `edge:nil-deref`, `edge:bounds-overflow`, `edge:input-validation`, `cov:no-test-file`, and `cov:stale-test` finding MUST close its `evidence` block with a trailing `graph:` line. Allowed values:
+
+- `graph: <pattern> <symbol> → <result summary>` — verified via codegraph (e.g. `graph: callers_of internal/auth/oauth.go::openBrowser → 2 callers, both pass literal AuthURL from package init`).
+- `graph: hub (fanin=N)` — appended in addition to a query result, when the symbol is in `/tmp/devpilot-graph-hubs.json`. Severity is bumped one step.
+- `graph: unavailable — reachability not verified` — emitted only when `devpilot graph` failed in step 2.4. Scoring downgrades these.
+
+Scanners that emit reachability-class findings without a `graph:` line have their findings dropped by the validator (`scripts/check-findings.py`).
 
 ## Scoring rubric (summary — full rubric in `references/scoring.md`)
 
@@ -143,6 +163,7 @@ A correct run of this skill produces:
 5. No finding cites business-logic correctness as the sole reason.
 6. Every filed issue body quotes ≥2 lines of actual code with a `<file>#L<start>-L<end>` link.
 7. If zero findings survive scoring, no issues are filed and the user is told so explicitly.
+8. The codegraph is built (or its failure is recorded and surfaced) BEFORE scanners are dispatched, and every reachability-class finding carries a trailing `graph:` line in its `evidence`.
 
 If any of these is violated, the skill failed — stop and correct before continuing.
 
@@ -187,6 +208,20 @@ Group findings by category, send up to **25 findings per scoring sub-agent** dis
 ### Dedupe pagination (step 6)
 
 `gh issue list --limit 200` silently truncates — confirmed against kubernetes/kubernetes. Always use `--limit 1000`, check whether exactly 1000 returned, and paginate with `created:<<<date>` until the page is short. See step 6.
+
+## Rationalizations to refuse
+
+These are the excuses agents (and the orchestrator) reach for when under context or time pressure. Every one of them has been observed; refuse them by name.
+
+| Excuse | Reality |
+|---|---|
+| "Graph build is slow — I'll skip step 2.4 this run." | Incremental builds take seconds. Skipping the graph cuts scanner precision in half — every reachability-class finding falls back to "low" and gets filtered out, so you ship fewer real issues, not more. |
+| "`callers_of` returned empty, so the sink is unreachable — drop the finding." | Empty callers = either dead code OR the symbol is a registered entry point (HTTP handler, init() side effect, exported library API). Re-read the file before concluding unreachable. If genuinely dead, drop. If entry point, the symbol IS directly reachable from external input — confirmed finding. |
+| "`tests_for` returned empty but I see a `*_test.go` in the same directory — surely it covers this." | Trust the graph. The graph reads call edges, not filenames. If `tests_for` is empty, the same-dir test file isn't actually calling the symbol. File the finding. |
+| "Grep already found the sink, that's enough." | Grep finds patterns, not paths. A sink with no reachable untrusted caller is noise. Without the `graph:` line the finding is rejected by `check-findings.py`. |
+| "Graph build failed — I'll just run the scanners anyway and not mention it." | The user must see degraded confidence. Step 2.4 prints the failure; scanners must tag every finding with `graph: unavailable`; scoring downgrades them. Silent fallback hides quality loss. |
+| "Re-running `callers_of` for every finding is too many tool calls." | Each query is sub-millisecond against the cached graph. The whole verification budget per scanner is dozens of calls, not thousands. |
+| "Hubs file isn't important — severity defaults are fine." | A nil-deref in a fan-in-15 helper is a different incident than one in a single-caller utility. The hub bump is the cheapest precision lever in this skill. |
 
 ## Common mistakes
 
