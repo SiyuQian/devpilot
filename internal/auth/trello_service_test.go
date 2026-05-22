@@ -11,9 +11,11 @@ func TestTrelloVerify_Success(t *testing.T) {
 		if r.URL.Path != "/1/members/me" {
 			t.Fatalf("unexpected path: %s", r.URL.Path)
 		}
-		key := r.URL.Query().Get("key")
-		token := r.URL.Query().Get("token")
-		if key != "test-key" || token != "test-token" {
+		if r.URL.Query().Get("key") != "" || r.URL.Query().Get("token") != "" {
+			t.Fatalf("credentials must not be in query string: %s", r.URL.RawQuery)
+		}
+		wantAuth := `OAuth oauth_consumer_key="test-key", oauth_token="test-token"`
+		if got := r.Header.Get("Authorization"); got != wantAuth {
 			w.WriteHeader(401)
 			return
 		}

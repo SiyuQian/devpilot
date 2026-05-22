@@ -42,65 +42,26 @@ func NewClient(apiKey, token string, opts ...ClientOption) *Client {
 	return c
 }
 
-func (c *Client) get(path string, params url.Values) ([]byte, error) {
-	if params == nil {
-		params = url.Values{}
-	}
-	params.Set("key", c.apiKey)
-	params.Set("token", c.token)
-	reqURL := fmt.Sprintf("%s%s?%s", c.baseURL, path, params.Encode())
-
-	resp, err := c.http.Get(reqURL)
-	if err != nil {
-		return nil, fmt.Errorf("request failed: %w", err)
-	}
-	defer func() { _ = resp.Body.Close() }()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("read body failed: %w", err)
-	}
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("HTTP %d: %s", resp.StatusCode, string(body))
-	}
-	return body, nil
+// authHeader returns the Trello OAuth-style Authorization header value
+// carrying the API key and token. Sending credentials via the header keeps
+// them out of access logs, proxy logs, and Referer headers.
+func (c *Client) authHeader() string {
+	return fmt.Sprintf(`OAuth oauth_consumer_key="%s", oauth_token="%s"`, c.apiKey, c.token)
 }
 
-func (c *Client) post(path string, params url.Values) ([]byte, error) {
-	if params == nil {
-		params = url.Values{}
+func (c *Client) do(method, path string, params url.Values, contentType string) ([]byte, error) {
+	reqURL := c.baseURL + path
+	if len(params) > 0 {
+		reqURL = reqURL + "?" + params.Encode()
 	}
-	params.Set("key", c.apiKey)
-	params.Set("token", c.token)
-	reqURL := fmt.Sprintf("%s%s?%s", c.baseURL, path, params.Encode())
 
-	resp, err := c.http.Post(reqURL, "application/json", nil)
-	if err != nil {
-		return nil, fmt.Errorf("request failed: %w", err)
-	}
-	defer func() { _ = resp.Body.Close() }()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("read body failed: %w", err)
-	}
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("HTTP %d: %s", resp.StatusCode, string(body))
-	}
-	return body, nil
-}
-
-func (c *Client) put(path string, params url.Values) ([]byte, error) {
-	if params == nil {
-		params = url.Values{}
-	}
-	params.Set("key", c.apiKey)
-	params.Set("token", c.token)
-	reqURL := fmt.Sprintf("%s%s?%s", c.baseURL, path, params.Encode())
-
-	req, err := http.NewRequest(http.MethodPut, reqURL, nil)
+	req, err := http.NewRequest(method, reqURL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("create request failed: %w", err)
+	}
+	req.Header.Set("Authorization", c.authHeader())
+	if contentType != "" {
+		req.Header.Set("Content-Type", contentType)
 	}
 
 	resp, err := c.http.Do(req)
@@ -117,6 +78,18 @@ func (c *Client) put(path string, params url.Values) ([]byte, error) {
 		return nil, fmt.Errorf("HTTP %d: %s", resp.StatusCode, string(body))
 	}
 	return body, nil
+}
+
+func (c *Client) get(path string, params url.Values) ([]byte, error) {
+	return c.do(http.MethodGet, path, params, "")
+}
+
+func (c *Client) post(path string, params url.Values) ([]byte, error) {
+	return c.do(http.MethodPost, path, params, "application/json")
+}
+
+func (c *Client) put(path string, params url.Values) ([]byte, error) {
+	return c.do(http.MethodPut, path, params, "")
 }
 
 // GetBoards returns the authenticated member's open boards.
