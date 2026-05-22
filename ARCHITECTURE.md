@@ -11,7 +11,7 @@ Read this before touching an unfamiliar part of the codebase. Describes the shap
 │  cmd/devpilot ──► internal/<domain>/commands.go ──► domain  │
 │                                                     logic   │
 │                                                             │
-│  domains: auth · trello · gmail · slack · initcmd · project │
+│  domains: auth · generate · gmail · graph · initcmd · project · slack · trello │
 └────────────────┬────────────────────────────────────────────┘
                  │
       ┌──────────┴───────────┐
@@ -37,6 +37,8 @@ Each `internal/<domain>/` is self-contained. The important ones:
 - **`internal/slack/`** — Slack OAuth client + `devpilot slack send`.
 - **`internal/initcmd/`** — `devpilot init` scaffolding: detects project stack, writes `.devpilot.yaml`, points users at npx for skill installation.
 - **`internal/project/`** — cross-cutting repo config (`.devpilot.yaml` shape, stack detection).
+- **`internal/generate/`** — `devpilot commit`: AI-generated conventional commits over a staged diff (Bubble Tea TUI for the plan/edit/confirm flow).
+- **`internal/graph/`** — `devpilot graph build | preflight | query | impact | hubs | context | status | clean | detect-changes`: in-repo code graph used by skills/agents for reachability and impact analysis.
 - **`skills/`** (top-level, not `internal/`) — distributable skill catalog. `.claude/skills/` is the *installed* copy. Distribution is handled by the external `npx skills` tool — there is no in-repo Go installer.
 
 ## Invariants
