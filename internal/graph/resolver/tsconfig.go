@@ -131,10 +131,9 @@ func (r *TSConfigResolver) resolve(spec string) (string, bool) {
 	return "", false
 }
 
-// stripJSONComments removes JSONC `//` line comments while preserving
-// occurrences of `//` inside string literals (so URLs and path values
-// like "https://x" survive intact). Block comments are not handled —
-// add when a real tsconfig in the wild needs them.
+// stripJSONComments removes JSONC `//` line comments and `/* ... */` block
+// comments while preserving occurrences of `//` or `/*` inside string literals
+// (so URLs and path values like "https://x" or "http://x/*foo*/" survive intact).
 func stripJSONComments(b []byte) []byte {
 	out := make([]byte, 0, len(b))
 	inString := false
@@ -168,6 +167,22 @@ func stripJSONComments(b []byte) []byte {
 			}
 			if i < len(b) {
 				out = append(out, '\n')
+			}
+			continue
+		}
+		// Outside a string: drop `/* ... */` block comments. An unterminated
+		// block comment is treated as comment-to-end-of-input.
+		if c == '/' && i+1 < len(b) && b[i+1] == '*' {
+			i += 2
+			for i+1 < len(b) && (b[i] != '*' || b[i+1] != '/') {
+				i++
+			}
+			if i+1 < len(b) {
+				// Skip the closing `*/`. Loop's i++ handles the second byte.
+				i++
+			} else {
+				// Unterminated: consume the rest of the buffer.
+				i = len(b)
 			}
 			continue
 		}
