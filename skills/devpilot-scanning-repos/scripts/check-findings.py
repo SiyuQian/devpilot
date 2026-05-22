@@ -53,6 +53,22 @@ VALID_SUBCATEGORIES = {
 }
 MAX_TITLE_LEN = 80
 
+# Subcategories whose findings depend on reachability / call-graph evidence.
+# The scanner prompts require these findings' `evidence` blocks to end with a
+# trailing `graph:` line (SKILL.md: "Graph evidence is mandatory ...").
+GRAPH_REQUIRED_SUBCATEGORIES = {
+    "sec:injection",
+    "sec:path-traversal",
+    "sec:ssrf-csrf",
+    "sec:tls-misconfig",
+    "sec:deserialization",
+    "edge:nil-deref",
+    "edge:bounds-overflow",
+    "edge:input-validation",
+    "cov:no-test-file",
+    "cov:stale-test",
+}
+
 
 def check(finding: Any, idx: int, manifest: set[str] | None = None) -> list[str]:
     errs: list[str] = []
@@ -87,6 +103,18 @@ def check(finding: Any, idx: int, manifest: set[str] | None = None) -> list[str]
     evidence = finding.get("evidence")
     if evidence is not None and (not isinstance(evidence, str) or not evidence.strip()):
         errs.append(f"[{idx}] evidence must be a non-empty string (speculation without code = drop)")
+    elif isinstance(evidence, str) and sub in GRAPH_REQUIRED_SUBCATEGORIES:
+        # Reachability-class findings must end with a `graph:` line summarizing
+        # the codegraph verification (confirmed chain, downgrade, or unavailable).
+        has_graph_line = any(
+            line.lstrip().lower().startswith("graph:")
+            for line in evidence.splitlines()
+        )
+        if not has_graph_line:
+            errs.append(
+                f"[{idx}] subcategory='{sub}' requires a trailing 'graph:' line in evidence "
+                f"(codegraph verification — see SKILL.md 'Graph evidence is mandatory')"
+            )
 
     file_ = finding.get("file")
     if isinstance(file_, str) and file_.startswith("/"):

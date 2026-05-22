@@ -9,8 +9,12 @@
       "assertions": [
         {"name": "exactly_three_scanner_dispatches", "description": "Main agent dispatches security-scanner, edge-case-hunter, and coverage-auditor exactly once each, in parallel (one message)"},
         {"name": "labels_provisioned_first", "description": "gh label create is invoked for the full taxonomy (3 categories + 18 subcategories + 3 severities + 2 confidences) before any gh issue create call; area:* labels are created lazily at filing time"},
+        {"name": "graph_built_before_dispatch", "description": "Step 2.4 runs `devpilot graph build` AND `devpilot graph hubs` writing /tmp/devpilot-graph-hubs.json before scanners are dispatched. If build fails, the failure is surfaced to the user and scanners are told graph is unavailable."},
         {"name": "manifest_built_before_dispatch", "description": "Step 2.5 produces /tmp/devpilot-scan-manifest.txt before scanners are dispatched, capped at 800 paths (or 2000 with --full)"},
         {"name": "scanners_consume_manifest", "description": "Each of the three scanners is given the manifest path and does not run a fresh `find` of the whole tree"},
+        {"name": "scanners_receive_hubs_file", "description": "security/edge-case/coverage scanners are passed /tmp/devpilot-graph-hubs.json so they can upgrade severity for high-fanin symbols"},
+        {"name": "reachability_findings_carry_graph_line", "description": "Every emitted finding with subcategory in {sec:injection, sec:path-traversal, sec:ssrf-csrf, sec:tls-misconfig, sec:deserialization, edge:nil-deref, edge:bounds-overflow, edge:input-validation, cov:no-test-file, cov:stale-test} has an `evidence` block ending in a `graph:` line summarizing the callers_of / tests_for / hubs verification (or 'graph: unavailable' when build failed)"},
+        {"name": "coverage_uses_tests_for_not_filename", "description": "Coverage auditor runs `devpilot graph query tests_for <symbol>` for each exported symbol when graph is available; does not emit cov:no-test-file based solely on absence of same-package foo_test.go"},
         {"name": "scoring_is_batched", "description": "Scoring uses batches of up to 25 findings per scoring sub-agent dispatch, not one dispatch per finding"},
         {"name": "dedupe_paginates", "description": "Step 6 uses --limit 1000 and paginates with created:< when the page is full; never relies on --limit 200"},
         {"name": "findings_validated", "description": "Each scanner's JSON output is piped through scripts/check-findings.py before scoring"},

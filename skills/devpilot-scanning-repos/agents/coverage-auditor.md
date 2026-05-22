@@ -26,13 +26,27 @@ Flag:
 
 You will receive a path to a manifest file (default `/tmp/devpilot-scan-manifest.txt`). The manifest enumerates production files the orchestrator chose to scan. You may read test files for any production file in the manifest (those won't be in the manifest themselves), but findings can only target manifest paths.
 
-1. Build a map of production files to candidate test files:
+1. **Use codegraph as the authoritative test-coverage oracle (MANDATORY).** The same-package filename heuristic (`foo.go → foo_test.go`) misses cross-file and cross-package coverage. For each exported symbol in each manifest file:
+
+   ```bash
+   bin/devpilot graph query tests_for '<file>::<symbol>'
+   ```
+
+   - **Empty test set** → real `cov:no-test-file` candidate. Proceed to step 2's "is it worth a test?" filter.
+   - **Non-empty test set** → that symbol IS covered (somewhere — possibly a different file or package). Do **NOT** emit `cov:no-test-file` for it, even if no same-package `*_test.go` exists. Spot-check the named tests for `cov:error-paths` (see step 3).
+
+   The orchestrator places `/tmp/devpilot-graph-hubs.json` next to the manifest. Symbols in the hub list are high-fanin. Any uncovered hub symbol gets severity upgraded by one step (medium→high) because a regression there detonates broadly.
+
+   **`devpilot graph` unavailable** → fall back to the filename heuristic below, but flag every finding's `evidence` with `graph: unavailable — coverage verdict based on filename heuristic only`. Scoring will downgrade these aggressively.
+
+   Filename fallback (only when graph is unavailable):
    - Go: `foo.go` → `foo_test.go` in the same package.
    - JS/TS: `foo.ts` → `foo.test.ts` / `foo.spec.ts` nearby or under `__tests__/`.
    - Python: `foo.py` → `test_foo.py` or `tests/test_foo.py`.
-2. For each production file with no test file: decide if any exported symbol deserves a test under the rules above. If yes, emit one finding per file (not per symbol — group them).
-3. For each production file that **has** a test file: spot-check whether the error branches are asserted. Use `grep -n "if err != nil\\|return.*err" <file>` and compare to test assertions. If the happy path has 10 assertions and every error path is untouched, that's one finding.
-4. For recently-churny production files (`git log --oneline --since=90.days.ago -- <file> | wc -l` > 5) with stagnant tests (`git log --oneline --since=90.days.ago -- <test_file> | wc -l` == 0), emit a finding — the test file has decayed past the code it's supposed to guard.
+
+2. For each production file whose exported symbols all returned empty `tests_for` sets: decide if any of them deserve a test under the rules above. If yes, emit **one finding per file** (not per symbol — group them); list the uncovered symbols in `evidence`.
+3. For each production file that **has** at least one symbol with a non-empty test set: spot-check whether the error branches are asserted. Use `grep -n "if err != nil\\|return.*err" <file>` and compare to the bodies of the named tests (`bin/devpilot graph query context --id '<test-id>' --depth 0` to read each quickly). If the happy path has many assertions and every error path is untouched, that's one `cov:error-paths` finding.
+4. For recently-churny production files (`bin/devpilot graph detect-changes --base 'HEAD~50' --head HEAD` is the precise check; or fall back to `git log --oneline --since=90.days.ago -- <file> | wc -l > 5`) where `tests_for` returns empty OR a test file whose mtime is older than the production file's last meaningful change, emit `cov:stale-test`.
 
 ## Output format
 
@@ -61,6 +75,8 @@ Return ONLY a JSON array:
 - `severity: low` — stale or incomplete test file; code works today but is drifting.
 
 Be over-inclusive. The scoring pass filters.
+
+Every `cov:no-test-file` and `cov:stale-test` finding's `evidence` block MUST end with a `graph:` line summarizing what `tests_for` returned (`graph: tests_for empty across all 4 exported symbols` or `graph: unavailable — filename heuristic only`). Findings without it are rejected.
 
 **Context-pressure trailer.** If the manifest is larger than you can audit, append `{"_meta": {"manifest_size": <M>, "files_scanned": <N>, "stopped_reason": "context_budget"}}` as the last element of the JSON array.
 
