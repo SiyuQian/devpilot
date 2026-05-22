@@ -17,8 +17,12 @@ func TestGetBoards(t *testing.T) {
 		if r.URL.Query().Get("filter") != "open" {
 			t.Error("expected filter=open")
 		}
-		if r.URL.Query().Get("key") == "" || r.URL.Query().Get("token") == "" {
-			t.Error("missing auth params")
+		if r.URL.Query().Get("key") != "" || r.URL.Query().Get("token") != "" {
+			t.Error("credentials must not be in query string")
+		}
+		wantAuth := `OAuth oauth_consumer_key="testkey", oauth_token="testtoken"`
+		if got := r.Header.Get("Authorization"); got != wantAuth {
+			t.Errorf("unexpected Authorization header: %q", got)
 		}
 		_ = json.NewEncoder(w).Encode(boards)
 	}))
