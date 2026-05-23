@@ -12,7 +12,7 @@ A PR review the author can act on: every concrete finding is posted as an **inli
 Three structural ideas drive this skill:
 
 1. **Eligibility gate** — decide the PR is worth a full review before spending tokens on it. Dependabot, drafts, generated-file PRs, "already reviewed" all stop here.
-2. **Parallel fanout** — five subagents look at the change from five independent angles in parallel. Coverage comes from diversity of angle, not depth of a single pass. The main session dispatches and merges; subagents read code.
+2. **Parallel fanout** — five to six subagents look at the change from independent angles in parallel. Coverage comes from diversity of angle, not depth of a single pass. The main session dispatches and merges; subagents read code. Agent F (Dependency Reality Check) is dispatched only when the diff adds new dependencies — it verifies imports/packages resolve on their public registry, catching hallucinated names that pass every text-based agent.
 3. **Confidence filtering** — every finding carries `Confidence: 0–100`. Findings below 70 are dropped by default. Coverage at collection, filtering at posting.
 
 ## When NOT to Use
@@ -72,19 +72,20 @@ Run `devpilot graph preflight --base <base-sha> --head <head-sha>` once. Cache t
 
 If the graph cache is missing, the language is unsupported, or preflight fails, **fall back** to the grep-only path and note `Behavior trace: grep-only (graph unavailable: <reason>)` in the body's sweep summary. Do not auto-run `devpilot graph build`. See `references/graph.md` for the full payload schema, fallback triggers, and confidence-weighting rules.
 
-### 2. Parallel fanout (5 subagents)
+### 2. Parallel fanout (5–6 subagents)
 
-Dispatch all five in a single message so they run in parallel. Each receives the PR metadata, the diff, and one focused brief. Each returns findings with `Confidence: 0–100` and `Severity`. See `references/fanout.md` for the prompts.
+Dispatch all in a single message so they run in parallel. Each receives the PR metadata, the diff, and one focused brief. Each returns findings with `Confidence: 0–100` and `Severity`. See `references/fanout.md` for the prompts. Agent F is conditional: dispatch only if the diff adds entries to `go.mod` / `package.json` / `requirements*.txt` / `pyproject.toml` / `Cargo.toml`, or adds an import for a module not already in the base-ref manifest.
 
 In **incremental mode**, the diff passed to subagents is the range diff (`last_reviewed_sha..head_sha`), not the full PR diff — agents should look at the new commits only. Agent A still grounds its blast-radius checks in the full repo, but findings must be anchored to lines changed in the new commits.
 
 | Agent | Angle |
 |---|---|
 | A | Behavior sweep (5 blind-spot questions + behavior trace) |
-| B | Shallow bug scan on the diff |
+| B | Shallow bug scan on the diff + Security/Performance [REQUIRED CHECKS] coverage |
 | C | CLAUDE.md / AGENTS.md compliance |
 | D | Git blame & history + comments on prior PRs touching these files |
 | E | Code comments & in-file conventions in modified files |
+| F | Dependency reality check — verifies added imports/packages resolve on public registry (conditional: only dispatched when the diff adds dependencies) |
 
 The main session does NOT also do these passes itself. Subagent context savings are the point.
 
@@ -120,7 +121,8 @@ Before posting, walk `references/rationalizations.md` self-check.
 |---|---|
 | `references/eligibility.md` | Gate rules + false-positive list (when to skip review entirely, what to never flag). |
 | `references/graph.md` | `devpilot graph preflight` payload schema, fallback triggers, confidence-weighting rules consumed by step 3. |
-| `references/fanout.md` | Five subagent prompts (Behavior, Bug scan, CLAUDE.md, Git history, In-file comments) — all receive the graph payload. |
+| `references/fanout.md` | Six subagent prompts (Behavior, Bug scan + sec/perf coverage, CLAUDE.md, Git history, In-file comments, Dependency reality) — A–E receive the graph payload; F receives the pre-extracted dependency manifest. |
+| `references/import-verifier.md` | Agent F spec: per-ecosystem registry-check commands (Go / npm / Python / Rust), finding shape, typosquat heuristic, fallback rules. |
 | `references/confidence.md` | 0–100 rubric, threshold 70, severity vs. confidence axes, dedupe rules, graph reconciliation. |
 | `references/unknown-unknowns.md` | Behavior sweep details — Agent A's playbook. |
 | `references/checklist.md` | Quality dimensions referenced by Agent B's bug scan and Agent A's checklist tail. |

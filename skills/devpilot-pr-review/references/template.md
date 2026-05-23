@@ -15,6 +15,8 @@ Every finding tied to a specific line uses this template. Posted as a single Git
 
 **Suggested change:** <concrete direction>
 
+**Suggested test:** <test function name + package + the path it should cover>  <!-- include ONLY for missing-test findings (graph-injected or Agent A); omit otherwise -->
+
 **Confidence:** <high | medium | low> — <one-line reason if not high>
 ```
 
@@ -57,6 +59,10 @@ The body holds only what doesn't belong on a single line: Verdict, TL;DR, Streng
 - Known pitfalls (incl. security/data/reversibility): <finding>
 - Stale-training check: <finding>
 - Hand-rolled vs. off-the-shelf: <finding>
+
+### Security / Performance coverage
+<n>/<total_security> security required-checks completed · <n>/<total_perf> performance required-checks completed
+<one line per `not_applicable` item with the reason; omit the line entirely if all checks were `checked, no_evidence` or `finding_raised`>
 
 ### Inline findings (count by severity)
 - Blocking: <n>
