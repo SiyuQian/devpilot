@@ -18,7 +18,7 @@ make lint     # golangci-lint; must pass before commit
 ```
 
 ## Conventions the agent keeps getting wrong
-- Cobra commands live with their domain in `commands.go` — no central `cli/` router.
+- Cobra commands live with their domain in `commands.go` — no central `cli/` router. Exception: `internal/graph/` splits subcommands into per-file `cli_<name>.go` (see `ARCHITECTURE.md` Invariant 2). Other domains use one `commands.go`.
 - Constructors with optional params use functional options (`WithXxx()`), never positional bool flags.
 - Wrap errors at layer boundaries: `fmt.Errorf("doing X: %w", err)`.
 - Tests are table-driven with named subtests; don't mock our own packages.
