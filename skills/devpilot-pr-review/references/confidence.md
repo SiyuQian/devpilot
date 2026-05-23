@@ -63,7 +63,9 @@ A finding both corroborated on one dimension and contradicted on another takes t
 
 ## Merge procedure (after the fanout returns)
 
+0. **Coverage assertion (Agent B).** Verify Agent B returned a `coverage` block covering every [REQUIRED CHECK] item in `references/checklist.md` §Security AND §Performance, with allowed values (`checked, no_evidence` | `finding_raised` | `not_applicable (<reason>)`). Missing keys, blank reasons, or items returned with unrecognized values trigger a single re-dispatch of Agent B with the exact missing items spelled out in the brief. If the second return is still incomplete, record `Security/Perf scan: partial (n/m items covered, missing: <list>)` in the body's Unknown-Unknowns Sweep block and downgrade the review event to at most `COMMENT` (never `APPROVE`) — an incomplete safety scan is not an approval.
 1. **Collect** all findings from agents A–E into one list.
+1.5. **Inject graph-derived findings** for missing tests on changed public surface. See "Graph-injected findings" below. Skip if graph fell back.
 2. **Reconcile** against `GRAPH_PREFLIGHT` per the section above (skip if graph fell back).
 3. **Filter:**
    - Drop `confidence < 70` (or the user-overridden threshold).
@@ -75,6 +77,54 @@ A finding both corroborated on one dimension and contradicted on another takes t
    - Every surviving finding needs `(path, line, side)`. Cross-cutting findings (e.g. "this PR has no tests") anchor to the most representative line — the new function's signature, the first new line of the changed file. The comment body MUST say so.
 6. **Count** by severity. The counts go in the body.
 7. **Derive the review event** (`REQUEST_CHANGES` / `COMMENT` / `APPROVE`) from the highest-severity surviving finding. See `posting.md` → "Event mapping".
+
+## Graph-injected findings (step 1.5)
+
+The fanout relies on Agent A's judgment to surface missing tests on changed public surface. In practice agents rationalize this away (`"too defensive to need a test"`, `"author justified skipping it"`, `"would be a nag"`). The graph already knows which changed public symbols lack a direct test; the main session injects findings unconditionally from the payload so judgment can only *upgrade* the finding, not silence it.
+
+**Inject one finding for every `changed_symbols[]` entry that satisfies ALL of:**
+
+- `is_exported == true`
+- `change_type` ∈ {`"modified"`, `"added"`}
+- `tests.has_tests == false`
+- `kind` ∈ {`"function"`, `"method"`}
+- The symbol's diff is **not trivial** (see "Trivial diff" below).
+
+**Default shape:**
+
+```
+title: Missing test for changed public surface — <symbol_id>
+severity: Should-fix
+confidence: 85           # graph corroborated; floor in graph.md
+anchor: <path>:<signature line of the symbol at head SHA>
+agent: "graph"
+behavior: "<symbol> is exported, modified by this PR, and has no direct test symbol in the graph."
+why: "Untested public surface changes are how silent regressions ship. Author may have justified skipping a test in the PR body — surface the gap explicitly so the decision is reviewable."
+fix: "Add a direct test for <symbol> covering the changed behavior, or reply with the reason a test is impractical (then resolve)."
+```
+
+**Severity escalation:**
+
+- `risk_factors` contains `hub` → `Severity: Blocking` (a hub semantic change without a test pages everyone downstream).
+- `risk_factors` contains `interface_change` → `Severity: Blocking`.
+
+**Trivial diff** (skip injection — these would be pure noise):
+
+- The symbol's hunk is ≤ 3 lines AND every line is a comment or whitespace.
+- The symbol's hunk is a pure rename / signature relocation (name change, no body change).
+- The symbol's body becomes a single-line forward (`return Other(args...)` and nothing else).
+
+**Not trivial — DO inject even though it feels minor:**
+
+- Defensive nil-guard / error-guard mirroring an existing pattern (5-line `if x == nil { continue }` blocks). The author asserting "this is too defensive to test" is exactly the case the injection is designed to overcome. Author can resolve the inline with "untestable, see PR body" — that's healthy. Silently dropping the finding is not.
+- Refactors that change control flow even by one branch.
+- Anything the author flagged in the PR description as "no test added because ___" — the justification belongs in the resolution thread, not in the reviewer's head.
+
+**Sibling-test transitivity is not coverage.** "The mirror branch / sibling function has a test, so this one is covered by analogy" is a rationalization, not a fact. Each symbol's `tests.has_tests` is independent. If two branches share a contract, the right answer is usually to factor out a helper and test the helper — that refactor *is* the fix.
+
+**Dedupe with Agent A:** if Agent A returned a finding for the same `(symbol, "missing test")` defect, drop the graph-injected one and keep Agent A's (Agent A's `fix` is concrete; the injected default is generic).
+
+**Anchor:** the symbol's declaration line at head SHA. For Go methods, the line of `func (recv T) Name(...)`. The main session resolves the line by reading the file at head SHA — do not guess.
 
 ## What to do when the fanout returns nothing
 
