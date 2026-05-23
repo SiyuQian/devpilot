@@ -1,6 +1,6 @@
-# Parallel Fanout: Five Subagent Briefs
+# Parallel Fanout: Six Subagent Briefs
 
-Dispatch all five subagents in a **single message with five parallel Task calls** so they run concurrently. Each subagent gets the same PR header (URL, title, head SHA, base SHA, files changed list, full diff) **plus the graph preflight payload** (or the `graph_unavailable: <reason>` marker if step 1.5 fell back) and one focused brief from this file.
+Dispatch all six subagents in a **single message with six parallel Task calls** so they run concurrently. Each subagent gets the same PR header (URL, title, head SHA, base SHA, files changed list, full diff) **plus the graph preflight payload** (or the `graph_unavailable: <reason>` marker if step 1.5 fell back) and one focused brief from this file. Agent F additionally receives the dispatcher's pre-extracted dependency manifest (see `references/import-verifier.md`); if the manifest is empty (no new dependencies), skip dispatching F entirely.
 
 ## Shared graph header (injected into every brief)
 
@@ -53,6 +53,8 @@ You are reviewing a pull request for behavior-level defects. Your job is the fiv
    4. Stale-training check (verify versions in `go.mod`/`package.json`)
    5. Hand-rolled vs. off-the-shelf (search repo + deps for existing utilities)
 3. Trace at least one golden-path input and one edge-case input through the change. Record the observable behavior delta. Use `GRAPH_PREFLIGHT.cross_community_edges` to spot whether this PR newly widens a package boundary — a Consider-level finding when unexpected.
+
+   **Untested public surface — write the finding, do not rationalize it.** For every symbol with `risk_factors` containing `untested_public`, write an inline finding with a *concrete* suggested test (test function name, package, the specific path it should cover). If you skip it, the main session injects a generic default in step 1.5 of `confidence.md` — your only lever is to *upgrade* with a better fix suggestion, not to suppress. Do not argue that a defensive guard / mirror of a tested pattern / author-justified-in-PR-body is "too minor for a test" — the author's justification belongs in the resolution thread, not in your decision to silence the finding.
 4. Produce a one-line summary per question for the body (`### Unknown-Unknowns Sweep` section). Concrete defects discovered during the sweep ALSO become individual findings anchored to lines. The blast-radius line MUST cite the caller count from the graph payload (or say `grep-only fallback` with the reason).
 
 **Output:** Findings list (one per concrete defect) + a `sweep_summary` block with five lines (one per question).
@@ -73,7 +75,10 @@ You are looking for **obvious bugs in the diff itself**. Read the changes, do no
 **Process:**
 1. Read the diff.
 2. For each changed function, look for: swapped conditions, off-by-one, nil/zero handling, error swallowing, panic in library code, defer/Close leaks, resource leaks, missing cancellation, dead branches, copy-paste bugs, wrong format specifier, wrong unit (seconds vs. ms).
-3. Apply the false-positive filter in `references/eligibility.md` to your own output before returning.
+3. **Walk the [REQUIRED CHECKS] in `references/checklist.md` §Security AND §Performance.** For every item, either produce a finding OR record `checked, no_evidence` / `not_applicable (<reason>)` in the `coverage` block. Silent skip is forbidden. The canonical rationalization "low risk because input isn't attacker-controlled today" is itself a Consider-level finding ("assumption recorded: <input> is currently trusted; if that ever changes, this becomes ___") — write it; do not swallow it.
+4. Apply the false-positive filter in `references/eligibility.md` to your own output before returning.
+
+**Return shape:** `{findings: [...], coverage: { security: {...}, performance: {...} }}`. Missing or partial coverage block = invalid return. See `references/checklist.md` → "Coverage block" for the exact key set and allowed values.
 
 **Hard rules:**
 - Do not flag pre-existing code that the PR didn't touch.
@@ -136,6 +141,36 @@ You read the history of the files this PR touches to surface context the diff al
 
 ---
 
+## Agent F — Dependency Reality Check
+
+You are the **mechanical** member of the fanout. No judgment. You verify that every dependency / import / package name **added** by this PR resolves to a real artifact on its public registry. This catches hallucinated packages ("slopsquatting") that pass every other text-based review.
+
+**Inputs:**
+- A pre-extracted JSON list of candidate artifacts produced by the dispatcher (Go modules, npm packages, Python packages, Rust crates) with their manifest lines and versions. See `references/import-verifier.md` → "What the dispatcher pre-extracts".
+- If the list is empty, return immediately with `coverage.dependencies.skipped: true (no new dependencies)` and no findings.
+
+**Process:**
+1. For each artifact, run the per-ecosystem verification command in `references/import-verifier.md` ("Per-ecosystem verification commands"). Cache by `(ecosystem, name, version)`.
+2. Classify each as: `ok` | `unresolved` | `version-missing` | `typo-suspect`.
+3. Emit findings per the severity rules in `import-verifier.md` → "Finding shape" (Blocking 100 for not-on-registry, Should-fix 95 for missing version, Should-fix 80 for typo neighbors).
+4. Return the `coverage.dependencies` block.
+
+**Hard rules:**
+- Do NOT judge whether a real dependency is a *good* dependency. License / popularity / CVEs are out of scope.
+- Do NOT chase transitive dependencies.
+- Network failure ≠ registry says no. Distinguish `skipped (no network)` from `unresolved (404)`.
+- Findings are independent of `GRAPH_PREFLIGHT` — graph reconciliation does NOT apply (these are not blast-radius claims).
+
+**Confidence calibration:**
+- 100: registry definitively says no (404 / `module ... not found`).
+- 95: registry has the package, not this version.
+- 80: registry has the package; name is within Levenshtein 2 of a top-1000 same-ecosystem package and the diff was AI-authored (typo-squat suspicion).
+- < 70: never. Either the registry has it or it doesn't — there is no "probably exists".
+
+**Output:** Findings list + `coverage.dependencies` block. See `references/import-verifier.md` for exact shape.
+
+---
+
 ## Agent E — In-File Comments & Conventions
 
 You read the comments inside the modified files and check the diff against them.
@@ -163,12 +198,15 @@ You read the comments inside the modified files and check the diff against them.
 ```python
 # Pseudocode — actually invoked as 5 parallel Task tool calls in one message.
 parallel_tasks = []
-for agent in ["A", "B", "C", "D", "E"]:
+agents = ["A", "B", "C", "D", "E"]
+if dependency_manifest_has_new_entries(diff):
+    agents.append("F")
+for agent in agents:
     parallel_tasks.append(
         Task(
             description=f"PR review fanout agent {agent}",
             subagent_type="general-purpose",
-            prompt=BRIEF[agent] + SHARED_PR_HEADER,
+            prompt=BRIEF[agent] + SHARED_PR_HEADER + (DEPENDENCY_MANIFEST if agent == "F" else ""),
         )
     )
 ```
