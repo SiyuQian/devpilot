@@ -22,12 +22,14 @@ Every finding tied to a specific line uses this template. Posted as a single Git
 
 ### Field rules
 
-- **`<Severity>`** — `Blocking`, `Should-fix`, `Consider`, or `Nit`. See severity rubric below.
+- **`<Severity>`** — `Blocking`, `Should-fix`, `Consider`, or `Nit`. Severity rubric and the severity → review-event mapping live in `confidence.md`.
 - **No path/line in the body** — the file path and line number are part of the inline-comment metadata; do not repeat them inside the comment text.
-- **Length** — ≤ 8 lines of prose. Long architectural arguments belong in the body's "What's working well" / verdict, not in an inline comment.
+- **Length** — ≤ 8 lines of prose. Long architectural arguments belong in the body's "What's working well" / verdict. If a finding genuinely needs more, split it or move the framing to the body and keep the inline comment focused on the line.
+- **Self-contained** — don't write "see comment above" or "as I said in another finding"; the author may resolve them in any order.
 - **Anchor for cross-cutting findings** — when a finding has no natural single line (e.g. "this PR adds no tests"), anchor to the most representative line and add a one-liner: *"This comment is about the change as a whole; anchored here for visibility."*
+- **Suggested change is concrete.** Name the package, the helper, the function, the diff direction — not "consider refactoring".
 - **Language** — matches the PR's language end-to-end. Chinese PR → Chinese comment, including the field labels.
-- **Severity and confidence are independent.** A high-severity bug you are moderately sure about is `Severity: Blocking, Confidence: medium`. Low confidence never automatically demotes severity. See `confidence.md` for the 0–100 rubric the fanout uses internally and the high/medium/low label mapping shown to the author.
+- **Severity and confidence are independent.** A high-severity bug you are moderately sure about is `Severity: Blocking, Confidence: medium`. See `confidence.md`.
 
 ## Review body template
 
@@ -112,13 +114,12 @@ Inline comments: <total count>
 
 For a fully-filled reference (body + multiple inline comments), see `example-review.md`.
 
-## Severity rubric
+## Tone & stance (applies to body AND every inline comment)
 
-Severity describes *impact if the finding is real*, independent of confidence.
+Both body and inline comments are part of the same review record — same rules apply.
 
-- **Blocking** — would cause data loss, security regression, outage, or silently wrong behavior in production.
-- **Should-fix** — real bug on a reachable code path, missing test for a risky path, or an unhandled pitfall surfaced by the sweep or checklist.
-- **Consider** — design or maintainability feedback worth the author's attention.
-- **Nit** — style, naming, wording.
-
-Report findings at every severity; downstream readers filter.
+- **Professional prose.** No emoji, no exclamation marks, no softeners ("just a thought", "maybe", "could be wrong but").
+- **State system behavior as claims, not questions.** A traced claim ("This recurses on a 401 from `/refresh` and will stack-overflow") belongs in Behavior Findings. The corresponding question belongs in `Open Questions` only when the code could not answer it.
+- **When you see a concrete alternative, name it.** One sentence on why it is better; ask the author to confirm direction. Recommendations do not belong inside vague questions.
+- **Open Questions holds only what the code could not answer** (callers outside the repo, product intent, runtime scale). Lives in the body; omit when empty.
+- **Greet the PR author** by handle (`gh pr view --json author -q .author.login` → `@handle`). Fall back to "Hi there," when unavailable.
