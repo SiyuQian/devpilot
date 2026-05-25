@@ -1,6 +1,6 @@
 # Parallel Fanout: Six Subagent Briefs
 
-Dispatch all six subagents in a **single message with six parallel Task calls** so they run concurrently. Each subagent gets the same PR header (URL, title, head SHA, base SHA, files changed list, full diff) **plus the graph preflight payload** (or the `graph_unavailable: <reason>` marker if step 1.5 fell back) and one focused brief from this file. Agent F additionally receives the dispatcher's pre-extracted dependency manifest (see `references/import-verifier.md`); if the manifest is empty (no new dependencies), skip dispatching F entirely.
+Dispatch all subagents in a **single message with parallel Task calls** so they run concurrently. Each subagent gets the same PR header (URL, title, head SHA, base SHA, files changed list, full diff) **plus the graph preflight payload** (or the `graph_unavailable: <reason>` marker if step 1.5 fell back) and one focused brief from this file. Agent F dispatch is gated on the dispatcher's pre-extracted dependency manifest per `references/import-verifier.md` → "What the dispatcher pre-extracts": if the manifest is empty, skip F entirely.
 
 ## Shared graph header (injected into every brief)
 
@@ -28,7 +28,7 @@ Each subagent returns a JSON-ish list of findings:
   behavior: <what the code actually does today on this branch>
   why: <impact on users / data / operability>
   fix: <concrete direction, name the helper/package/function>
-  agent: <A | B | C | D | E>
+  agent: <A | B | C | D | E | F>
 ```
 
 Subagents MUST NOT post anything; their output is purely returned to the main session for filtering and merging.
@@ -78,7 +78,7 @@ You are looking for **obvious bugs in the diff itself**. Read the changes, do no
 3. **Walk the [REQUIRED CHECKS] in `references/checklist.md` §Security AND §Performance.** For every item, either produce a finding OR record `checked, no_evidence` / `not_applicable (<reason>)` in the `coverage` block. Silent skip is forbidden. The canonical rationalization "low risk because input isn't attacker-controlled today" is itself a Consider-level finding ("assumption recorded: <input> is currently trusted; if that ever changes, this becomes ___") — write it; do not swallow it.
 4. Apply the false-positive filter in `references/eligibility.md` to your own output before returning.
 
-**Return shape:** `{findings: [...], coverage: { security: {...}, performance: {...} }}`. Missing or partial coverage block = invalid return. See `references/checklist.md` → "Coverage block" for the exact key set and allowed values.
+**Return shape:** `{findings: [...], coverage: { security: {...}, performance: {...} }}` per `references/checklist.md` → "Coverage block" (canonical spec).
 
 **Hard rules:**
 - Do not flag pre-existing code that the PR didn't touch.
@@ -143,31 +143,13 @@ You read the history of the files this PR touches to surface context the diff al
 
 ## Agent F — Dependency Reality Check
 
-You are the **mechanical** member of the fanout. No judgment. You verify that every dependency / import / package name **added** by this PR resolves to a real artifact on its public registry. This catches hallucinated packages ("slopsquatting") that pass every other text-based review.
+Mechanical existence check on newly-added dependencies. Catches hallucinated packages ("slopsquatting") that pass every other text-based review.
 
-**Inputs:**
-- A pre-extracted JSON list of candidate artifacts produced by the dispatcher (Go modules, npm packages, Python packages, Rust crates) with their manifest lines and versions. See `references/import-verifier.md` → "What the dispatcher pre-extracts".
-- If the list is empty, return immediately with `coverage.dependencies.skipped: true (no new dependencies)` and no findings.
+**Input:** the dispatcher's pre-extracted dependency manifest (Go / npm / Python / Rust). Conditional dispatch — only invoked when non-empty.
 
-**Process:**
-1. For each artifact, run the per-ecosystem verification command in `references/import-verifier.md` ("Per-ecosystem verification commands"). Cache by `(ecosystem, name, version)`.
-2. Classify each as: `ok` | `unresolved` | `version-missing` | `typo-suspect`.
-3. Emit findings per the severity rules in `import-verifier.md` → "Finding shape" (Blocking 100 for not-on-registry, Should-fix 95 for missing version, Should-fix 80 for typo neighbors).
-4. Return the `coverage.dependencies` block.
+**Brief:** follow `references/import-verifier.md` end-to-end (process, per-ecosystem commands, severity rules, finding shape, coverage block, fallback handling).
 
-**Hard rules:**
-- Do NOT judge whether a real dependency is a *good* dependency. License / popularity / CVEs are out of scope.
-- Do NOT chase transitive dependencies.
-- Network failure ≠ registry says no. Distinguish `skipped (no network)` from `unresolved (404)`.
-- Findings are independent of `GRAPH_PREFLIGHT` — graph reconciliation does NOT apply (these are not blast-radius claims).
-
-**Confidence calibration:**
-- 100: registry definitively says no (404 / `module ... not found`).
-- 95: registry has the package, not this version.
-- 80: registry has the package; name is within Levenshtein 2 of a top-1000 same-ecosystem package and the diff was AI-authored (typo-squat suspicion).
-- < 70: never. Either the registry has it or it doesn't — there is no "probably exists".
-
-**Output:** Findings list + `coverage.dependencies` block. See `references/import-verifier.md` for exact shape.
+**Output:** findings list + `coverage.dependencies` block per that spec.
 
 ---
 
@@ -196,10 +178,10 @@ You read the comments inside the modified files and check the diff against them.
 ## Dispatch template (main session)
 
 ```python
-# Pseudocode — actually invoked as 5 parallel Task tool calls in one message.
-parallel_tasks = []
+# Pseudocode — actually invoked as parallel Task calls in a single message.
 agents = ["A", "B", "C", "D", "E"]
-if dependency_manifest_has_new_entries(diff):
+manifest = extract_dependency_manifest(diff)   # see import-verifier.md
+if manifest:
     agents.append("F")
 for agent in agents:
     parallel_tasks.append(
@@ -211,4 +193,4 @@ for agent in agents:
     )
 ```
 
-After all five return, proceed to `references/confidence.md` for filtering and merging.
+After all dispatched agents return, proceed to `references/confidence.md` for filtering and merging.

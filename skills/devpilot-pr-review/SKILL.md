@@ -12,7 +12,7 @@ A PR review the author can act on: every concrete finding is posted as an **inli
 Three structural ideas drive this skill:
 
 1. **Eligibility gate** — decide the PR is worth a full review before spending tokens on it. Dependabot, drafts, generated-file PRs, "already reviewed" all stop here.
-2. **Parallel fanout** — five to six subagents look at the change from independent angles in parallel. Coverage comes from diversity of angle, not depth of a single pass. The main session dispatches and merges; subagents read code. Agent F (Dependency Reality Check) is dispatched only when the diff adds new dependencies — it verifies imports/packages resolve on their public registry, catching hallucinated names that pass every text-based agent.
+2. **Parallel fanout** — five core subagents (A–E) plus an optional sixth (F) look at the change from independent angles in parallel. Coverage comes from diversity of angle, not depth of a single pass. The main session dispatches and merges; subagents read code. Agent F (Dependency Reality Check) is dispatched only when the dispatcher's pre-extracted dependency manifest is non-empty — it verifies imports/packages resolve on their public registry, catching hallucinated names that pass every text-based agent.
 3. **Confidence filtering** — every finding carries `Confidence: 0–100`. Findings below 70 are dropped by default. Coverage at collection, filtering at posting.
 
 ## When NOT to Use
@@ -43,7 +43,7 @@ Every finding tied to a specific line goes in as an inline review comment, never
 1.5 Graph enrichment        → references/graph.md (preflight once; fallback OK)
 2. Parallel fanout          → references/fanout.md (5 subagents, parallel)
 3. Filter + merge + reconcile against graph → references/confidence.md
-4. Draft review             → references/template.md + style.md
+4. Draft review             → references/template.md
 5. Post one combined POST   → references/posting.md
 Self-check before post      → references/rationalizations.md
 ```
@@ -72,9 +72,9 @@ Run `devpilot graph preflight --base <base-sha> --head <head-sha>` once. Cache t
 
 If the graph cache is missing, the language is unsupported, or preflight fails, **fall back** to the grep-only path and note `Behavior trace: grep-only (graph unavailable: <reason>)` in the body's sweep summary. Do not auto-run `devpilot graph build`. See `references/graph.md` for the full payload schema, fallback triggers, and confidence-weighting rules.
 
-### 2. Parallel fanout (5–6 subagents)
+### 2. Parallel fanout (5 core + F conditional)
 
-Dispatch all in a single message so they run in parallel. Each receives the PR metadata, the diff, and one focused brief. Each returns findings with `Confidence: 0–100` and `Severity`. See `references/fanout.md` for the prompts. Agent F is conditional: dispatch only if the diff adds entries to `go.mod` / `package.json` / `requirements*.txt` / `pyproject.toml` / `Cargo.toml`, or adds an import for a module not already in the base-ref manifest.
+Dispatch all in a single message so they run in parallel. Each receives the PR metadata, the diff, and one focused brief. Each returns findings with `Confidence: 0–100` and `Severity`. See `references/fanout.md` for the prompts. Agent F is conditional: the dispatcher pre-extracts the dependency manifest per `references/import-verifier.md` → "What the dispatcher pre-extracts"; F is dispatched only when that manifest is non-empty.
 
 In **incremental mode**, the diff passed to subagents is the range diff (`last_reviewed_sha..head_sha`), not the full PR diff — agents should look at the new commits only. Agent A still grounds its blast-radius checks in the full repo, but findings must be anchored to lines changed in the new commits.
 
@@ -91,23 +91,26 @@ The main session does NOT also do these passes itself. Subagent context savings 
 
 ### 3. Filter, dedupe, merge
 
-Apply the rubric in `references/confidence.md`:
-
-- **Reconcile against the graph payload** (see `references/graph.md` → "Confidence weighting"): findings whose blast-radius claim is corroborated by `changed_symbols[].callers` have their confidence floor raised to 85; findings contradicted by the graph (claimed caller doesn't exist; "hub" claim when `in_hub:false`) are capped at 50 — which drops them under the threshold.
-- Drop findings with `Confidence < 70`.
-- Drop findings that match the false-positive list in `references/eligibility.md` (pre-existing issues, lines the PR did not modify, linter/typechecker-catchable, ignored-by-comment, **already raised by an existing review comment at the same anchor**, etc.). The existing-comments file from step 0 is the source of truth for the duplicate check.
-- Dedupe across agents (same line, same defect → one inline comment, take the higher confidence).
-- Assign each surviving finding an inline anchor `(path, line)`. Cross-cutting findings anchor to the most representative line.
+Graph-reconcile each finding (corroborated → floor 85; contradicted → cap 50) → drop `Confidence < 70` → drop matches against `eligibility.md` false-positive list, including duplicates of existing inline comments at the same anchor (from step 0) → dedupe across agents; same defect across multiple files → one consolidated comment listing the other `path:line`s → anchor each survivor to `(path, line)`. Full procedure incl. graph-injected missing-test findings: `references/confidence.md`.
 
 ### 4. Draft the review
 
-One inline comment per anchored finding using `references/template.md` → "Inline comment template". One body using `references/template.md` → "Review body template": Verdict + TL;DR + Strengths + Unknown-Unknowns Sweep summary (from Agent A) + counts + Open Questions. Apply tone/stance/language from `references/style.md`. Calibrate against `references/example-review.md` on first use.
+One inline comment per anchored finding: severity-tagged title + Behavior today / Why that's a problem / Suggested change / Confidence. One body: Verdict + TL;DR + Strengths + Unknown-Unknowns Sweep summary (from Agent A) + Security/Performance coverage line + inline-finding counts + Open Questions. Templates, field rules, and tone/stance/language are in `references/template.md`. Calibrate against `references/example-review.md` on first use.
 
 ### 5. Post
 
-Single combined POST: body + inline comments + event. Links in body use full-SHA format. See `references/posting.md`.
+Single combined POST to `repos/:owner/:repo/pulls/:num/reviews` carrying `{event, body, comments[]}` in one call — never split into multiple reviews and never post inline findings via `gh pr comment`. Event derived from highest severity (`confidence.md` → "Severity rubric"). Links in the body use full-SHA `blob` URLs so GitHub renders the snippet preview.
 
-Before posting, walk `references/rationalizations.md` self-check.
+Payload shape:
+
+```bash
+jq -n --arg event "$event" --arg body "$body" --argjson comments "$comments_json" \
+  '{event:$event, body:$body, comments:$comments}' \
+| gh api -X POST "repos/$owner/$repo/pulls/$num/reviews" --input -
+# each entry in $comments_json: {path, line, side:"RIGHT"|"LEFT", body}
+```
+
+See `references/posting.md` for the full `jq` build, anchor field rules (multi-line / LEFT side / `start_line`), GitLab equivalent, and the local-only "skip posting" mode. Before posting, walk `references/rationalizations.md` self-check.
 
 ## Cross-References
 
@@ -126,8 +129,7 @@ Before posting, walk `references/rationalizations.md` self-check.
 | `references/confidence.md` | 0–100 rubric, threshold 70, severity vs. confidence axes, dedupe rules, graph reconciliation. |
 | `references/unknown-unknowns.md` | Behavior sweep details — Agent A's playbook. |
 | `references/checklist.md` | Quality dimensions referenced by Agent B's bug scan and Agent A's checklist tail. |
-| `references/template.md` | Inline comment template + review body template (Verdict, Strengths, sweep, counts). |
-| `references/style.md` | Tone, stance, and language rules for both body and inline comments. |
-| `references/posting.md` | One combined POST (`gh api`), event mapping, full-SHA link format, GitLab equivalent. |
+| `references/template.md` | Inline comment template + review body template (Verdict, Strengths, sweep, counts) + tone/stance/language rules. |
+| `references/posting.md` | One combined POST (`gh api`), full-SHA link format, GitLab equivalent. |
 | `references/example-review.md` | Worked example: body + inline comments. |
 | `references/rationalizations.md` | Common shortcuts + pre-post self-check. |

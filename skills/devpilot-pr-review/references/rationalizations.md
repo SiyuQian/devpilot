@@ -22,8 +22,6 @@ Common shortcuts the reviewer may reach for, and what to do instead. The "Realit
 | "Behavior trace is the whole point — checklist items are filler." | Behavior sweep is what makes the review more than style; the checklist is what makes it more than a behavior trace. Run both. |
 | "I'll post the inline comments as standalone PR comments via `gh pr comment`." | Standalone comments aren't part of the review and don't show up in the right pane. Use one combined `POST .../pulls/:num/reviews` with body + `comments[]` + event. |
 | "I'll split blockers and nits into two reviews." | One review per pass. The author gets one notification, one set of comments, one verdict. |
-| "A small emoji softens the tone." | Keep the review in professional prose. The review is part of the PR record. |
-| "Greeting feels redundant, skipping it." | The greeting is part of the template and addresses the author by handle. |
 | "I'll skip the eligibility gate and just review." | The gate is 1–2 `gh` calls. Skipping it wastes a fanout on a dependabot PR or duplicates a review you already posted. |
 | "I'll run the five passes myself instead of dispatching subagents." | The fanout is parallel for a reason — five agents in one turn finish in the time of one, and the main session keeps its context for filtering and drafting. Sequential single-thread defeats the design. |
 | "I'll skip one of the five agents — Agent D/E rarely finds anything." | The angles are independent. Skipping an angle by hunch is how silent defects survive. Run all five; the filter step is where you discard noise. |
@@ -33,8 +31,6 @@ Common shortcuts the reviewer may reach for, and what to do instead. The "Realit
 | "I'll put the body link in short-SHA form, the reader can figure it out." | GitHub Markdown previews require the full 40-char SHA. Short SHA or branch name → no rendered preview. Use `git rev-parse HEAD`. |
 | "I'll skip the Verdict — readers can infer it from the counts." | The Verdict is the one thing every reader looks at. State it explicitly: Yes / With fixes / No. |
 | "I'll skip Strengths — sounds performative." | Accurate praise gates trust in the rest of the review. Two specific bullets, not generic compliments. |
-| "The version comment is noise, I'll drop it." | Keep `<!-- devpilot-pr-review (devpilot vX.Y.Z) -->` so readers can attribute the review. |
-| "Disclaimer feels defensive, I'll skip or shorten it." | Keep the disclaimer. It protects authors from treating AI findings as authoritative. |
 | "I'll ask 'what happens when X?' so the author clarifies." | If the code can answer it, state the answer. Author questions live in Open Questions only. |
 | "I have a better approach but I'll stay neutral." | Name it, one sentence on why, ask the author to confirm. |
 | "Graph says this symbol has 0 callers — must be dead code, skip it." | `callers.count: 0` means *no static caller in the indexed languages*. Reflection, codegen, RPC, CLI dispatch tables, and test main files are invisible to the graph. Confirm with one grep before claiming dead code. |

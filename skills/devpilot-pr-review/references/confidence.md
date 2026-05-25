@@ -1,6 +1,6 @@
 # Confidence Rubric, Filtering, and Merge
 
-The five fanout agents return findings with `confidence: 0–100`. This file is the rubric they score against and the procedure the main session uses to filter, dedupe, and merge their output.
+The fanout agents (A–E, plus F when dispatched) return findings with `confidence: 0–100`. This file is the rubric they score against and the procedure the main session uses to filter, dedupe, and merge their output. **This file is the single source of truth for the severity rubric and the severity → review-event mapping** — `template.md`, `posting.md`, and the fanout briefs link here rather than restating them.
 
 ## Confidence rubric (0–100)
 
@@ -32,12 +32,15 @@ Drop every finding with `confidence < 70` before drafting.
 
 A high-severity bug you are moderately sure about is `Severity: Blocking, Confidence: 75`. Low confidence never automatically demotes severity. Severity describes *impact if true*; confidence describes *probability of being true*.
 
-| Severity | Description |
-|---|---|
-| Blocking | Would cause data loss, security regression, outage, or silently wrong behavior in production. |
-| Should-fix | Real bug on a reachable code path, missing test for a risky path, unhandled pitfall. |
-| Consider | Design or maintainability feedback worth the author's attention. |
-| Nit | Style, naming, wording. |
+| Severity | Description | Review event |
+|---|---|---|
+| Blocking | Would cause data loss, security regression, outage, or silently wrong behavior in production. | `REQUEST_CHANGES` |
+| Should-fix | Real bug on a reachable code path, missing test for a risky path, unhandled pitfall. | `COMMENT` |
+| Consider | Design or maintainability feedback worth the author's attention. | `COMMENT` |
+| Nit | Style, naming, wording. | `COMMENT` |
+| (no findings) | — | `APPROVE` |
+
+Event for the combined POST is derived from the highest-severity surviving finding. Report findings at every severity; downstream readers filter.
 
 ## Inline-comment confidence label
 
@@ -63,8 +66,8 @@ A finding both corroborated on one dimension and contradicted on another takes t
 
 ## Merge procedure (after the fanout returns)
 
-0. **Coverage assertion (Agent B).** Verify Agent B returned a `coverage` block covering every [REQUIRED CHECK] item in `references/checklist.md` §Security AND §Performance, with allowed values (`checked, no_evidence` | `finding_raised` | `not_applicable (<reason>)`). Missing keys, blank reasons, or items returned with unrecognized values trigger a single re-dispatch of Agent B with the exact missing items spelled out in the brief. If the second return is still incomplete, record `Security/Perf scan: partial (n/m items covered, missing: <list>)` in the body's Unknown-Unknowns Sweep block and downgrade the review event to at most `COMMENT` (never `APPROVE`) — an incomplete safety scan is not an approval.
-1. **Collect** all findings from agents A–E into one list.
+0. **Coverage assertion (Agent B).** Verify Agent B returned a valid `coverage` block per `references/checklist.md` → "Coverage block". Missing or invalid → re-dispatch Agent B once with the exact missing items spelled out. If still incomplete, record `Security/Perf scan: partial (n/m items covered, missing: <list>)` in the body's Unknown-Unknowns Sweep block and downgrade the review event to at most `COMMENT` (never `APPROVE`).
+1. **Collect** all findings from every agent that ran (A–E, plus F if dispatched) into one list. Agent F's findings join the same list but bypass graph reconciliation in step 2 (they're not blast-radius claims).
 1.5. **Inject graph-derived findings** for missing tests on changed public surface. See "Graph-injected findings" below. Skip if graph fell back.
 2. **Reconcile** against `GRAPH_PREFLIGHT` per the section above (skip if graph fell back).
 3. **Filter:**

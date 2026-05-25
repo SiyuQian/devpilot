@@ -103,11 +103,4 @@ coverage:
 - **Documentation** — user-visible changes reflected in README, docs, help text, or CHANGELOG (whichever this repo uses).
 - **No obvious bugs** — dead branches, swapped conditions, off-by-one, leaked resources, forgotten `defer Close()`.
 
-## Where each finding goes
-
-- A category finding tied to one line (or a contiguous range) → **inline comment** at that line.
-- A finding without a natural anchor (e.g. "this PR has no tests at all", "the entire approach hand-rolls X when Y is in `go.mod`") → **inline comment** anchored to the most representative line (the new function's signature, the changed file's first new line) with a one-liner saying the comment is about the change as a whole.
-- The Unknown-Unknowns Sweep summary stays in the **body**; specific issues the sweep surfaces become inline comments.
-- Overall verdict, Open Questions, what's working well → **body**.
-
-If you find yourself reaching for the body to dump a finding because no line fits, anchor it instead. The author can ask for a different anchor; they cannot act on a body bullet.
+Inline-vs-body routing is governed by SKILL.md `<inline_by_default>` — every finding tied to a line goes inline.
