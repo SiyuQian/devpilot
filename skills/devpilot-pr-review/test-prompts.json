@@ -1,0 +1,20 @@
+[
+  {
+    "id": 1,
+    "scenario": "happy-path / typical PR review",
+    "prompt": "review PR #139 in this repo",
+    "expected": "Eligibility gate runs → graph preflight → 5 parallel subagents (A–E) + F if dependencies added → filter at confidence 70 → single combined POST with inline comments anchored to lines + body containing Verdict / TL;DR / Strengths / Unknown-Unknowns Sweep / inline counts. Body uses full-SHA blob links. Event derives from highest severity."
+  },
+  {
+    "id": 2,
+    "scenario": "eligibility-gate short-circuit",
+    "prompt": "review this dependabot PR: https://github.com/example/repo/pull/42 (bumps lodash from 4.17.20 to 4.17.21)",
+    "expected": "Stops at eligibility gate with explicit reason (automation-only / generated-only). No fanout dispatched, no review posted. Tells user why."
+  },
+  {
+    "id": 3,
+    "scenario": "local diff, no PR URL, no posting",
+    "prompt": "review my local branch diff against main before I push — don't post anything, just show me findings",
+    "expected": "Loads via git diff main...HEAD (not gh). Runs fanout. Skips graph preflight gracefully if no head-SHA on remote. Renders body + inline comments locally with `path:line` prefixes (per posting.md → 'Skip posting'). Does NOT call gh api."
+  }
+]

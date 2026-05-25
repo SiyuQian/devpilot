@@ -94,15 +94,6 @@ bin/devpilot graph impact  --files <path,path>          # caller union for symbo
 
 Output is appended to the inline comment as evidence, not posted as a separate finding.
 
-## Known noise patterns
+## Known noise / limits
 
-- `change_type: "modified"` is line-overlap based. A struct or function can be marked modified when only neighboring lines shifted; its body may not have changed. Confirm against the diff before treating as a behavior change.
-- `callers.count: 0` means "no static caller in indexed languages". Reflection, codegen, RPC, CLI dispatch tables, and test main files are invisible. Spot-check with one grep before calling something dead code.
-- `risk_factors: ["untested_public"]` is a useful trigger but does not by itself constitute a finding — combine with a concrete contract change in the diff.
-
-## What graph does NOT do
-
-- It does not judge style, naming, comments, or CLAUDE.md compliance — those stay with Agents C and E.
-- It does not catch logic bugs inside a function body — that is Agent B.
-- It does not know dynamic dispatch beyond what the static graph records. Reflection, codegen, RPC, and string-keyed dispatch are invisible. Cross-reference Agent A's grep sweep when the change involves any of those.
-- It does not replace reading the code. It removes the "did I miss a caller?" anxiety so subagents spend their tokens on judgment, not enumeration.
+Common graph-misreading traps (dead-code claims, `change_type` false positives, dynamic dispatch invisibility) are enumerated in `rationalizations.md` rows — that's the active self-check. Graph does not replace reading code; it removes the "did I miss a caller?" anxiety.

@@ -40,13 +40,7 @@ Each comment body uses the inline-comment template from `template.md`. Severity 
 
 ### Event mapping
 
-`$event` is derived from the highest-severity inline finding:
-
-| Highest severity | event |
-|---|---|
-| Any Blocking | `REQUEST_CHANGES` |
-| Should-fix / Consider / Nit only | `COMMENT` |
-| No findings | `APPROVE` |
+See `confidence.md` → "Severity rubric" for the severity → `$event` mapping.
 
 ### Anchor fields
 
@@ -122,7 +116,6 @@ In any of those cases, render the body and the inline comments in chat (each com
 
 ## Anti-shortcuts
 
-- **Don't dump findings into the body** to avoid building the comments array. Findings tied to a line go inline.
 - **Don't post inline comments via `gh pr comment`** — those are PR conversation comments, not review comments. They show up in a different pane and can't be resolved as part of a review.
 - **Don't post inline comments outside a review** (`POST .../pulls/:num/comments` directly). Always route through `POST .../pulls/:num/reviews` so they land grouped under one review with the right event.
 - **Don't split into multiple reviews** ("one for blockers, one for nits"). One review per pass; the author sees one notification, one set of comments, one verdict.
