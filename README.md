@@ -33,6 +33,18 @@ npx skills add siyuqian/devpilot
 
 This drops the skills into `.claude/skills/` so Claude Code can pick them up immediately. Use the devpilot CLI below if you also want the Gmail / Slack / Trello helpers.
 
+**Updating installed skills** — pull the latest versions from this catalog:
+
+```bash
+npx skills list                      # see what's installed
+npx skills update                    # update all installed skills
+npx skills update devpilot-pr-review # update a single skill by name
+npx skills update -g                 # update globally-installed skills only
+npx skills update -p                 # update project-installed skills only
+```
+
+Each skill installs under its own name (e.g. `devpilot-pr-review`, `devpilot-learn`) — there is no single `devpilot` bundle to update. Re-running `npx skills add siyuqian/devpilot` also works and will overwrite the existing install.
+
 **From release:**
 ```bash
 curl -sSL https://raw.githubusercontent.com/SiyuQian/devpilot/main/install.sh | sh
