@@ -127,7 +127,7 @@ git worktree prune                                    # drop metadata for alread
 - The repo has zero matching open issues — confirm the filter before looping on nothing.
 - `git worktree list` shows existing worktrees from a prior run with **unpushed commits**. That is in-progress work, not garbage. See `references/worktree-management.md` → "Step 0 — preflight pruning". Default action: leave it alone, ask the user.
 
-**Establish the filter.** Default: `is:open no:assignee` plus the labels the user cares about (e.g., `repo-scan`, `bug`). If the user said "all issues" but there are >20, confirm the scope before starting. Save the filter — the loop reuses it every iteration.
+**Establish the filter.** **Mandatory terms** (never omit, never override, even if the user says "all issues"): `is:open no:assignee`. On top of those, add the labels the user cares about (e.g., `repo-scan`, `bug`). `no:assignee` is not a default — it is a hard precondition of this loop. Picking up an issue someone else has already taken double-assigns work, races on PRs, and steps on in-progress fixes. If the user says "fix issue #42" by number and #42 is already assigned, **stop and ask** instead of picking it up. If the user said "all issues" but there are >20, confirm the scope before starting. Save the filter — the loop reuses it every iteration.
 
 **Save `$MAIN` (the main checkout root).** Every cleanup step `cd`s back to `$MAIN` to remove the per-issue worktree. The loop's "home" cwd is `$MAIN`; it temporarily moves into a worktree for steps 5–9 of each REAL iteration.
 
@@ -138,18 +138,30 @@ gh issue list \
   --state open \
   --search "<filter-terms> no:assignee sort:created-asc" \
   --limit 1 \
-  --json number,title,body,labels,url,author
+  --json number,title,body,labels,url,assignees,author
 ```
+
+`no:assignee` MUST appear in the `--search` string. Do not drop it even if `<filter-terms>` already contains it — the explicit repetition is the guardrail.
 
 If the result is empty → go to step 12 (summarize & stop).
 
+**Belt-and-suspenders check before step 2.** Even though the search excluded assigned issues, GitHub's search index can lag a few seconds behind reality, and the user may have hand-picked an issue number. Re-verify against the live issue:
+
+```bash
+gh issue view <num> --json assignees --jq '.assignees | length'
+```
+
+If the result is non-zero → **skip this issue and return to step 1.** Do not assign, do not investigate, do not comment. The issue is someone else's work in flight.
+
 ### 2. Assign to self
+
+Only reached after the belt-and-suspenders check confirmed zero assignees.
 
 ```bash
 gh issue edit <num> --add-assignee @me
 ```
 
-If the issue is already assigned to someone else, **skip it and move on** — do not steal assignments, even if it looks abandoned. Leave it for the owner.
+If `gh issue edit` reports the issue is already assigned (race between step 1's check and the edit), **immediately unassign yourself if the edit went through against an already-assigned issue, then skip.** Do not steal assignments, even if the prior assignment looks abandoned — leave a comment asking the assignee to confirm and move on.
 
 ### 3. Investigate — you MUST read the cited code
 
@@ -168,7 +180,7 @@ Read the full issue body. If the issue was filed by `devpilot-scanning-repos` it
 |---|---|---|
 | **REAL** | You traced the code and reproduced / confirmed the bug, gap, or risk. | Proceed to step 5. **Stay assigned** until the PR merges — `Closes #N` on merge closes the issue cleanly when it's authored by the assignee. |
 | **FALSE-POSITIVE** | You traced the code and the premise is wrong — already fixed, wrong file, misread of the code, scanner hallucination, or pre-existing and intentional. | Post the FALSE-POSITIVE comment from `references/verdict-comments.md`, close with the `wontfix` label, unassign. Next issue. |
-| **NEEDS-HUMAN** | Concern is real but fixing requires domain knowledge you don't have — business logic, product decisions, contracts with external services. | Post the NEEDS-HUMAN comment with 1–3 concrete questions, unassign. Next issue. |
+| **NEEDS-HUMAN** | Concern is real but fixing requires domain knowledge you don't have — business logic, product decisions, contracts with external services. | Post the NEEDS-HUMAN comment with 1–3 concrete questions, add the `need:human` label, unassign. Next issue. |
 
 **Do not classify as REAL just to "take a shot."** False positives close in 60 seconds; wrong REAL verdicts spawn implementer subagents that produce useless diffs and poison the PR history.
 
@@ -242,7 +254,7 @@ make lint
 Or the project-specific equivalents (`go test ./...`, `pnpm test`, `cargo test`). Trust-but-verify: implementer and reviewer subagents can both misreport — innocently or because a test harness is broken.
 
 - Everything passes → step 8.
-- Anything fails → escalate the issue `NEEDS-HUMAN`: push the branch as a draft (`git push -u origin "$BRANCH"`), comment on the issue with the failing output and the branch URL, unassign, then proceed to step 10 (worktree cleanup) before the next issue. The per-task reviews already ate the retry budget; don't burn another round here.
+- Anything fails → escalate the issue `NEEDS-HUMAN`: push the branch as a draft (`git push -u origin "$BRANCH"`), comment on the issue with the failing output and the branch URL, add the `need:human` label (`gh issue edit <num> --add-label "need:human"`), unassign, then proceed to step 10 (worktree cleanup) before the next issue. The per-task reviews already ate the retry budget; don't burn another round here. See `references/verdict-comments.md` for the label-creation one-liner if the label doesn't exist yet.
 
 ### 8. Create the PR
 
@@ -326,7 +338,11 @@ The loop ends when **any** of these is true — not before:
 11. **Never fix in the main context.** Implementation lives in implementer subagents; review lives in `superpowers:code-reviewer` subagents. The main context orchestrates only.
 12. **Every REAL issue is fixed in its own `git worktree`, never in the main checkout.** No exceptions: not for "tiny" fixes, not when worktree creation is "annoying", not when "the main checkout is already clean." The main checkout is the user's working environment; the loop never owns it. Worktree create at step 5, cleanup at step 10. See `references/worktree-management.md`.
 13. **One worktree per issue, one branch per worktree, sequential issues.** Reusing a worktree across issues, or creating two worktrees for the same issue, both break the cleanup contract and leak branches. Sequential at the issue level — even though worktrees are physically isolated, this skill processes one issue at a time. Parallelizing across issues is a future change, not a license to skip.
-14. **Never `--force` past a worktree-create or worktree-remove failure in autonomous mode.** Both failure modes (path collision on create, modified/untracked files on remove) usually indicate someone's in-progress work or a real disk problem. Stop and ask the user; `--force` is reserved for cases where you have *verified* (`git status`, `git log origin/$BRANCH..HEAD`) that the work is already on origin.
+14. **Never pick up an issue that already has an assignee.** `no:assignee` is a mandatory search term, and step 1 re-verifies with `gh issue view --json assignees` before step 2 assigns. If the issue is assigned to anyone (including a bot, including someone who looks inactive), skip and move on. Stealing or co-owning assignments races on PRs and steps on in-flight work. **Corollaries that close the obvious bypasses:**
+    - *Comment-then-take is not a path.* Leaving a "confirm or I'll take this" comment does not earn you the right to take it later. Only the assignee themselves, or a repo admin acting out-of-band, can transfer the assignment. There is no built-in waiting period that converts a comment into permission.
+    - *Recently-unassigned issues require explicit user confirmation.* If `gh issue view --json timelineItems` shows the issue was unassigned within the last hour and the user has just invoked the loop, **stop and ask** whether the unassignment was intentional and authorized — do not silently pick it up just because `no:assignee` is now true. This blocks the "unassign in the UI then re-run the loop" laundering pattern.
+    - *Urgency, vacation, inactivity, and "user said don't ask" are the exact pressures Hard Rule 14 exists to resist.* The red-flags table calls these out by name; if your reasoning leans on any of them, you are in the trap, not above it.
+15. **Never `--force` past a worktree-create or worktree-remove failure in autonomous mode.** Both failure modes (path collision on create, modified/untracked files on remove) usually indicate someone's in-progress work or a real disk problem. Stop and ask the user; `--force` is reserved for cases where you have *verified* (`git status`, `git log origin/$BRANCH..HEAD`) that the work is already on origin.
 
 ## Red flags — STOP and reset
 
