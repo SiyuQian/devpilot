@@ -1,0 +1,29 @@
+{
+  "skill_name": "e2e-tests",
+  "evals": [
+    {
+      "id": 0,
+      "prompt": "Generate end-to-end tests for our web app. We don't have any e2e setup yet.",
+      "expected_output": "Detects no Playwright present, bootstraps a minimal Playwright setup (install + minimal config + e2e dir), infers/confirms the dev command, base URL and auth, then discovers flows and generates+verifies specs to green.",
+      "files": []
+    },
+    {
+      "id": 1,
+      "prompt": "Auto-generate Playwright tests for the main user flows. We already have Playwright configured in tests/e2e.",
+      "expected_output": "Detects the existing Playwright setup and conforms to the tests/e2e layout without clobbering config, proposes a prioritized batch of flows (auth/core CRUD first), and verifies each generated spec to green or leaves test.fixme with a note.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "Write an e2e test for the checkout flow end to end.",
+      "expected_output": "Generates a single spec for the named checkout flow using strict semantic locators, drives the running app to capture real selectors, and runs it in a bounded verify loop. Treats payment/irreversible steps as test.fixme unless the user green-lights a test environment.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "Can you generate browser e2e tests? Our repo already uses Cypress.",
+      "expected_output": "Detects the existing Cypress suite and STOPS rather than adding a second framework, explaining the maintenance smell and asking whether the user explicitly wants to add Playwright alongside it.",
+      "files": []
+    }
+  ]
+}
