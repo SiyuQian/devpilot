@@ -73,6 +73,14 @@
       ]
     },
     {
+      "name": "devpilot-e2e-tests",
+      "description": "Use when the user wants to generate, scaffold, or auto-write end-to-end / browser tests for a web app. Playwright-first; drives the running app to capture real selectors and verifies each spec to green. Do NOT use for unit/integration tests, API-only tests, CLI tests, or non-Playwright e2e frameworks already present (it will stop).",
+      "files": [
+        "evals/evals.json",
+        "SKILL.md"
+      ]
+    },
+    {
       "name": "devpilot-google-go-style",
       "description": "ALWAYS use when working in a Go project — writing new Go code, modifying .go files, reviewing Go PRs, or discussing Go design decisions.",
       "files": [
