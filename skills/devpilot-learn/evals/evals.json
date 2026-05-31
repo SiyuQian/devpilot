@@ -4,42 +4,53 @@
     {
       "id": 1,
       "prompt": "Summarize this article for me: https://www.technologyreview.com/2025/01/08/1109188/whats-next-for-ai-in-2025/",
-      "expected_output": "A standalone HTML file with reader-mode styling, containing an executive summary, 5-10 key points about AI trends in 2025, and any relevant charts/images preserved or described. Output in English.",
+      "expected_output": "A standalone self-contained bilingual HTML digest with an English | 中文 comparison layout, a bilingual title and metadata block, fixed sections for At a Glance, Summary, Key Points, Evidence & Data, Visuals, and a terminal terminology glossary table.",
       "files": [],
       "expectations": [
         "Output includes at least one .html file",
         "The HTML file is self-contained with no external CSS or JS dependencies",
-        "The HTML contains an executive summary or core thesis section",
-        "The HTML contains at least 5 distinct key points or bullet items",
-        "The output text is in English",
+        "The HTML contains bilingual title content in English and Chinese",
+        "The HTML contains paired English and Chinese content blocks",
+        "The HTML contains an At a Glance section with exactly two sentences per language",
+        "The HTML contains at least 6 distinct key points or bullet items",
+        "The HTML contains an Evidence & Data section",
+        "The HTML contains a Visuals section",
+        "The HTML ends with a terminology glossary table containing English and Chinese terminology columns",
         "The HTML includes a source link back to the original URL"
       ]
     },
     {
       "id": 2,
       "prompt": "帮我总结一下这篇文章 https://36kr.com/p/2089043818498049",
-      "expected_output": "A standalone HTML file in Chinese with reader-mode styling, containing a 核心摘要, 5-10 要点, and any charts preserved or described.",
+      "expected_output": "A standalone self-contained bilingual HTML digest with an English | 中文 comparison layout, preserving the fixed bilingual section structure and ending with a four-column terminology glossary table.",
       "files": [],
       "expectations": [
         "Output includes at least one .html file",
         "The HTML file is self-contained with no external CSS or JS dependencies",
-        "The HTML contains a summary section (摘要 or similar)",
-        "The HTML contains at least 5 distinct key points or bullet items",
-        "The main body text is in Chinese",
+        "The HTML contains bilingual title content in English and Chinese",
+        "The HTML contains paired English and Chinese content blocks",
+        "The HTML contains a Summary section and a matching 摘要 section label",
+        "The HTML contains at least 6 distinct key points or bullet items",
+        "The HTML contains an Evidence & Data / 证据与数据 section",
+        "The HTML contains a Visuals / 图表与视觉要素 section",
+        "The HTML contains a terminology glossary table with English Term and 中文对照 columns",
         "The HTML includes a source link back to the original URL"
       ]
     },
     {
       "id": 3,
       "prompt": "Can you summarize this PDF and give me the key takeaways? Output in English. File: /Users/siyu/Works/github.com/siyuqian/agent-skills/skills/article-digest/evals/test-files/sample.pdf",
-      "expected_output": "A standalone HTML file summarizing the PDF content with key points extracted, any charts/figures described in text since they come from a PDF. Output in English.",
+      "expected_output": "A standalone self-contained bilingual HTML digest for the PDF, with paired English and Chinese sections, PDF-aware source metadata, evidence cards, visual descriptions where needed, and a terminal terminology glossary table.",
       "files": ["/Users/siyu/Works/github.com/siyuqian/agent-skills/skills/article-digest/evals/test-files/sample.pdf"],
       "expectations": [
         "Output includes at least one .html file",
         "The HTML file is self-contained with no external CSS or JS dependencies",
-        "The HTML contains an executive summary or core thesis section",
-        "The HTML contains at least 5 distinct key points or bullet items",
-        "The output text is in English",
+        "The HTML contains bilingual title content in English and Chinese",
+        "The HTML contains paired English and Chinese content blocks",
+        "The HTML contains at least 6 distinct key points or bullet items",
+        "The HTML contains an Evidence & Data section",
+        "The HTML contains a Visuals section with descriptions when figures cannot be embedded",
+        "The HTML contains a terminology glossary table with four columns",
         "The HTML references the source PDF filename"
       ]
     }
