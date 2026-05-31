@@ -125,6 +125,9 @@
         "evals/evals.json",
         "evals/test-files/sample.pdf",
         "LICENSE.txt",
+        "references/html-skeleton.md",
+        "references/output-contract.md",
+        "references/workflow.md",
         "SKILL.md"
       ]
     },
