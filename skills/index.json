@@ -120,13 +120,14 @@
     },
     {
       "name": "devpilot-learn",
-      "description": "Summarize any single article, document, or web page into a standalone HTML digest file with reader-mode styling.",
+      "description": "Turn a single article, document, or web page into a standalone HTML learning artifact, either as a bilingual digest or a chaptered study guide with source summaries.",
       "files": [
         "evals/evals.json",
         "evals/test-files/sample.pdf",
         "LICENSE.txt",
         "references/html-skeleton.md",
         "references/output-contract.md",
+        "references/study-guide-skeleton.md",
         "references/workflow.md",
         "SKILL.md"
       ]
