@@ -3,8 +3,10 @@ package gmail
 import (
 	"encoding/base64"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -59,6 +61,72 @@ func TestListMessagesEmpty(t *testing.T) {
 	if len(refs) != 0 {
 		t.Fatalf("expected 0 messages, got %d", len(refs))
 	}
+}
+
+func TestListAllMessageIDsPaginated(t *testing.T) {
+	call := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		call++
+		if r.URL.Query().Get("q") != "is:unread" {
+			t.Fatalf("unexpected query: %s", r.URL.Query().Get("q"))
+		}
+		if r.URL.Query().Get("maxResults") != "500" {
+			t.Fatalf("unexpected maxResults: %s", r.URL.Query().Get("maxResults"))
+		}
+		switch call {
+		case 1:
+			_ = json.NewEncoder(w).Encode(MessageListResponse{
+				Messages:      []MessageRef{{ID: "msg1"}},
+				NextPageToken: "next",
+			})
+		case 2:
+			if r.URL.Query().Get("pageToken") != "next" {
+				t.Fatalf("unexpected pageToken: %s", r.URL.Query().Get("pageToken"))
+			}
+			_ = json.NewEncoder(w).Encode(MessageListResponse{
+				Messages: []MessageRef{{ID: "msg2"}},
+			})
+		default:
+			t.Fatalf("unexpected call %d", call)
+		}
+	}))
+	defer srv.Close()
+
+	ids, err := NewClient("test-token", WithBaseURL(srv.URL)).ListAllMessageIDs("is:unread")
+	if err != nil {
+		t.Fatalf("ListAllMessageIDs error: %v", err)
+	}
+	if strings.Join(ids, ",") != "msg1,msg2" {
+		t.Fatalf("ids = %v", ids)
+	}
+}
+
+func TestWithHTTPClient(t *testing.T) {
+	transport := roundTripFunc(func(r *http.Request) (*http.Response, error) {
+		if r.URL.Host != "gmail.test" {
+			t.Fatalf("unexpected host: %s", r.URL.Host)
+		}
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(strings.NewReader(`{"messages":[{"id":"msg1"}]}`)),
+			Header:     make(http.Header),
+		}, nil
+	})
+	client := NewClient("test-token", WithBaseURL("https://gmail.test"), WithHTTPClient(&http.Client{Transport: transport}))
+
+	refs, err := client.ListMessages("", 0)
+	if err != nil {
+		t.Fatalf("ListMessages error: %v", err)
+	}
+	if len(refs) != 1 || refs[0].ID != "msg1" {
+		t.Fatalf("refs = %#v", refs)
+	}
+}
+
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripFunc) RoundTrip(r *http.Request) (*http.Response, error) {
+	return f(r)
 }
 
 func TestGetMessage(t *testing.T) {

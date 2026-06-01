@@ -27,86 +27,85 @@ var initCmd = &cobra.Command{
 			fmt.Fprintln(os.Stderr, "Failed to get working directory:", err)
 			os.Exit(1)
 		}
-
-		status := Detect(dir)
-
-		fmt.Println("Scanning project...")
-		for _, line := range formatStatus(status) {
-			fmt.Println(line)
-		}
-
-		if allConfigured(status) {
-			fmt.Println("\nProject already initialized!")
-			return
-		}
-
 		yes, _ := cmd.Flags().GetBool("yes")
-		opts := GenerateOpts{
-			Dir:         dir,
-			Interactive: !yes,
-		}
-		if opts.Interactive {
-			opts.Reader = bufio.NewReader(os.Stdin)
-		}
-
-		fmt.Println()
-
-		// Task source selection + board/label configuration.
-		// If source is already set to "github" in config, nothing more to set up.
-		// If source is "trello" (or unset) and no board is configured yet, proceed.
-		if status.Source == "github" {
-			// Already configured as GitHub Issues — labels may already exist; skip.
-		} else if !status.HasBoardConfig && shouldGenerate(opts, "Configure task source? [Y/n]: ") {
-			// Determine source: respect explicit config value; ask only when truly unset.
-			sourceName := status.Source // "trello" or ""
-			if sourceName == "" && opts.Interactive {
-				fmt.Print("  Task source (trello/github) [trello]: ")
-				line, err := opts.Reader.ReadString('\n')
-				if err == nil {
-					if input := strings.TrimSpace(strings.ToLower(line)); input == "github" {
-						sourceName = "github"
-					}
-				}
-			}
-
-			if sourceName == "github" {
-				if err := ConfigureGitHubSource(opts); err != nil {
-					fmt.Fprintf(os.Stderr, "  Error configuring GitHub source: %v\n", err)
-				}
-			} else {
-				var listBoardsFn func() ([]Board, error)
-				if status.HasTrelloCreds {
-					creds, _ := auth.Load("trello") // Ignore error; missing credentials detected as nil below
-					client := trello.NewClient(creds["api_key"], creds["token"])
-					listBoardsFn = func() ([]Board, error) {
-						boards, err := client.GetBoards()
-						if err != nil {
-							return nil, err
-						}
-						result := make([]Board, len(boards))
-						for i, b := range boards {
-							result[i] = Board{Name: b.Name}
-						}
-						return result, nil
-					}
-				}
-				if err := ConfigureBoard(opts, listBoardsFn); err != nil {
-					fmt.Fprintf(os.Stderr, "  Error configuring board: %v\n", err)
-				}
-			}
-		}
-
-		// Gitignore
-		if status.IsGitRepo {
-			if err := EnsureGitignore(dir, []string{".devpilot/logs/"}); err != nil {
-				fmt.Fprintf(os.Stderr, "  Error updating .gitignore: %v\n", err)
-			}
-		}
-
-		fmt.Println("\nDone!")
-		fmt.Println("\nTo install Claude Code skills, run:")
-		fmt.Println("  npx skills add siyuqian/devpilot")
+		os.Exit(runInit(dir, yes, bufio.NewReader(os.Stdin)))
 	},
+}
+
+func runInit(dir string, yes bool, reader *bufio.Reader) int {
+	status := Detect(dir)
+
+	fmt.Println("Scanning project...")
+	for _, line := range formatStatus(status) {
+		fmt.Println(line)
+	}
+
+	if allConfigured(status) {
+		fmt.Println("\nProject already initialized!")
+		return 0
+	}
+
+	opts := GenerateOpts{
+		Dir:         dir,
+		Interactive: !yes,
+	}
+	if opts.Interactive {
+		opts.Reader = reader
+	}
+
+	fmt.Println()
+
+	if status.Source == "github" {
+		// Already configured as GitHub Issues — labels may already exist; skip.
+	} else if !status.HasBoardConfig && shouldGenerate(opts, "Configure task source? [Y/n]: ") {
+		sourceName := status.Source // "trello" or ""
+		if sourceName == "" && opts.Interactive {
+			fmt.Print("  Task source (trello/github) [trello]: ")
+			line, err := opts.Reader.ReadString('\n')
+			if err == nil {
+				if input := strings.TrimSpace(strings.ToLower(line)); input == "github" {
+					sourceName = "github"
+				}
+			}
+		}
+
+		if sourceName == "github" {
+			if err := ConfigureGitHubSource(opts); err != nil {
+				fmt.Fprintf(os.Stderr, "  Error configuring GitHub source: %v\n", err)
+			}
+		} else {
+			var listBoardsFn func() ([]Board, error)
+			if status.HasTrelloCreds {
+				creds, _ := auth.Load("trello") // Ignore error; missing credentials detected as nil below
+				client := trello.NewClient(creds["api_key"], creds["token"])
+				listBoardsFn = func() ([]Board, error) {
+					boards, err := client.GetBoards()
+					if err != nil {
+						return nil, err
+					}
+					result := make([]Board, len(boards))
+					for i, b := range boards {
+						result[i] = Board{Name: b.Name}
+					}
+					return result, nil
+				}
+			}
+			if err := ConfigureBoard(opts, listBoardsFn); err != nil {
+				fmt.Fprintf(os.Stderr, "  Error configuring board: %v\n", err)
+			}
+		}
+	}
+
+	if status.IsGitRepo {
+		if err := EnsureGitignore(dir, []string{".devpilot/logs/"}); err != nil {
+			fmt.Fprintf(os.Stderr, "  Error updating .gitignore: %v\n", err)
+		}
+	}
+
+	fmt.Println("\nDone!")
+	fmt.Println("\nTo install Claude Code skills, run:")
+	fmt.Println("  npx skills add siyuqian/devpilot")
+	return 0
 }
 
 func formatStatus(s *Status) []string {

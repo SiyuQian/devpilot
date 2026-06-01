@@ -9,6 +9,14 @@ import (
 	"github.com/spf13/cobra"
 )
 
+type slackClient interface {
+	OpenConversation(userID string) (string, error)
+	ResolveChannel(name string) (string, error)
+	PostMessage(channelID, text string) error
+}
+
+var requireSlackLoginFn = requireSlackLogin
+
 // RegisterCommands adds the "slack" command group to the given parent command.
 func RegisterCommands(parent *cobra.Command) {
 	slackCmd := &cobra.Command{
@@ -37,54 +45,56 @@ var sendCmd = &cobra.Command{
 	Use:   "send",
 	Short: "Send a message to a Slack channel",
 	Run: func(cmd *cobra.Command, args []string) {
-		client, err := requireSlackLogin()
+		client, err := requireSlackLoginFn()
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
 		}
-
-		channel, _ := cmd.Flags().GetString("channel")
-		message, _ := cmd.Flags().GetString("message")
-
-		if message == "" {
-			data, err := io.ReadAll(os.Stdin)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Error reading stdin: %v\n", err)
-				os.Exit(1)
-			}
-			message = strings.TrimSpace(string(data))
-		}
-
-		if message == "" {
-			fmt.Fprintln(os.Stderr, "Error: message is required (use --message or pipe via stdin)")
-			os.Exit(1)
-		}
-
-		var channelID, label string
-		if strings.HasPrefix(channel, "U") && !strings.Contains(channel, " ") {
-			dmID, err := client.OpenConversation(channel)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-				os.Exit(1)
-			}
-			channelID = dmID
-			label = "as DM"
-		} else {
-			channelName := strings.TrimPrefix(channel, "#")
-			id, err := client.ResolveChannel(channelName)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-				os.Exit(1)
-			}
-			channelID = id
-			label = "to #" + channelName
-		}
-
-		if err := client.PostMessage(channelID, message); err != nil {
-			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-			os.Exit(1)
-		}
-
-		fmt.Printf("Message sent %s.\n", label)
+		os.Exit(runSend(cmd, client, os.Stdin))
 	},
+}
+
+func runSend(cmd *cobra.Command, client slackClient, in io.Reader) int {
+	channel, _ := cmd.Flags().GetString("channel")
+	message, _ := cmd.Flags().GetString("message")
+
+	if message == "" {
+		data, err := io.ReadAll(in)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error reading stdin: %v\n", err)
+			return 1
+		}
+		message = strings.TrimSpace(string(data))
+	}
+	if message == "" {
+		fmt.Fprintln(os.Stderr, "Error: message is required (use --message or pipe via stdin)")
+		return 1
+	}
+
+	var channelID, label string
+	if strings.HasPrefix(channel, "U") && !strings.Contains(channel, " ") {
+		dmID, err := client.OpenConversation(channel)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			return 1
+		}
+		channelID = dmID
+		label = "as DM"
+	} else {
+		channelName := strings.TrimPrefix(channel, "#")
+		id, err := client.ResolveChannel(channelName)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			return 1
+		}
+		channelID = id
+		label = "to #" + channelName
+	}
+
+	if err := client.PostMessage(channelID, message); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		return 1
+	}
+	fmt.Printf("Message sent %s.\n", label)
+	return 0
 }

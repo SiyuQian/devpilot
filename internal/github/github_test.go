@@ -3,6 +3,8 @@ package github
 import (
 	"context"
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -24,6 +26,40 @@ func (r *fakeRunner) Run(ctx context.Context, args ...string) ([]byte, error) {
 		return []byte(out), nil
 	}
 	return []byte("[]"), nil
+}
+
+func TestGHRunnerRun(t *testing.T) {
+	bin := t.TempDir()
+	gh := filepath.Join(bin, "gh")
+	if err := os.WriteFile(gh, []byte("#!/bin/sh\nprintf '%s' \"$1 $2\"\n"), 0o755); err != nil {
+		t.Fatalf("write gh: %v", err)
+	}
+	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	out, err := ghRunner{}.Run(context.Background(), "auth", "status")
+	if err != nil {
+		t.Fatalf("Run error: %v", err)
+	}
+	if string(out) != "auth status" {
+		t.Fatalf("out = %q", out)
+	}
+}
+
+func TestGHRunnerRunErrorIncludesStderr(t *testing.T) {
+	bin := t.TempDir()
+	gh := filepath.Join(bin, "gh")
+	if err := os.WriteFile(gh, []byte("#!/bin/sh\necho bad auth >&2\nexit 2\n"), 0o755); err != nil {
+		t.Fatalf("write gh: %v", err)
+	}
+	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	_, err := ghRunner{}.Run(context.Background(), "auth", "status")
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !strings.Contains(err.Error(), "bad auth") {
+		t.Fatalf("error = %v", err)
+	}
 }
 
 func TestListPRsReviewQueueBuildsDirectQuery(t *testing.T) {
@@ -200,5 +236,63 @@ func TestRepoActivityFiltersAndNormalizesSources(t *testing.T) {
 	}
 	if _, err := json.Marshal(digest); err != nil {
 		t.Errorf("digest should be JSON serializable: %v", err)
+	}
+}
+
+func TestActivityHelpersCoverEventVariants(t *testing.T) {
+	now := time.Date(2026, 6, 1, 8, 0, 0, 0, time.UTC)
+	events := []repoEvent{
+		{Type: "IssuesEvent", Actor: User{Login: "alice"}, CreatedAt: now, Payload: json.RawMessage(`{"action":"opened","issue":{"number":3,"title":"bug","url":"https://api.github.com/repos/o/r/issues/3"}}`)},
+		{Type: "IssueCommentEvent", Actor: User{Login: "alice"}, CreatedAt: now, Payload: json.RawMessage(`{"action":"created","issue":{"number":3,"title":"bug"}}`)},
+		{Type: "PullRequestReviewEvent", Actor: User{Login: "bob"}, CreatedAt: now, Payload: json.RawMessage(`{"action":"submitted","number":4}`)},
+		{Type: "PullRequestReviewCommentEvent", Actor: User{Login: "bob"}, CreatedAt: now, Payload: json.RawMessage(`{"action":"created","number":4}`)},
+		{Type: "PushEvent", Actor: User{Login: "bob"}, CreatedAt: now, Payload: json.RawMessage(`{"ref":"refs/heads/main","size":1}`)},
+		{Type: "CreateEvent", Actor: User{Login: "bob"}, CreatedAt: now, Payload: json.RawMessage(`{"ref_type":"tag","ref":"v1"}`)},
+		{Type: "ReleaseEvent", Actor: User{Login: "bob"}, CreatedAt: now, Payload: json.RawMessage(`{"action":"published","release":{"name":"Release","tag_name":"v1","html_url":"https://example.com/release"}}`)},
+		{Type: "WatchEvent", Actor: User{Login: "bob"}, CreatedAt: now, Payload: json.RawMessage(`{"action":"started"}`)},
+	}
+	var normalized []ActivityEvent
+	for _, ev := range events {
+		normalized = append(normalized, normalizeEvent(ev))
+	}
+	enrichEvents(normalized, nil, []Issue{{Number: 3, Title: "bug", URL: "https://github.com/o/r/issues/3"}})
+	for _, ev := range normalized {
+		if ev.Summary == "" {
+			t.Fatalf("empty summary for %#v", ev)
+		}
+	}
+	if got := shortRef("refs/heads/main"); got != "main" {
+		t.Fatalf("shortRef() = %q, want main", got)
+	}
+	if got := plural(2); got != "s" {
+		t.Fatalf("plural(2) = %q, want s", got)
+	}
+	if got := webURL(""); got != "" {
+		t.Fatalf("webURL(empty) = %q, want empty", got)
+	}
+	if got := webURL("https://api.github.com/repos/o/r/pulls/1"); got != "https://github.com/o/r/pull/1" {
+		t.Fatalf("webURL() = %q", got)
+	}
+}
+
+func TestPRRowAndTrimForTable(t *testing.T) {
+	pr := PR{
+		Number:  9,
+		Title:   "hello\nworld with a very long title",
+		URL:     "https://example.com/pr/9",
+		State:   "open",
+		IsDraft: true,
+		Author:  User{Login: "alice"},
+		Repo:    Repo{Name: "repo"},
+	}
+	row := prRow(pr)
+	if row[0] != "repo" || row[1] != "#9" || row[3] != "draft" || row[4] != "alice" {
+		t.Fatalf("prRow() = %#v", row)
+	}
+	if got := trimForTable("abcdef", 3); got != "abc" {
+		t.Fatalf("trimForTable short max = %q", got)
+	}
+	if got := trimForTable("abcdef", 5); got != "ab..." {
+		t.Fatalf("trimForTable ellipsis = %q", got)
 	}
 }

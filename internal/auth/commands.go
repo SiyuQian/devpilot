@@ -21,16 +21,21 @@ var loginCmd = &cobra.Command{
 	Long:  fmt.Sprintf("Authenticate with an external service.\n\nAvailable services: %s", AvailableNames()),
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		svc, err := Get(args[0])
-		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			os.Exit(1)
-		}
-		if err := svc.Login(); err != nil {
-			fmt.Fprintln(os.Stderr, "Login failed:", err)
-			os.Exit(1)
-		}
+		os.Exit(runLogin(args[0]))
 	},
+}
+
+func runLogin(service string) int {
+	svc, err := Get(service)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	}
+	if err := svc.Login(); err != nil {
+		fmt.Fprintln(os.Stderr, "Login failed:", err)
+		return 1
+	}
+	return 0
 }
 
 var logoutCmd = &cobra.Command{
@@ -39,16 +44,21 @@ var logoutCmd = &cobra.Command{
 	Long:  fmt.Sprintf("Remove stored credentials for a service.\n\nAvailable services: %s", AvailableNames()),
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		svc, err := Get(args[0])
-		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			os.Exit(1)
-		}
-		if err := svc.Logout(); err != nil {
-			fmt.Fprintln(os.Stderr, "Logout failed:", err)
-			os.Exit(1)
-		}
+		os.Exit(runLogout(args[0]))
 	},
+}
+
+func runLogout(service string) int {
+	svc, err := Get(service)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	}
+	if err := svc.Logout(); err != nil {
+		fmt.Fprintln(os.Stderr, "Logout failed:", err)
+		return 1
+	}
+	return 0
 }
 
 var statusCmd = &cobra.Command{
@@ -56,14 +66,18 @@ var statusCmd = &cobra.Command{
 	Short: "Show login status for all services",
 	Args:  cobra.NoArgs,
 	Run: func(cmd *cobra.Command, args []string) {
-		loggedIn := ListServices()
-		if len(loggedIn) == 0 {
-			fmt.Println("No services configured.")
-			fmt.Printf("Run 'devpilot login <service>' to get started. Available: %s\n", AvailableNames())
-			return
-		}
-		for _, name := range loggedIn {
-			fmt.Printf("%s: logged in\n", name)
-		}
+		runStatus()
 	},
+}
+
+func runStatus() {
+	loggedIn := ListServices()
+	if len(loggedIn) == 0 {
+		fmt.Println("No services configured.")
+		fmt.Printf("Run 'devpilot login <service>' to get started. Available: %s\n", AvailableNames())
+		return
+	}
+	for _, name := range loggedIn {
+		fmt.Printf("%s: logged in\n", name)
+	}
 }
