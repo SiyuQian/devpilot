@@ -2,8 +2,10 @@ package slack
 
 import (
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/siyuqian/devpilot/internal/auth"
@@ -155,6 +157,60 @@ func TestResolveChannelNotFound(t *testing.T) {
 	}
 }
 
+func TestOpenConversation(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/conversations.open" {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+		if err := r.ParseForm(); err != nil {
+			t.Fatalf("parse form: %v", err)
+		}
+		if r.PostForm.Get("users") != "U001" {
+			t.Fatalf("users = %q", r.PostForm.Get("users"))
+		}
+		_, _ = w.Write([]byte(`{"ok":true,"channel":{"id":"D001"}}`))
+	}))
+	defer srv.Close()
+
+	id, err := NewClient("test-token", WithBaseURL(srv.URL)).OpenConversation("U001")
+	if err != nil {
+		t.Fatalf("OpenConversation error: %v", err)
+	}
+	if id != "D001" {
+		t.Fatalf("id = %q", id)
+	}
+}
+
+func TestOpenConversationError(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"ok":false,"error":"user_not_found"}`))
+	}))
+	defer srv.Close()
+
+	_, err := NewClient("test-token", WithBaseURL(srv.URL)).OpenConversation("U404")
+	if err == nil {
+		t.Fatal("expected error")
+	}
+}
+
+func TestSlackWithHTTPClient(t *testing.T) {
+	transport := slackRoundTripFunc(func(r *http.Request) (*http.Response, error) {
+		if r.URL.Host != "slack.test" {
+			t.Fatalf("unexpected host: %s", r.URL.Host)
+		}
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(strings.NewReader(`{"ok":true,"channels":[]}`)),
+			Header:     make(http.Header),
+		}, nil
+	})
+	client := NewClient("test-token", WithBaseURL("https://slack.test"), WithHTTPClient(&http.Client{Transport: transport}))
+
+	if _, err := client.ListConversations(); err != nil {
+		t.Fatalf("ListConversations error: %v", err)
+	}
+}
+
 func TestPostMessage(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/chat.postMessage" {
@@ -190,6 +246,12 @@ func TestPostMessage(t *testing.T) {
 	if err != nil {
 		t.Fatalf("PostMessage error: %v", err)
 	}
+}
+
+type slackRoundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f slackRoundTripFunc) RoundTrip(r *http.Request) (*http.Response, error) {
+	return f(r)
 }
 
 func TestPostMessageNotInChannel(t *testing.T) {
