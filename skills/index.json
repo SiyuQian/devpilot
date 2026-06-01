@@ -170,6 +170,14 @@
       ]
     },
     {
+      "name": "devpilot-pr-review-queue",
+      "description": "Use when the user wants to review every pull request currently requesting their review, batch review a review queue, sweep pending PR reviews, or run PR reviews across all review-requested pull requests.",
+      "files": [
+        "evals/evals.json",
+        "SKILL.md"
+      ]
+    },
+    {
       "name": "devpilot-resolve-issues",
       "description": "End-to-end loop that works through open GitHub issues one at a time: triage, self-assign, investigate code, render a REAL / FALSE-POSITIVE / NEEDS-HUMAN verdict, and for REAL issues fix in a per-issue git worktree — decompose into 1–3 tasks dispatched as one implementer subagent per task with superpowers:requesting-code-review gating each task, then open a PR with Closes #N. Runs until the issue filter is empty.",
       "files": [

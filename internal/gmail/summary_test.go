@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -105,6 +107,62 @@ func TestUnreadQuery(t *testing.T) {
 	expected := "is:unread"
 	if query != expected {
 		t.Errorf("UnreadQuery() = %q, want %q", query, expected)
+	}
+}
+
+func TestRunClaude(t *testing.T) {
+	bin := t.TempDir()
+	claude := filepath.Join(bin, "claude")
+	if err := os.WriteFile(claude, []byte("#!/bin/sh\necho digest\n"), 0o755); err != nil {
+		t.Fatalf("write claude: %v", err)
+	}
+	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	out, err := RunClaude("prompt")
+	if err != nil {
+		t.Fatalf("RunClaude error: %v", err)
+	}
+	if out != "digest" {
+		t.Fatalf("out = %q", out)
+	}
+}
+
+func TestRunClaudeEmptyOutput(t *testing.T) {
+	bin := t.TempDir()
+	claude := filepath.Join(bin, "claude")
+	if err := os.WriteFile(claude, []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
+		t.Fatalf("write claude: %v", err)
+	}
+	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	if _, err := RunClaude("prompt"); err == nil {
+		t.Fatal("expected empty output error")
+	}
+}
+
+func TestSendToSlack(t *testing.T) {
+	bin := t.TempDir()
+	devpilot := filepath.Join(bin, "devpilot")
+	if err := os.WriteFile(devpilot, []byte("#!/bin/sh\n[ \"$1\" = slack ] && [ \"$2\" = send ]\n"), 0o755); err != nil {
+		t.Fatalf("write devpilot: %v", err)
+	}
+	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	if err := SendToSlack("digest", "daily"); err != nil {
+		t.Fatalf("SendToSlack error: %v", err)
+	}
+}
+
+func TestSendToSlackError(t *testing.T) {
+	bin := t.TempDir()
+	devpilot := filepath.Join(bin, "devpilot")
+	if err := os.WriteFile(devpilot, []byte("#!/bin/sh\necho nope\nexit 2\n"), 0o755); err != nil {
+		t.Fatalf("write devpilot: %v", err)
+	}
+	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	if err := SendToSlack("digest", "daily"); err == nil {
+		t.Fatal("expected slack error")
 	}
 }
 

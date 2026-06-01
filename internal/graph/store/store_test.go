@@ -252,6 +252,46 @@ func mustInsertNodes(t *testing.T, s *Store, n []Node) {
 	}
 }
 
+func TestCountsHubsAndDeleteByLanguage(t *testing.T) {
+	s, err := Open(filepath.Join(t.TempDir(), "graph.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = s.Close() }()
+
+	mustInsertNodes(t, s, []Node{
+		{ID: "go_a", Kind: "function", Path: "a.go", Name: "A", Language: "go"},
+		{ID: "go_b", Kind: "function", Path: "b.go", Name: "B", Language: "go"},
+		{ID: "ts_a", Kind: "function", Path: "a.ts", Name: "A", Language: "typescript"},
+	})
+	if err := s.InsertEdges([]Edge{
+		{Src: "go_a", Dst: "go_b", Kind: "calls"},
+		{Src: "ts_a", Dst: "go_b", Kind: "calls"},
+	}); err != nil {
+		t.Fatalf("InsertEdges: %v", err)
+	}
+	if got, err := s.CountNodes(); err != nil || got != 3 {
+		t.Fatalf("CountNodes = %d, %v; want 3, nil", got, err)
+	}
+	if got, err := s.CountEdges(); err != nil || got != 2 {
+		t.Fatalf("CountEdges = %d, %v; want 2, nil", got, err)
+	}
+	hubs, err := s.HubsByCalls(2)
+	if err != nil {
+		t.Fatalf("HubsByCalls: %v", err)
+	}
+	if len(hubs) != 1 || hubs[0].ID != "go_b" || hubs[0].Count != 2 {
+		t.Fatalf("hubs = %#v", hubs)
+	}
+	nodes, edges, err := s.DeleteByLanguage("typescript")
+	if err != nil {
+		t.Fatalf("DeleteByLanguage: %v", err)
+	}
+	if nodes != 1 || edges != 1 {
+		t.Fatalf("deleted nodes=%d edges=%d, want 1/1", nodes, edges)
+	}
+}
+
 func mustInsertEdges(t *testing.T, s *Store, e []Edge) {
 	t.Helper()
 	if err := s.InsertEdges(e); err != nil {

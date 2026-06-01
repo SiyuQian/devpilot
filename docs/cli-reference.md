@@ -78,6 +78,23 @@ devpilot gmail summary --dm U0123ABCDE         # Send summary as a DM (marks as 
 devpilot slack send --channel "#general" --text "hi"   # Send a Slack message
 ```
 
+## GitHub
+
+These commands use the GitHub CLI for authentication and API access. Run
+`gh auth login` before using them.
+
+```bash
+devpilot github prs review-queue                         # PRs requesting review from @me
+devpilot github prs review-queue --user alice            # PRs requesting review from a user
+devpilot github prs review-queue --direct                # Only direct user review requests
+devpilot github prs authored --user alice --state all    # PRs authored by a user
+devpilot github prs authored --owner my-org --json       # Machine-readable PR list
+
+devpilot github repo activity owner/repo                 # Today's repo activity
+devpilot github repo activity owner/repo --date 2026-06-01 --timezone Pacific/Auckland
+devpilot github repo activity owner/repo --since 24h --json
+```
+
 ## Generation
 
 ```bash
