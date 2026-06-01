@@ -1,60 +1,55 @@
 # Output Contract
 
-The final artifact must always be a single self-contained `.html` file with inline
-CSS only.
+The final artifact is always a single self-contained `.html` file with inline CSS
+only — no external stylesheets, no JavaScript, no network dependencies. It must open
+correctly by double-clicking the file.
 
-The skill supports two output modes.
+## The one mode: close-reading study artifact
 
-## Mode 1: Bilingual digest mode
+This skill produces **one** kind of artifact: a single-column, Chinese-annotated
+*close reading* of the source. It is not a digest and not a summary. The whole point
+is that the reader can study the source's **actual words**, with help, rather than
+read your compressed retelling of them.
 
-Use this for general article/document summarization when the user wants a concise
-digest rather than study material.
+Three pillars, in this rhythm, repeated section by section:
 
-Required shape:
+1. **Verbatim original** (`.orig`) — the source's real wording, copied faithfully.
+   This is the primary prose and should dominate the page by volume.
+2. **Chinese translation** (`.zh`) — a faithful translation sitting directly *below*
+   each original passage (never in a second column). This is where interpretation
+   lives; keep it accurate to the passage above it.
+3. **Quizzes** — short `节后小测` after each section and a `总测` at the end, every
+   answer hidden inside a `<details>` element so it stays collapsed until opened.
 
-- A fixed bilingual digest with `English | 中文` content blocks
-- Desktop: side-by-side columns
-- Mobile: stacked blocks, `English` first and `中文` second
-- A document with the sections below, in this exact order:
-  1. Bilingual Title
-  2. Metadata
-  3. `At a Glance / 一眼速览`
-  4. `Summary / 摘要`
-  5. `Key Points / 要点`
-  6. `Evidence & Data / 证据与数据`
-  7. `Visuals / 图表与视觉要素`
-  8. `Terminology Glossary / 术语对照表`
+Optional, used sparingly: `.note` glosses for individual terms or hard phrases that
+genuinely need explanation.
 
-## Mode 2: Study-guide mode
+## What "don't over-compress" means concretely
 
-Use this when the user asks for 学习资料 / notes / review material, or the source is
-chaptered, legal, academic, technical, doctrinal, or exam-prep oriented.
+The previous version of this skill summarized the source and lost its substance. That
+is the failure mode this contract exists to prevent.
 
-Required shape:
-
-- A Chinese-first, single-column study guide
-- A visible source metadata block near the top
-- A table of contents for major sections
-- Major sections should follow the source's chapter or section order
-- Every major section must begin with an explicit `原文摘要 / Source Summary` block
-  that faithfully summarizes that source section
-- Study-oriented callouts such as `重点`, `术语`, `法条/案例`, examples, or review notes
-  should be used when the source supports them
-- A closing `总结复习` section is required
-- Short review questions are recommended when the source is substantial enough to support
-  them, but they are not mandatory for every source
-- The artifact should help the user study the original source, not merely skim a digest
+- **Keep the original text.** Reproduce the source's substantive paragraphs verbatim
+  in `.orig` blocks. Do not paraphrase them, do not reduce a multi-sentence paragraph
+  to a single quoted line, and do not replace a section with a summary of it.
+- **Coverage over brevity.** Walk the source front to back. A reader should be able to
+  follow the source's full argument from your `.orig` blocks alone, in the source's
+  own order. Skipping whole sections to save space defeats the purpose.
+- **The artifact is normally larger than the source**, because it adds a translation
+  and quizzes beneath text it has kept. If your output is dramatically shorter than the
+  source, you have summarized instead of close-read — go back and restore the original
+  passages.
+- The only text you may safely drop is genuine non-content: running headers/footers,
+  page numbers, copyright boilerplate, navigation, and pure repetition.
 
 ## Non-negotiable rules
 
-- Pick one mode deliberately; do not blend them into an incoherent hybrid
-- Stay within what the source explicitly states or directly supports; do not add speculative
-  interpretation
-- If the source quality is poor or incomplete, degrade honestly while preserving the
-  chosen mode's overall structure
-- Preserve important source terminology faithfully; prefer common Chinese renderings
-  when they preserve meaning
-- For proper nouns such as company names, product names, model names, and organizations,
-  keep the original term and add a common Chinese rendering only when useful
-- In study-guide mode, `原文摘要 / Source Summary` must summarize the source section itself,
-  not your downstream study advice
+- Single-column flow only. Never a side-by-side / two-column comparison layout — that
+  framing pushes generation toward digest behavior.
+- `.zh` must faithfully translate the `.orig` directly above it; do not add claims that
+  aren't in that passage and do not editorialize.
+- Preserve source terminology. For statutes, cases, proper nouns, product/model/org
+  names, keep the original term and add a common Chinese rendering only when it helps.
+- Quizzes must be answerable from the source alone — never test outside knowledge.
+- If the source is thin, paywalled, or partly inaccessible, degrade honestly: keep the
+  close-reading structure over whatever text you actually have, and say so. Don't pad.

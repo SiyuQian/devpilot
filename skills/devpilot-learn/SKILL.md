@@ -14,32 +14,36 @@ description: >
 
 # Learn
 
-Generate a standalone HTML learning artifact from a single source.
+Generate a standalone HTML **close-reading study artifact** from a single source.
 
-The skill supports two valid output modes:
+This skill has one job and one output shape. It does **not** summarize. It produces a
+single-column, reading-oriented document that keeps the source's **actual words** and
+helps the reader study them:
 
-- **Bilingual digest mode** — a fixed `English | 中文` comparison document for general
-  summaries
-- **Study-guide mode** — a Chinese-first, chaptered learning handout for long or
-  educational sources, with explicit `原文摘要 / Source Summary` blocks to help review
+- **Verbatim original** — the source's substantive text, copied faithfully, is the
+  primary prose and dominates the page.
+- **Chinese translation** — a faithful translation sits directly *below* each original
+  passage (never in a side-by-side column).
+- **Quizzes** — a short `节后小测` after each section and a `总测` at the end, with every
+  answer collapsed inside a `<details>` element.
 
-When the user asks for 学习资料 / notes / review material, or the source is chaptered,
-legal, academic, technical, doctrinal, or exam-prep oriented, prefer **study-guide mode**.
+The recurring failure mode this skill guards against is **over-compression**: turning the
+source into a short digest and losing its substance. The artifact is normally *larger*
+than the source, because it adds a translation and quizzes beneath text it has kept.
 
 ## Files in this skill
 
 | File | When to load |
 |---|---|
-| `references/output-contract.md` | First — mode selection, output guarantees, and the hard constraints that must never drift. |
-| `references/workflow.md` | During execution — source handling, mode selection, generation flow, save rules, and edge cases. |
-| `references/html-skeleton.md` | Use for bilingual digest mode — the responsive comparison-layout baseline. |
-| `references/study-guide-skeleton.md` | Use for study-guide mode — the chaptered learning-material layout with `原文摘要`. |
+| `references/output-contract.md` | First — the output guarantees and hard constraints, especially the rule against over-compression. |
+| `references/workflow.md` | During execution — source fetching, segmentation, generation flow, save rules, and edge cases. |
+| `references/skeleton.md` | When ready to emit the HTML — the single-column verbatim-original → translation → quiz layout. |
 
 ## How to use this skill
 
 1. Read `references/output-contract.md` before writing anything.
-2. Follow `references/workflow.md` to choose the correct mode and generate the right structure.
-3. Load only the skeleton file for the chosen mode when you are ready to emit the final HTML file.
+2. Follow `references/workflow.md` to fetch the source, segment it, and generate the artifact.
+3. Load `references/skeleton.md` for the layout when you are ready to emit the final HTML file.
 
 Keep `SKILL.md` as the entry point. Put detailed layout, workflow, and output spec
 in the reference files above rather than re-expanding them inline.
