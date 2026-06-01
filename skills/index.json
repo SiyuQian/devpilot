@@ -170,7 +170,7 @@
       ]
     },
     {
-      "name": "devpilot-batch-pr-review",
+      "name": "devpilot-pr-review-queue",
       "description": "Use when the user wants to review every pull request currently requesting their review, batch review a review queue, sweep pending PR reviews, or run PR reviews across all review-requested pull requests.",
       "files": [
         "evals/evals.json",

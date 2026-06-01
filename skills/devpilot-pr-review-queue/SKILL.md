@@ -1,9 +1,9 @@
 ---
-name: devpilot-batch-pr-review
+name: devpilot-pr-review-queue
 description: Use when the user wants to review every pull request currently requesting their review, batch review a review queue, sweep pending PR reviews, or run PR reviews across all review-requested pull requests. Discovers the queue with `devpilot github prs review-queue` and delegates each real review to `devpilot-pr-review`; do not use for reviewing a single specified PR.
 ---
 
-# Batch PR Review
+# PR Review Queue
 
 ## Overview
 
