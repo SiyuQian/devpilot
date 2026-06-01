@@ -6,6 +6,7 @@ import (
 
 	"github.com/siyuqian/devpilot/internal/auth"
 	"github.com/siyuqian/devpilot/internal/generate"
+	"github.com/siyuqian/devpilot/internal/github"
 	"github.com/siyuqian/devpilot/internal/gmail"
 	"github.com/siyuqian/devpilot/internal/graph"
 	"github.com/siyuqian/devpilot/internal/initcmd"
@@ -32,6 +33,7 @@ func main() {
 	slack.RegisterCommands(rootCmd)
 	generate.RegisterCommands(rootCmd)
 	graph.RegisterCommands(rootCmd)
+	github.RegisterCommands(rootCmd)
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
