@@ -1,0 +1,10 @@
+[
+  {
+    "prompt": "Review every pull request currently requesting my review.",
+    "expected_output": "Uses devpilot-batch-pr-review, runs `devpilot github prs review-queue --user @me --limit 200 --json`, filters the queue, and invokes devpilot-pr-review once per eligible PR URL instead of reviewing the queue directly."
+  },
+  {
+    "prompt": "Batch review all PRs in SiyuQian/devpilot that need my review, direct requests only.",
+    "expected_output": "Uses `devpilot github prs review-queue --user @me --repo SiyuQian/devpilot --direct --json`, skips drafts unless explicitly included, then hands each PR URL to devpilot-pr-review."
+  }
+]
