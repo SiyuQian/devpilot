@@ -202,7 +202,7 @@ Check the labels already fetched in step 1:
 
   ```bash
   # If the repo lacks the label, create it first (same pattern as need:human):
-  gh label create "model:<tier>" --color "8A63D2" --description "Implementer-model routing for devpilot-resolve-issues"
+  gh label create "model:<tier>" --color "<canonical color from devpilot-scanning-repos/references/labels.md: haiku D4C5F9, sonnet 8A63D2, opus 3C1E70>" --description "Implementer-model routing for devpilot-resolve-issues" 2>/dev/null || true
   gh issue edit <num> --add-label "model:<tier>"
   ```
 - **Multiple `model:*` labels** — keep the highest tier (opus > sonnet > haiku), remove the rest:
@@ -252,8 +252,8 @@ For task `i` of `N`:
    - **DONE** — proceed to per-task review (6c).
    - **DONE_WITH_CONCERNS** — read the concerns. If they affect correctness, re-dispatch with extra context; otherwise note them and proceed to review.
    - **NEEDS_CONTEXT** — answer the question, re-dispatch with the answer appended.
-   - **BLOCKED** — read the explanation. If the spec was wrong, fix it and re-dispatch at the same tier. Otherwise escalate exactly one model tier (haiku→sonnet, sonnet→opus) and re-dispatch, updating the issue's `model:*` label to match (`gh issue edit <num> --add-label "model:<new>" --remove-label "model:<old>"`); a BLOCKED return at opus escalates the issue `NEEDS-HUMAN`. Never re-dispatch the same model with the same spec.
-   - **Verification failed inside the subagent** — one re-dispatch with the verbatim failure output. Second failure → escalate the whole issue `NEEDS-HUMAN`.
+   - **BLOCKED (reasoning or spec blocker)** — read the explanation. If the spec was wrong, fix it and re-dispatch at the same tier. Otherwise escalate exactly one model tier (haiku→sonnet, sonnet→opus) and re-dispatch, updating the issue's `model:*` label to match (`gh issue edit <num> --add-label "model:<new>" --remove-label "model:<old>"`); a BLOCKED return at opus escalates the issue `NEEDS-HUMAN`. Never re-dispatch the same model with the same spec.
+   - **BLOCKED on a failing verification command (tests/lint red)** — this is the one BLOCKED sub-case that does NOT escalate a tier first: re-dispatch once at the same tier with the verbatim failure output appended. If it still fails, treat it as a reasoning blocker and apply the tier-escalation rule above (or `NEEDS-HUMAN` if already at opus).
 
 #### 6c. Per-task code review
 
