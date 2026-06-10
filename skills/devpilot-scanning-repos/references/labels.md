@@ -58,9 +58,24 @@ gh label create severity:low      --color C5DEF5 --description "Low-severity sca
 # --- confidence (one per issue, from the scoring pass) ---
 gh label create confidence:75     --color BFD4F2 --description "Scoring agent gave 75/100 — real, meaningful, verified"
 gh label create confidence:100    --color 0052CC --description "Scoring agent gave 100/100 — certain, load-bearing, frequent"
+
+# --- model (one per issue; implementer routing consumed by devpilot-resolve-issues) ---
+gh label create model:haiku    --color D4C5F9 --description "Fix is mechanical: single-file, low-judgment (doc drift, typo, nil check)"
+gh label create model:sonnet   --color 8A63D2 --description "Fix is a normal code change plus tests, single concern"
+gh label create model:opus     --color 3C1E70 --description "Fix spans files or needs careful concurrency/security/architecture reasoning"
 ```
 
 Note: no `|| true` guards. The reconciliation step has already proven the label is missing — a failure here is a real signal, not noise to swallow.
+
+## Model tier rubric (`model:*`)
+
+The `model:*` label estimates **how capable a model the fix needs** — it is the routing signal `devpilot-resolve-issues` passes verbatim as the Agent tool's `model` param when dispatching implementer subagents. Scanners assign it per finding (they just read the code and are best placed to judge); `devpilot-resolve-issues` backfills it at triage for issues that lack it.
+
+- `model:haiku` — mechanical, single-file, low-judgment change: doc drift, typo, adding a nil check, comment fix.
+- `model:sonnet` — default tier: a normal code fix plus tests, single concern.
+- `model:opus` — multi-file change, or a fix requiring careful reasoning about concurrency, security, or architecture.
+
+Judge the **cost of the fix, not the severity of the problem** — a critical security hole can be a one-line `model:haiku` fix. When unsure, pick the higher tier: wasted tokens are cheaper than a re-dispatch. There is no `model:fable`; `model:opus` is the top of the taxonomy, and beyond it is human escalation.
 
 ## Suitable-match guidance
 
@@ -73,10 +88,11 @@ The orchestrator should treat these as suitable reuses (examples — not exhaust
 | `severity:high` | `priority:high`, `p0`, `severity-1`, `critical` | `urgent` (priority ≠ severity) |
 | `severity:low` | `priority:low`, `p3`, `nice-to-have` | `wontfix` |
 | `confidence:75` / `confidence:100` | (almost never present) | anything ranking-shaped — confidence is internal to the scoring pass |
+| `model:haiku` / `model:sonnet` / `model:opus` | (almost never present) | anything priority- or size-shaped (`size/S`, `effort:low`) — those measure scope, not required model capability |
 | `sec:injection` | `vulnerability:injection`, `security:injection` | `security` (loses subcategory signal) |
 | `area:cmd` | `cmd`, `component:cmd`, `area-cmd` | `module` (too generic) |
 
-Rule of thumb: **subcategory labels (`sec:*`, `edge:*`, `cov:*`) and `confidence:*` rarely have a suitable equivalent — almost always create.** Top-level category, severity, and area labels are the ones most worth reusing.
+Rule of thumb: **subcategory labels (`sec:*`, `edge:*`, `cov:*`), `confidence:*`, and `model:*` rarely have a suitable equivalent — almost always create.** Top-level category, severity, and area labels are the ones most worth reusing.
 
 ## `area:{top-level-dir}` (resolved lazily at filing time)
 
@@ -93,13 +109,14 @@ This lets a CODEOWNER filter `is:open label:area:internal` (or whichever label w
 
 ## Per-issue label contract
 
-Every filed issue MUST have exactly **five** labels (using whichever name the step-2 mapping resolved to — canonical or reused):
+Every filed issue MUST have exactly **six** labels (using whichever name the step-2 mapping resolved to — canonical or reused):
 
 1. One category — canonical: `scan:security` | `scan:edge-case` | `scan:coverage` | `scan:doc-drift`
 2. One subcategory matching the category — canonical: `sec:*` | `edge:*` | `cov:*` | `doc:*`
 3. One severity — canonical: `severity:high` | `severity:medium` | `severity:low`
 4. One confidence — canonical: `confidence:75` | `confidence:100`
 5. One area — canonical: `area:{top-level-dir}`
+6. One model tier — canonical: `model:haiku` | `model:sonnet` | `model:opus` (from the finding's `model` field; see the rubric above)
 
 If a scanner returns a finding whose subcategory doesn't match the fixed enum, the orchestrator drops it and logs the mismatch — do not invent new subcategory values at filing time. The fixed taxonomy is the contract; reuse only swaps the *label that carries* the canonical meaning, not the meaning itself.
 
