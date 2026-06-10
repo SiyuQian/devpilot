@@ -5,7 +5,7 @@ Exactly one `gh issue create` per surviving finding. Use this body verbatim, fil
 ## `gh` invocation
 
 ```bash
-# Resolve the five labels via the step-2 mapping table (canonical → label_to_apply).
+# Resolve the six labels via the step-2 mapping table (canonical → label_to_apply).
 # For area: first check /tmp/devpilot-existing-labels.json for a suitable existing
 # area-ish label covering the finding's top-level dir. Reuse if suitable; otherwise:
 area_dir=$(echo "<finding-file>" | cut -d/ -f1)
@@ -15,7 +15,7 @@ gh label create "$area_label" --color FEF2C0 --description "Auto-derived from fi
 
 gh issue create \
   --title "[scan:<category>] <title>" \
-  --label "<category_label>,<subcategory_label>,<severity_label>,<confidence_label>,$area_label" \
+  --label "<category_label>,<subcategory_label>,<severity_label>,<confidence_label>,<model_label>,$area_label" \
   --body "$(cat <<'EOF'
 <see body template below>
 EOF
@@ -27,6 +27,7 @@ EOF
 - Canonical `<subcategory>` is one of `sec:*`, `edge:*`, `cov:*` matching the category — see `references/labels.md` for the full enum. The scanner emits the canonical subcategory; the orchestrator does NOT pick freely.
 - `<severity>` ∈ `high`, `medium`, `low`.
 - `<score>` ∈ `75`, `100` (output of the scoring pass; sub-75 findings are already filtered).
+- `<model_label>` resolves the finding's `model` field (`haiku` | `sonnet` | `opus`) through the step-2 mapping table — canonical form `model:<tier>`. This is the implementer-routing signal for `devpilot-resolve-issues`.
 - The title prefix `[scan:<category>]` keeps issues trivially filterable in notifications even when labels aren't visible.
 
 ## Body template
@@ -71,6 +72,6 @@ https://github.com/<owner>/<repo>/blob/<full-sha>/<path>#L<start>-L<end>
 
 - **Use `git rev-parse HEAD` for the SHA in the link** so the link survives future commits. Insert it literally into the body; do not use `$(...)` shell substitution inside the heredoc.
 - **Never** include the full scanner output or the full scoring justification in the body. The template is the contract with the maintainer; extra content degrades scannability.
-- **Labels are mandatory** — always exactly five, applied via the step-2 mapping table: a category, a matching subcategory, a severity, a confidence, and an auto-derived area. Canonical names are `scan:<category>`, `sec:*` | `edge:*` | `cov:*`, `severity:<level>`, `confidence:<score>`, `area:<top-level-dir>` — but the resolved label may be a suitable existing repo label instead. See `references/labels.md`.
+- **Labels are mandatory** — always exactly six, applied via the step-2 mapping table: a category, a matching subcategory, a severity, a confidence, a model tier, and an auto-derived area. Canonical names are `scan:<category>`, `sec:*` | `edge:*` | `cov:*`, `severity:<level>`, `confidence:<score>`, `model:<tier>`, `area:<top-level-dir>` — but the resolved label may be a suitable existing repo label instead. See `references/labels.md`.
 - **One issue per finding.** Do NOT batch findings into a single issue, even for the same file.
 - **Do not auto-assign** the issue. Let the maintainer triage.
