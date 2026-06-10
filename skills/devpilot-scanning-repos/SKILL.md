@@ -73,7 +73,7 @@ A whole-repo sweep that dispatches **four parallel specialist sub-agents** (secu
 3.5. **Validate scanner output.** Pipe each scanner's JSON array through `python3 scripts/check-findings.py`. The `--manifest` flag is mandatory and chooses the manifest the scanner was dispatched against:
    - security / edge-case / coverage → `--manifest /tmp/devpilot-scan-manifest.txt`
    - doc-drift → `--manifest /tmp/devpilot-doc-manifest.txt`
-   The script rejects findings whose `file` is not on the relevant manifest, missing required fields, invalid `category`/`subcategory`/`severity` enums, and empty `evidence`. Fix (or ask the scanner to re-emit) before scoring.
+   The script rejects findings whose `file` is not on the relevant manifest, missing required fields, invalid `category`/`subcategory`/`severity`/`model` enums, and empty `evidence`. Fix (or ask the scanner to re-emit) before scoring.
 4. **Score every finding, in batches.** Group findings by category and dispatch ONE scoring sub-agent per batch of up to **25 findings** (not one per finding — the per-finding fan-out doesn't scale past ~50). The scoring agent returns a JSON array of `{index, score, reason}` aligned with the input order. See `references/scoring.md` for the rubric and the batched prompt.
 5. **Filter.** Drop every finding with score `< 75`. If zero survive, stop — report "no high-confidence issues found" to the user and do not create issues.
 6. **Deduplicate against existing issues.** Before filing, query existing scan issues. Use a search that covers BOTH the new taxonomy and the legacy `repo-scan` label (so re-runs against repos scanned under the old label set still dedupe correctly):
@@ -235,9 +235,9 @@ These are the excuses agents (and the orchestrator) reach for when under context
 - **Reusing a non-canonical name as-is instead of renaming it.** If the repo has `security` and we file under `scan:security`, both labels now exist with overlapping intent. Rename the existing one to bring the repo onto the canonical taxonomy.
 - **Renaming a too-generic label.** Don't rename `bug` to `edge:nil-deref` — it's attached to unrelated existing issues. Generic labels stay; create the canonical one alongside.
 - **Creating subcategory or severity labels inside the issue-creation loop.** Reconcile in step 2, file in step 7. Only `area:*` is resolved lazily, and even then it goes through the same suitable-existing-label check.
-- **Asking scanners to rank severity *and* confidence.** Confidence is the scoring pass's job; scanners assign severity only.
+- **Asking scanners to rank severity *and* confidence.** Confidence is the scoring pass's job; scanners assign severity and the `model` tier only.
 - **Forgetting the dedupe step.** Re-running the skill must be idempotent or the user will stop running it.
 
 ## Evaluation
 
-Test scenarios for this skill live in `evals/evals.json`. Each eval gives a prompt, expected output shape, and machine-checkable assertions (e.g. *`exactly_three_scanner_dispatches`*, *`no_business_logic_findings_filed`*, *`all_issues_have_three_labels`*). Run before shipping any change to scanner prompts or the scoring rubric.
+Test scenarios for this skill live in `evals/evals.json`. Each eval gives a prompt, expected output shape, and machine-checkable assertions (e.g. *`exactly_three_scanner_dispatches`*, *`no_business_logic_findings_filed`*, *`all_issues_have_six_labels`*). Run before shipping any change to scanner prompts or the scoring rubric.
