@@ -67,6 +67,7 @@ Return ONLY a JSON array. No prose.
     "subcategory": "sec:injection",
     "title": "Shell command built from unvalidated HTTP input in internal/runner/exec.go",
     "severity": "high",
+    "model": "sonnet",
     "file": "internal/runner/exec.go",
     "line_range": "L84-L97",
     "evidence": "  84  cmd := exec.Command(\"sh\", \"-c\", fmt.Sprintf(\"git clone %s /tmp/repo\", r.URL.Query().Get(\"url\")))\n  85  if err := cmd.Run(); err != nil {",
@@ -75,6 +76,16 @@ Return ONLY a JSON array. No prose.
   }
 ]
 ```
+
+## Model tier (`model` field — mandatory)
+
+Every finding MUST set `model` to the tier of implementer model its **fix** needs. This routes the eventual fix subagent in `devpilot-resolve-issues`; it is passed verbatim as the Agent tool's `model` param.
+
+- `haiku` — mechanical, single-file, low-judgment change: doc drift, typo, adding a nil check, comment fix.
+- `sonnet` — default tier: a normal code fix plus tests, single concern.
+- `opus` — multi-file change, or a fix requiring careful reasoning about concurrency, security, or architecture.
+
+Judge the **cost of the fix, not the severity of the problem** — a critical security hole can be a one-line `haiku` fix. When unsure, pick the higher tier.
 
 ## Subcategory enum (mandatory, no invention)
 
