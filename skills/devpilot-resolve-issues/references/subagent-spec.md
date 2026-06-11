@@ -107,6 +107,7 @@ If you returned NEEDS_CONTEXT or BLOCKED, leave the branch in whatever state you
 ## Rules for the main agent filling this template
 
 - **Dispatch from inside the issue's worktree.** The controller's cwd at step 6 of `SKILL.md` is `$WORKTREE`; the implementer subagent inherits that cwd, so its `pwd` and `git` calls naturally land on the right tree and branch. Do not dispatch from `$MAIN`.
+- **Set the Agent tool's `model` param from the issue's `model:*` label** (step 4.5 of `SKILL.md`): `model:haiku` → `"haiku"`, `model:sonnet` → `"sonnet"`, `model:opus` → `"opus"`. Implementers only — reviewers and the final verify inherit the session model.
 - **One task per dispatch.** Even if two tasks look "small enough to combine", separate dispatches keep the per-task review surface small. The skill is built around one implementer + one reviewer per task.
 - **Never run implementers in parallel on the same issue's branch.** They'd race on the working tree and produce a merge mess inside a single PR. Sequential only — even though each issue has its own worktree, multiple implementers in the same worktree still race.
 - **Do not omit the Evidence block.** Even if the main agent already reasoned about it — the subagent needs the verbatim quote, every dispatch.
@@ -117,4 +118,4 @@ If you returned NEEDS_CONTEXT or BLOCKED, leave the branch in whatever state you
   - **Verification failed** (commands didn't pass): one re-dispatch with the failing output appended. Second failure → escalate the whole issue to `NEEDS-HUMAN`.
   - **Code review found issues** (handled in `per-task-review.md`): re-dispatch the same implementer with the reviewer's feedback verbatim. Cap at 2 review rounds per task; round 3 → `NEEDS-HUMAN`.
   - **NEEDS_CONTEXT:** answer the question, re-dispatch with the answer added to the spec.
-  - **BLOCKED:** read the explanation, decide between adjusting the spec, dispatching a more capable model, or escalating `NEEDS-HUMAN`. Never re-dispatch the same model with the same spec on a BLOCKED return.
+  - **BLOCKED:** read the explanation. Spec wrong → fix it, re-dispatch at the same tier. Otherwise escalate exactly one model tier (haiku→sonnet, sonnet→opus), update the issue's `model:*` label to match, and re-dispatch; BLOCKED at opus → escalate `NEEDS-HUMAN` (see SKILL.md step 6b). Never re-dispatch the same model with the same spec on a BLOCKED return.

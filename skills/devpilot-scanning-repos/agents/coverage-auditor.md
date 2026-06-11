@@ -59,6 +59,7 @@ Return ONLY a JSON array:
     "subcategory": "cov:no-test-file",
     "title": "No tests for authentication middleware in internal/auth/middleware.go",
     "severity": "high",
+    "model": "sonnet",
     "file": "internal/auth/middleware.go",
     "line_range": "L1-L98",
     "evidence": "  12  func RequireAuth(next http.Handler) http.Handler {\n  13      return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {\n  ...  // no internal/auth/middleware_test.go exists; 3 exported symbols are never exercised in any *_test.go",
@@ -67,6 +68,16 @@ Return ONLY a JSON array:
   }
 ]
 ```
+
+## Model tier (`model` field — mandatory)
+
+Every finding MUST set `model` to the tier of implementer model its **fix** needs. This routes the eventual fix subagent in `devpilot-resolve-issues`; it is passed verbatim as the Agent tool's `model` param.
+
+- `haiku` — mechanical, single-file, low-judgment change: doc drift, typo, adding a nil check, comment fix.
+- `sonnet` — default tier: a normal code fix plus tests, single concern.
+- `opus` — multi-file change, or a fix requiring careful reasoning about concurrency, security, or architecture.
+
+Judge the **cost of the fix, not the severity of the problem** — a critical security hole can be a one-line `haiku` fix. When unsure, pick the higher tier.
 
 ## Calibration
 

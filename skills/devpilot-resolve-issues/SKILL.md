@@ -48,6 +48,7 @@ digraph resolve_loop {
   "Verdict" [shape=diamond];
   "Close wontfix + reason" [shape=box];
   "Comment with blockers" [shape=box];
+  "Ensure model:* label" [shape=box];
   "Create worktree + branch (cd into it)" [shape=box];
   "Decompose into 1-3 tasks (TodoWrite)" [shape=box];
   "Next task?" [shape=diamond];
@@ -77,7 +78,8 @@ digraph resolve_loop {
   "Close wontfix + reason" -> "Select next issue";
   "Verdict" -> "Comment with blockers" [label="NEEDS-HUMAN"];
   "Comment with blockers" -> "Select next issue";
-  "Verdict" -> "Create worktree + branch (cd into it)" [label="REAL"];
+  "Verdict" -> "Ensure model:* label" [label="REAL"];
+  "Ensure model:* label" -> "Create worktree + branch (cd into it)";
   "Create worktree + branch (cd into it)" -> "Decompose into 1-3 tasks (TodoWrite)";
   "Decompose into 1-3 tasks (TodoWrite)" -> "Next task?";
   "Next task?" -> "Dispatch implementer subagent (one task)" [label="yes"];
@@ -184,6 +186,31 @@ Read the full issue body. If the issue was filed by `devpilot-scanning-repos` it
 
 **Do not classify as REAL just to "take a shot."** False positives close in 60 seconds; wrong REAL verdicts spawn implementer subagents that produce useless diffs and poison the PR history.
 
+### 4.5 Ensure the `model:*` routing label (REAL verdicts only)
+
+Every REAL issue carries exactly one `model:*` label before any implementer is dispatched. It names the Agent-tool `model` param for this issue's implementer subagents — the value is passed verbatim (`model:sonnet` → `model: "sonnet"`). Issues filed by `devpilot-scanning-repos` arrive pre-tagged; human-filed and legacy issues may not.
+
+Check the labels already fetched in step 1:
+
+- **Exactly one `model:*` label** — use it as-is. A pre-existing tag (scanner- or human-applied) is the supported manual override; do not second-guess it.
+- **No `model:*` label** — judge the tier yourself from the step-3 investigation, then apply it:
+  - `model:haiku` — mechanical, single-file, low-judgment change: doc drift, typo, adding a nil check, comment fix.
+  - `model:sonnet` — default tier: a normal code fix plus tests, single concern.
+  - `model:opus` — multi-file change, or a fix requiring careful reasoning about concurrency, security, or architecture.
+
+  Judge the **cost of the fix, not the severity of the problem**; when unsure, pick the higher tier. (Keep in sync with `devpilot-scanning-repos/references/labels.md` → "Model tier rubric".)
+
+  ```bash
+  # If the repo lacks the label, create it first (same pattern as need:human):
+  gh label create "model:<tier>" --color "<canonical color from devpilot-scanning-repos/references/labels.md: haiku D4C5F9, sonnet 8A63D2, opus 3C1E70>" --description "Implementer-model routing for devpilot-resolve-issues" 2>/dev/null || true
+  gh issue edit <num> --add-label "model:<tier>"
+  ```
+- **Multiple `model:*` labels** — keep the highest tier (opus > sonnet > haiku), remove the rest:
+
+  ```bash
+  gh issue edit <num> --remove-label "model:<lower-tier>"
+  ```
+
 ### 5. Create the per-issue worktree (and the branch inside it)
 
 **The fix branch lives in its own worktree, never in the main checkout.** This is non-negotiable — see "Hard rules" below and `references/worktree-management.md` for the full rationale and failure-mode handling.
@@ -220,13 +247,13 @@ Split the fix into 1–3 sequential tasks and capture them in TodoWrite for this
 For task `i` of `N`:
 
 1. **Mark the task `in_progress`** in TodoWrite.
-2. **Dispatch the implementer subagent.** Use the per-task spec from `references/subagent-spec.md`, filled in with the Evidence block, files-to-read, and acceptance criteria scoped to *this task only*. One dispatch per task. Never run implementers in parallel on the same branch.
+2. **Dispatch the implementer subagent.** Use the per-task spec from `references/subagent-spec.md`, filled in with the Evidence block, files-to-read, and acceptance criteria scoped to *this task only*. Set the Agent tool's `model` param to the issue's `model:*` tier from step 4.5 (`model:sonnet` → `model: "sonnet"`). The model tier applies to **implementers only** — per-task reviewers (6c), triage, and the step-7 final verify inherit the session model; cheap implementer + strong reviewer is the intended pairing. One dispatch per task. Never run implementers in parallel on the same branch.
 3. **Handle the implementer's status:**
    - **DONE** — proceed to per-task review (6c).
    - **DONE_WITH_CONCERNS** — read the concerns. If they affect correctness, re-dispatch with extra context; otherwise note them and proceed to review.
    - **NEEDS_CONTEXT** — answer the question, re-dispatch with the answer appended.
-   - **BLOCKED** — read the explanation. Adjust the spec, dispatch a more capable model, or escalate `NEEDS-HUMAN`. Never re-dispatch the same model with the same spec on a BLOCKED return.
-   - **Verification failed inside the subagent** — one re-dispatch with the verbatim failure output. Second failure → escalate the whole issue `NEEDS-HUMAN`.
+   - **BLOCKED (reasoning or spec blocker)** — read the explanation. If the spec was wrong, fix it and re-dispatch at the same tier. Otherwise escalate exactly one model tier (haiku→sonnet, sonnet→opus) and re-dispatch, updating the issue's `model:*` label to match (`gh issue edit <num> --add-label "model:<new>" --remove-label "model:<old>"`); a BLOCKED return at opus escalates the issue `NEEDS-HUMAN`. Never re-dispatch the same model with the same spec.
+   - **BLOCKED on a failing verification command (tests/lint red)** — this is the one BLOCKED sub-case that does NOT escalate a tier first: re-dispatch once at the same tier with the verbatim failure output appended. If it still fails, treat it as a reasoning blocker and apply the tier-escalation rule above (or `NEEDS-HUMAN` if already at opus).
 
 #### 6c. Per-task code review
 
@@ -394,6 +421,7 @@ The loop ends when **any** of these is true — not before:
 - Per-task review invocation and gating → `references/per-task-review.md`.
 - PR body, template selection, and Review Guide rules → `devpilot-pr-creator`.
 - How `repo-scan` issues are shaped (Evidence block, labels) → `devpilot-scanning-repos`.
+- `model:*` routing labels and the fix-cost rubric → `devpilot-scanning-repos/references/labels.md`.
 - Standalone PR review (when a user pastes a PR URL outside this loop) → `devpilot-pr-review`. Not used by this skill.
 
 ## Acceptance criteria (the "test" this skill is written against)

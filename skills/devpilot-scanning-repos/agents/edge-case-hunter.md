@@ -81,6 +81,7 @@ Return ONLY a JSON array (no prose) of findings using the repo-scan Finding sche
     "subcategory": "edge:nil-deref",
     "title": "Nil map dereferenced on empty config in internal/project/config.go",
     "severity": "medium",
+    "model": "sonnet",
     "file": "internal/project/config.go",
     "line_range": "L62-L70",
     "evidence": "  62  func (c *Config) Get(k string) string {\n  63      return c.values[k]  // c.values is never initialized if LoadFromEnv is called first\n  64  }",
@@ -89,6 +90,16 @@ Return ONLY a JSON array (no prose) of findings using the repo-scan Finding sche
   }
 ]
 ```
+
+## Model tier (`model` field — mandatory)
+
+Every finding MUST set `model` to the tier of implementer model its **fix** needs. This routes the eventual fix subagent in `devpilot-resolve-issues`; it is passed verbatim as the Agent tool's `model` param.
+
+- `haiku` — mechanical, single-file, low-judgment change: doc drift, typo, adding a nil check, comment fix.
+- `sonnet` — default tier: a normal code fix plus tests, single concern.
+- `opus` — multi-file change, or a fix requiring careful reasoning about concurrency, security, or architecture.
+
+Judge the **cost of the fix, not the severity of the problem** — a critical security hole can be a one-line `haiku` fix. When unsure, pick the higher tier.
 
 ## Calibration
 
