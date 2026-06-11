@@ -76,6 +76,7 @@ Return ONLY a JSON array of `Finding` objects. The `file` field is the **doc** t
     "subcategory": "doc:command-mismatch",
     "title": "README.md references nonexistent `make release` target",
     "severity": "medium",
+    "model": "haiku",
     "file": "README.md",
     "line_range": "L88-L88",
     "evidence": "README.md:88 — `Run \\`make release\\` to cut a new version.`\nMakefile targets actually defined: build, test, lint, install (verified via `rg -n '^[a-z-]+:' Makefile`).",
@@ -87,6 +88,7 @@ Return ONLY a JSON array of `Finding` objects. The `file` field is the **doc** t
     "subcategory": "doc:stale-claim",
     "title": "Codebase uses positional `$1, $2` queries; CLAUDE.md mandates named queries",
     "severity": "high",
+    "model": "opus",
     "file": "CLAUDE.md",
     "line_range": "L34-L34",
     "evidence": "CLAUDE.md:34 — `Always use named queries (`:user_id`) for SQL — never positional placeholders.`\nRepo evidence (≥2 violations):\n  internal/store/users.go:88 — `db.Query(\"SELECT id, email FROM users WHERE id = $1\", uid)`\n  internal/store/orders.go:142 — `db.Exec(\"UPDATE orders SET status=$1 WHERE id=$2\", st, oid)`\n(spot-check: `rg -n '\\$\\d+' internal/store` returns 17 hits across 6 files; no `:name` placeholders found.)",
@@ -98,6 +100,7 @@ Return ONLY a JSON array of `Finding` objects. The `file` field is the **doc** t
     "subcategory": "doc:cross-doc-conflict",
     "title": "CLAUDE.md and README.md disagree on lint command",
     "severity": "low",
+    "model": "haiku",
     "file": "CLAUDE.md",
     "line_range": "L18-L18",
     "evidence": "CLAUDE.md:18 says `make lint`. README.md:42 says `golangci-lint run ./...`. Makefile defines `lint:` which itself runs `golangci-lint run ./...` — both descriptions work, but a reader switching between docs sees two different invocations.",
@@ -106,6 +109,16 @@ Return ONLY a JSON array of `Finding` objects. The `file` field is the **doc** t
   }
 ]
 ```
+
+## Model tier (`model` field — mandatory)
+
+Every finding MUST set `model` to the tier of implementer model its **fix** needs. This routes the eventual fix subagent in `devpilot-resolve-issues`; it is passed verbatim as the Agent tool's `model` param.
+
+- `haiku` — mechanical, single-file, low-judgment change: doc drift, typo, adding a nil check, comment fix.
+- `sonnet` — default tier: a normal code fix plus tests, single concern.
+- `opus` — multi-file change, or a fix requiring careful reasoning about concurrency, security, or architecture.
+
+Judge the **cost of the fix, not the severity of the problem** — a critical security hole can be a one-line `haiku` fix. When unsure, pick the higher tier.
 
 ## Calibration
 

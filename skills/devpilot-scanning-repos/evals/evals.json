@@ -8,7 +8,7 @@
       "files": [],
       "assertions": [
         {"name": "exactly_three_scanner_dispatches", "description": "Main agent dispatches security-scanner, edge-case-hunter, and coverage-auditor exactly once each, in parallel (one message)"},
-        {"name": "labels_provisioned_first", "description": "gh label create is invoked for the full taxonomy (3 categories + 18 subcategories + 3 severities + 2 confidences) before any gh issue create call; area:* labels are created lazily at filing time"},
+        {"name": "labels_provisioned_first", "description": "gh label create is invoked for the full taxonomy (3 categories + 18 subcategories + 3 severities + 2 confidences + 3 model tiers) before any gh issue create call; area:* labels are created lazily at filing time"},
         {"name": "graph_built_before_dispatch", "description": "Step 2.4 runs `devpilot graph build` AND `devpilot graph hubs` writing /tmp/devpilot-graph-hubs.json before scanners are dispatched. If build fails, the failure is surfaced to the user and scanners are told graph is unavailable."},
         {"name": "manifest_built_before_dispatch", "description": "Step 2.5 produces /tmp/devpilot-scan-manifest.txt before scanners are dispatched, capped at 800 paths (or 2000 with --full)"},
         {"name": "scanners_consume_manifest", "description": "Each of the three scanners is given the manifest path and does not run a fresh `find` of the whole tree"},
@@ -20,7 +20,7 @@
         {"name": "findings_validated", "description": "Each scanner's JSON output is piped through scripts/check-findings.py before scoring"},
         {"name": "scoring_pass_separate_from_scanner", "description": "Scoring happens in a distinct sub-agent dispatch, not inside the scanner"},
         {"name": "threshold_75_applied", "description": "No finding with score < 75 is filed as an issue"},
-        {"name": "three_labels_per_issue", "description": "Every filed issue has exactly five labels: scan:<category>, one matching sec:*|edge:*|cov:* subcategory, severity:<level>, confidence:<score>, and one auto-derived area:<top-level-dir>"},
+        {"name": "six_labels_per_issue", "description": "Every filed issue has exactly six labels: scan:<category>, one matching sec:*|edge:*|cov:* subcategory, severity:<level>, confidence:<score>, model:<tier>, and one auto-derived area:<top-level-dir>"},
         {"name": "evidence_block_in_body", "description": "Every filed issue body includes a quoted code block of ≥2 lines and a <file>#L<a>-L<b> link"},
         {"name": "dedupe_against_existing", "description": "gh issue list --label repo-scan is run before any gh issue create, and matching-title issues are skipped"}
       ]
@@ -33,7 +33,7 @@
       "assertions": [
         {"name": "correct_target_resolved", "description": "Skill uses 'SiyuQian/devpilot' as the target, not the current working directory"},
         {"name": "no_local_git_ops", "description": "Skill does not run `git clone` — it reads files via gh or dispatches scanners that use the target repo context"},
-        {"name": "three_labels_per_issue", "description": "Every filed issue still has exactly five labels per the new contract"}
+        {"name": "six_labels_per_issue", "description": "Every filed issue still has exactly six labels per the new contract"}
       ]
     },
     {

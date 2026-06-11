@@ -26,6 +26,7 @@ REQUIRED_FIELDS = (
     "subcategory",
     "title",
     "severity",
+    "model",
     "file",
     "line_range",
     "evidence",
@@ -34,6 +35,7 @@ REQUIRED_FIELDS = (
 )
 VALID_CATEGORIES = {"security", "edge-case", "coverage", "doc-drift"}
 VALID_SEVERITIES = {"high", "medium", "low"}
+VALID_MODELS = {"haiku", "sonnet", "opus"}
 VALID_SUBCATEGORIES = {
     "security": {
         "sec:injection", "sec:authn-authz", "sec:secrets", "sec:crypto",
@@ -86,6 +88,10 @@ def check(finding: Any, idx: int, manifest: set[str] | None = None) -> list[str]
     sev = finding.get("severity")
     if sev is not None and sev not in VALID_SEVERITIES:
         errs.append(f"[{idx}] severity='{sev}' not in {sorted(VALID_SEVERITIES)}")
+
+    model = finding.get("model")
+    if model is not None and model not in VALID_MODELS:
+        errs.append(f"[{idx}] model='{model}' not in {sorted(VALID_MODELS)}")
 
     sub = finding.get("subcategory")
     if cat in VALID_SUBCATEGORIES:
