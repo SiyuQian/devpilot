@@ -1,0 +1,85 @@
+{
+  "skill_name": "devpilot-harness-engineering",
+  "evals": [
+    {
+      "id": 1,
+      "name": "guide-without-sensor",
+      "prompt": "Here's my repo (a Go payments service). My CLAUDE.md clearly says never call time.Now() directly in business logic — inject a Clock instead — but the agents keep doing it anyway and it slips through. How do I actually stop this?",
+      "expected_output": "Diagnoses a guide with no paired sensor and recommends a mechanical, agent-actionable check that enforces the rule; does not stop at re-wording the doc.",
+      "files": ["evals/fixtures/rule-without-sensor"],
+      "expectations": [
+        "Recommends adding a mechanical sensor (linter rule such as forbidigo / golangci-lint, an import-restriction lint, a test, or a pre-commit hook) that enforces the no-direct-time.Now() rule.",
+        "Frames the problem explicitly as a guide (feedforward) with no paired sensor (feedback) — a rule that nothing mechanically checks.",
+        "Specifies that the sensor's output should tell the agent HOW to fix the violation (inject/read a Clock), not merely report that a violation exists.",
+        "Shows it inspected the repo by identifying the actual violations in internal/order/order.go and internal/billing/invoice.go.",
+        "NEGATIVE: Does NOT propose that the fix is merely re-wording or strengthening the CLAUDE.md prose."
+      ]
+    },
+    {
+      "id": 2,
+      "name": "anti-speculation",
+      "prompt": "I'm setting up my repo so coding agents can work in it well. Go ahead and create AGENTS.md, SECURITY.md, RELIABILITY.md, FRONTEND.md, and QUALITY_SCORE.md so we're fully covered from day one.",
+      "expected_output": "Treats only AGENTS.md (+ ARCHITECTURE.md) as day-one essentials, invokes the build-from-observed-failures principle, and declines to scaffold all five docs upfront.",
+      "files": [],
+      "expectations": [
+        "Treats only AGENTS.md (and ARCHITECTURE.md) as day-one essentials and treats the other docs as add-when-a-real-need-appears.",
+        "Invokes the anti-speculation principle (Hashimoto's rule): build the harness from observed agent failures, not from imagined ones.",
+        "Notes that some of the requested docs may be noise for this repo (e.g. FRONTEND.md with no frontend, RELIABILITY.md for a simple tool).",
+        "NEGATIVE: Does NOT create or scaffold all five requested docs upfront, and does NOT hedge toward 'create the empty stubs now and fill them in later'."
+      ]
+    },
+    {
+      "id": 3,
+      "name": "compounding-drift-gc-loop",
+      "prompt": "Every individual PR looks fine when I review it, but month over month the quality of the codebase is clearly dropping — and I genuinely can't point to a single PR that caused it. What do I do?",
+      "expected_output": "Diagnoses compounding drift that per-PR review can't catch and prescribes golden principles plus a background GC/refactor sweep.",
+      "files": [],
+      "expectations": [
+        "Diagnoses this as compounding drift that per-PR review structurally cannot catch, rather than a reviewer-diligence problem.",
+        "Recommends encoding golden principles (taste/structure) and running a background garbage-collection / refactor agent to counter the drift.",
+        "Distinguishes a repo-wide drift sweep from per-PR sensors (the problem is between PRs, not within one).",
+        "NEGATIVE: Does NOT reduce the answer to 'review each PR more strictly' or 'add more reviewers'."
+      ]
+    },
+    {
+      "id": 4,
+      "name": "depth-first-decomposition",
+      "prompt": "My agents keep opening enormous PRs — reviewing one takes me longer than the agent spent writing it. How should I change the way I feed work to them?",
+      "expected_output": "Prescribes depth-first decomposition sized to one block = one context window = one reviewable PR, tracked in a plan index.",
+      "files": [],
+      "expectations": [
+        "Recommends depth-first decomposition: sizing each unit of work so one block = one context window = one reviewable PR.",
+        "Ties the oversized-PR symptom to missing decomposition (and/or weak sensors), not merely to the agent's verbosity.",
+        "Recommends tracking in-flight work in a plan index (e.g. PLANS.md / exec-plans) so blocks stay bounded and depth-first.",
+        "NEGATIVE: Does NOT stop at generic advice like 'tell the agent to make smaller PRs' without giving the one-block-one-context-window sizing rule."
+      ]
+    },
+    {
+      "id": 5,
+      "name": "agents-md-bloat",
+      "prompt": "Audit the agent harness in this repo and tell me the single most important thing to fix.",
+      "expected_output": "Identifies the oversized AGENTS.md (injected every prompt) as the top problem and prescribes moving detail into on-demand skills via progressive disclosure.",
+      "files": ["evals/fixtures/bloated-agents-md"],
+      "expectations": [
+        "Identifies the oversized AGENTS.md as the primary problem and notes that it is injected into every prompt, so its length has a standing per-turn cost.",
+        "Recommends moving the conditional (if-X-then-Y) detail into on-demand skills with progressive disclosure, keeping AGENTS.md tight.",
+        "References a concrete length bar (~60-line target, ~100-line hard split) or otherwise quantifies that the file is far too long.",
+        "Shows it actually inspected the file (e.g. cites the ~160-line length or the nested if-then structure).",
+        "NEGATIVE: Does NOT advise merely trimming a few lines or reformatting while leaving all the detail inside AGENTS.md."
+      ]
+    },
+    {
+      "id": 6,
+      "name": "tool-context-bloat",
+      "prompt": "I wired up about a dozen MCP servers so the agent would have every tool it might possibly need, but now it feels dumber and sometimes runs out of context. What went wrong?",
+      "expected_output": "Explains that tool descriptions consume context every turn and prescribes pruning/scoping tools per task, preferring known CLIs over custom MCP wrappers.",
+      "files": [],
+      "expectations": [
+        "Explains that tool descriptions are injected and consume context on every turn, so 'just in case' tools carry a standing cost even when unused.",
+        "Recommends pruning and scoping tools per task rather than loading the full set all the time.",
+        "Recommends preferring CLIs the model already knows over custom MCP wrappers where that's an option.",
+        "NEGATIVE: Does NOT suggest adding more tools, and does NOT treat the large tool count as harmless."
+      ]
+    }
+  ]
+}
