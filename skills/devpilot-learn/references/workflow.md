@@ -52,11 +52,16 @@ Load `skeleton.md` and follow its layout. For each section, in source order:
    or compress them into a single line.
 2. Put a faithful Chinese translation in a `.zh` block directly below each `.orig`.
 3. Add `.note` glosses sparingly, only where a term or phrase needs explanation.
-4. End the section with a `节后小测` containing 1–3 questions, each answer hidden in a
-   `<details>` element.
+4. End the section with a `节后小测 / Section Quiz` containing 1–3 questions, each answer
+   hidden in a `<details>` element. Make the quiz **bilingual**, mirroring the
+   `.orig` → `.zh` rhythm: write each question in the source's original language with a
+   faithful Chinese translation directly beneath it, give the answer and explanation in
+   both languages, and use the bilingual labels (`查看答案 / Show answer`, `答案/Answer`,
+   `解析/Explanation`). If the source is already Chinese, the question stays Chinese-only —
+   same as a Chinese passage needs no translation.
 
-Then close with a `总测 / Final Test` spanning the whole source, same `<details>` answer
-pattern.
+Then close with a `总测 / Final Test` spanning the whole source, same bilingual questions
+and `<details>` answer pattern.
 
 Keep the meta block at the top and a `目录` table of contents when the source has several
 sections (drop it for short single-section sources).
