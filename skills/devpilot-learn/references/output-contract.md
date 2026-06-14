@@ -57,6 +57,16 @@ is the failure mode this contract exists to prevent.
   aren't in that passage and do not editorialize.
 - Preserve source terminology. For statutes, cases, proper nouns, product/model/org
   names, keep the original term and add a common Chinese rendering only when it helps.
+- Build `.orig` from the source's real text, fetched verbatim. For URLs that means the
+  bundled `scripts/fetch_source.py`, for PDFs `scripts/extract_pdf.py` — **never**
+  `WebFetch`, which returns a summary of the page, not its words, so `.orig` built on it
+  is compressed before you begin. If extraction genuinely fails and you must fall back to
+  a summarized fetch, say so in the meta block (`基于摘要式抓取，非逐字原文 / Based on a
+  summarized fetch, not verbatim`); never pass summary text off as the verbatim original.
+- Coverage is gated mechanically, not by eye. Before saving you must run
+  `scripts/check_coverage.py source.txt <artifact.html>` and it must pass. It reports
+  which source sections/paragraphs are missing from your `.orig` blocks; restore them and
+  re-run until it passes. A failing gate means the artifact is not done.
 - Quizzes must be answerable from the source alone — never test outside knowledge.
 - Quizzes are bilingual, never single-language. A question in only one language (or
   bilingual answer content under Chinese-only labels like a bare `节后小测` / `查看答案`)
