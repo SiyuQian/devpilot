@@ -12,7 +12,8 @@
         "The HTML contains source metadata and a structured summary layout",
         "The HTML uses either bilingual digest structure or another clearly defined learning-oriented structure chosen from the skill",
         "The HTML contains at least one summary-oriented section and one supporting detail section",
-        "The HTML includes a source link back to the original URL"
+        "The HTML includes a source link back to the original URL",
+        "Any quizzes are bilingual: each question appears in the source's original language with a Chinese translation directly beneath it, and quiz labels are bilingual (e.g. 查看答案 / Show answer) rather than Chinese-only"
       ]
     },
     {
@@ -39,7 +40,8 @@
         "The HTML file is self-contained with no external CSS or JS dependencies",
         "The HTML contains source-aware metadata for the PDF",
         "The HTML contains structured summary content",
-        "The HTML references the source PDF filename"
+        "The HTML references the source PDF filename",
+        "Any quizzes are bilingual: each question appears in the source's original language with a Chinese translation directly beneath it, and quiz labels are bilingual (e.g. 查看答案 / Show answer) rather than Chinese-only"
       ]
     },
     {

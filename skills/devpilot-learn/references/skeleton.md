@@ -100,6 +100,14 @@ rhythm and the single-column flow.
     .quiz h3 { margin: 0 0 .6em; color: #1a3d6e; }
     .quiz ol { margin: 0; padding-left: 1.4em; }
     .quiz li { margin: 1em 0; }
+    /* question original + its Chinese translation (mirrors .orig / .zh) */
+    .quiz .q { margin: 0 0 .35em; }
+    .quiz .q-zh {
+      margin: 0 0 .2em;
+      padding-left: .75em;
+      border-left: 3px solid #c9b27a;
+      color: #4d4127;
+    }
     .final-test { background: #fff7e9; border-color: #e8d6ab; }
     .final-test h2 { border-left-color: #b8860b; color: #8a5a00; }
 
@@ -164,15 +172,16 @@ rhythm and the single-column flow.
   <div class="note"><b>[term / 术语]</b>：[简短中文注解]</div>
 
   <div class="quiz">
-    <h3>节后小测</h3>
+    <h3>节后小测 / Section Quiz</h3>
     <ol>
       <li>
-        <p>[Question grounded only in this section]</p>
+        <p class="q">[Question in the source's original language, grounded only in this section]</p>
+        <p class="q-zh">[该问题的中文翻译]</p>
         <details class="answer">
-          <summary>查看答案</summary>
+          <summary>查看答案 / Show answer</summary>
           <div class="answer-body">
-            <p><span class="label">答案：</span>[answer]</p>
-            <p><span class="label">解析：</span>[short explanation pointing back to the passage]</p>
+            <p><span class="label">答案/Answer：</span>[answer, original language + 中文]</p>
+            <p><span class="label">解析/Explanation：</span>[short explanation pointing back to the passage, original language + 中文]</p>
           </div>
         </details>
       </li>
@@ -185,12 +194,13 @@ rhythm and the single-column flow.
     <h2 id="final-test">总测 / Final Test</h2>
     <ol>
       <li>
-        <p>[Comprehensive question spanning the whole source]</p>
+        <p class="q">[Comprehensive question, source's original language, spanning the whole source]</p>
+        <p class="q-zh">[该问题的中文翻译]</p>
         <details class="answer">
-          <summary>查看答案</summary>
+          <summary>查看答案 / Show answer</summary>
           <div class="answer-body">
-            <p><span class="label">答案：</span>[answer]</p>
-            <p><span class="label">解析：</span>[short explanation grounded in the source]</p>
+            <p><span class="label">答案/Answer：</span>[answer, original language + 中文]</p>
+            <p><span class="label">解析/Explanation：</span>[short explanation grounded in the source, original language + 中文]</p>
           </div>
         </details>
       </li>
@@ -208,5 +218,8 @@ Guidance:
   interpretation happens — keep it faithful.
 - Keep large portions of the original; don't reduce a section to one quoted line.
 - Use `.note` sparingly — only for terms or phrases that genuinely need a gloss.
+- Quizzes are bilingual like the passages: `.q` is the question in the source's original
+  language, `.q-zh` is its Chinese translation directly beneath, and answers/labels carry
+  both languages. Omit `.q-zh` only when the source is already Chinese.
 - Every quiz answer goes inside `<details>` so it stays collapsed by default.
 - Drop the `.toc` block for short, single-section sources.

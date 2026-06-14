@@ -18,8 +18,15 @@ Three pillars, in this rhythm, repeated section by section:
 2. **Chinese translation** (`.zh`) — a faithful translation sitting directly *below*
    each original passage (never in a second column). This is where interpretation
    lives; keep it accurate to the passage above it.
-3. **Quizzes** — short `节后小测` after each section and a `总测` at the end, every
-   answer hidden inside a `<details>` element so it stays collapsed until opened.
+3. **Quizzes** — short `节后小测 / Section Quiz` after each section and a
+   `总测 / Final Test` at the end, every answer hidden inside a `<details>` element so
+   it stays collapsed until opened. **Quizzes follow the same bilingual rhythm as the
+   passages**: each question appears in the source's original language with a faithful
+   Chinese translation directly beneath it (exactly as `.orig` → `.zh`), the answer and
+   explanation are given in both languages, and the structural labels are bilingual
+   (`查看答案 / Show answer`, `答案/Answer`, `解析/Explanation`). When the source is
+   already Chinese, the question needs no second line — same as a Chinese passage needs
+   no translation.
 
 Optional, used sparingly: `.note` glosses for individual terms or hard phrases that
 genuinely need explanation.
@@ -51,5 +58,10 @@ is the failure mode this contract exists to prevent.
 - Preserve source terminology. For statutes, cases, proper nouns, product/model/org
   names, keep the original term and add a common Chinese rendering only when it helps.
 - Quizzes must be answerable from the source alone — never test outside knowledge.
+- Quizzes are bilingual, never single-language. A question in only one language (or
+  bilingual answer content under Chinese-only labels like a bare `节后小测` / `查看答案`)
+  is a defect: pair the source-language question with a Chinese translation and use the
+  bilingual labels above. The lone exception is a source that is already Chinese, where
+  the question is simply Chinese.
 - If the source is thin, paywalled, or partly inaccessible, degrade honestly: keep the
   close-reading structure over whatever text you actually have, and say so. Don't pad.
