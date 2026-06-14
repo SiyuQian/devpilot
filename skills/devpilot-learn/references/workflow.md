@@ -5,16 +5,52 @@ producing the close-reading artifact.
 
 ## 1. Identify and fetch the source
 
+However the source arrives, capture its **verbatim** text into a working file
+`source.txt` in the output directory. You close-read from that file, and the coverage
+gate in step 5 checks your artifact against it — so the bundled fetch/extract helpers
+write the text you must quote in `.orig`.
+
 The user provides one of:
 
-- **URL** — use `WebFetch`. If the page is paywalled, mostly navigation, or too thin,
-  tell the user the source is weak and continue only with what is actually accessible.
-- **PDF** (`.pdf`) — use the `Read` tool with the file path. **Read the whole document**,
-  not just the first pages. You cannot close-read text you never loaded, so cover every
-  section before writing.
-- **Word doc** (`.docx`) — convert with `textutil -convert txt <file> -stdout` (macOS) or
-  `pandoc <file> -t plain` as fallback.
-- **Text / Markdown** (`.txt`, `.md`) or **pasted text** — read directly.
+- **URL** — fetch the page's **verbatim** text with this skill's bundled helper, **not**
+  with `WebFetch`. Run it by absolute path from the skill's base directory and save it:
+
+  ```
+  python3 <skill-dir>/scripts/fetch_source.py "<url>" > source.txt
+  ```
+
+  It writes the article's actual words to `source.txt` (this is the text your `.orig`
+  blocks must quote) and a one-line JSON diagnostic to stderr.
+
+  **Why not `WebFetch`:** `WebFetch` returns a model-generated *summary* of the page, not
+  its words — for long articles it drops or paraphrases almost everything, so any `.orig`
+  built on it is already compressed before you start. The helper exists to hand you the
+  real text instead.
+
+  Read the diagnostic and act on it:
+  - `"thin": false` → trust stdout as the source text and close-read it.
+  - `"thin": true`, a non-zero exit, or an `"error"` → extraction failed or the page was
+    too sparse (paywall, JS-only rendering, bot wall). Only then fall back to `WebFetch`
+    for whatever text is accessible, **and tag the artifact honestly**: add to the meta
+    block `本资料基于摘要式抓取，非逐字原文 / Based on a summarized fetch, not verbatim`.
+    Never present summarized text as if it were the verbatim original.
+- **PDF** (`.pdf`) — extract the **verbatim** text with the bundled layout-aware helper,
+  which reconstructs real paragraphs and marks section headings (`## heading`) so the
+  coverage gate can see your section structure:
+
+  ```
+  python3 <skill-dir>/scripts/extract_pdf.py "<file.pdf>" > source.txt
+  ```
+
+  It needs PyMuPDF (`python3 -m pip install --user pymupdf`). Read the JSON diagnostic on
+  stderr. If it exits non-zero (e.g. exit `3` = PyMuPDF missing) or reports `"thin": true`,
+  fall back to reading the PDF with the `Read` tool — **read the whole document**, every
+  section, and write that text to `source.txt` yourself. Either way you must end up with
+  the full verbatim text on disk before writing.
+- **Word doc** (`.docx`) — `textutil -convert txt <file> -stdout > source.txt` (macOS) or
+  `pandoc <file> -t plain -o source.txt` as fallback.
+- **Text / Markdown** (`.txt`, `.md`) or **pasted text** — copy it verbatim into
+  `source.txt`.
 
 For long sources, read in passes if needed, but do not start writing until you have seen
 the full source end to end.
@@ -68,23 +104,39 @@ sections (drop it for short single-section sources).
 
 ### Guard against over-compression
 
-The recurring failure mode is summarizing instead of close-reading. Before saving, sanity
--check: a reader should be able to follow the source's full argument from your `.orig`
-blocks alone, in order. If whole sections of the source are missing, or your `.orig`
-blocks are one-line snippets where the source had full paragraphs, you have summarized —
-go back and restore the original text. The artifact is normally **larger** than the source,
-not smaller.
+The recurring failure mode is summarizing instead of close-reading. A reader should be
+able to follow the source's full argument from your `.orig` blocks alone, in order. If
+whole sections of the source are missing, or your `.orig` blocks are one-line snippets
+where the source had full paragraphs, you have summarized — restore the original text. The
+artifact is normally **larger** than the source, not smaller. Step 5's coverage gate
+enforces this mechanically; passing it is required, not optional.
 
-## 5. Save and present
+## 5. Run the coverage gate, then save
 
-Save with the `Write` tool to the current working directory unless the user says otherwise.
+Before you save, **verify coverage mechanically** — don't rely on eyeballing it. Write
+the artifact to its intended path, then run the gate against `source.txt`:
+
+```
+python3 <skill-dir>/scripts/check_coverage.py source.txt <artifact.html>
+```
+
+It prints per-section coverage and lists any source paragraphs missing from your `.orig`
+blocks. **If it exits non-zero** (a section was dropped, or overall coverage is below
+threshold), restore the listed paragraphs as new `.orig` + `.zh` passages in the right
+section, then re-run until it passes. The gate already excludes references and
+figure/table dumps, so the paragraphs it names are real prose you skipped — put them back,
+don't argue with it.
+
+Then save with the `Write` tool to the current working directory unless the user says
+otherwise.
 
 Naming convention:
 
 - For files: `study-guide-[original-filename].html`
 - For URLs: `study-guide-[slugified-domain-or-title].html`
 
-Tell the user the saved file path.
+Tell the user the saved file path. (The `source.txt` working file can be left in place or
+removed; it is not the deliverable.)
 
 ## Edge cases
 
