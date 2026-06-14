@@ -81,6 +81,14 @@ Within each section, note:
 
 ## 4. Build the artifact
 
+**First decide whether to fan out.** Large sources don't fail the coverage gate, but
+generating the whole artifact in one pass bumps the model's per-response output limit:
+the agent gets terser toward the end and the run drags (a 12k-word source took ~37 min
+serially and only finished by switching to a fragile append loop). When `source.txt` is
+roughly **≥ 6,000 words or ≥ 25 sections** (check the extract diagnostic's `word_count`
+/ `sections`, or `grep -c '^## ' source.txt`), build it with the section-batch fan-out
+in **"Large sources"** below instead of one pass. Otherwise build it in one pass:
+
 Load `skeleton.md` and follow its layout. For each section, in source order:
 
 1. Reproduce the section's substantive paragraphs **verbatim** in `.orig` blocks. Keep
@@ -110,6 +118,53 @@ whole sections of the source are missing, or your `.orig` blocks are one-line sn
 where the source had full paragraphs, you have summarized — restore the original text. The
 artifact is normally **larger** than the source, not smaller. Step 5's coverage gate
 enforces this mechanically; passing it is required, not optional.
+
+### Large sources: fan out by section batch
+
+When step 4 routed you here, split the work so no single agent has to emit the whole
+artifact in one response. You stay the **orchestrator**: you own the shell and the final
+test, and you dispatch one subagent per batch to produce the section fragments verbatim.
+
+1. **Batch the source.** Run the bundled helper against `source.txt`:
+
+   ```
+   python3 <skill-dir>/scripts/batch_sections.py source.txt --max-words 2500 > batches.json
+   ```
+
+   It groups consecutive `## ` sections into ordered, word-budgeted batches (never
+   splitting or reordering a section) and prints JSON: `num_batches` and a `batches`
+   array, each with `index`, `headings`, `words`, and the verbatim `text` to reproduce.
+   (If `source.txt` has no `## ` headings — e.g. an unstructured page — segment it into
+   `## ` sections yourself first, per step 3, then re-run.)
+
+2. **Assign anchor ids.** Walk every section heading across all batches in order and give
+   it a stable id `sec-1`, `sec-2`, … You own these ids: the `目录` you build must link to
+   them, so each subagent must use the exact id you hand it for each of its headings.
+
+3. **Dispatch one subagent per batch, in parallel** (one message, multiple Agent calls —
+   wall-clock then tracks the slowest batch, not the sum). Give each subagent:
+   - this skill's `references/output-contract.md` and `references/skeleton.md` to read,
+   - **only its batch's `text`** (its verbatim slice — it must not see or invent other
+     sections), plus the `heading → sec-N` id map for its headings,
+   - instructions to emit **only the section fragments** for its headings, in order:
+     for each heading a `<h2 id="sec-N">…</h2>` followed by the `.passage`
+     (verbatim `.orig` → faithful `.zh`), sparse `.note` glosses, and a bilingual
+     `节后小测` — exactly as the one-pass per-section rules above require. **No**
+     `<head>`, `<h1>`, `.meta`, `.toc`, `总测`, or `<body>` wrapper — fragments only.
+   - a reminder to keep `.orig` blocks verbatim and large; it is reproducing, not
+     summarizing, and it has output budget to spare because it only owns a few sections.
+
+4. **Stitch.** Concatenate the returned fragments into `<main>` strictly in batch-index
+   then heading order — this preserves source order. Wrap them in the shell from
+   `skeleton.md`: `<head>`/`<style>`, `<h1>`, the `.meta` block, and a `.toc` linking to
+   every `sec-N`.
+
+5. **Write the final test yourself.** The `总测` spans the whole source, so build it from
+   `source.txt` (which you hold) — or dispatch one extra subagent given the full
+   `source.txt` for just the `总测`. Append it after the stitched sections.
+
+The coverage gate in step 5 still runs against the assembled file and is still required —
+fan-out changes how the artifact is produced, not the bar it must clear.
 
 ## 5. Run the coverage gate, then save
 
