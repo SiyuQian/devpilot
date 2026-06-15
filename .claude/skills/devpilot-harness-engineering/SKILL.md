@@ -1,6 +1,6 @@
 ---
 name: devpilot-harness-engineering
-description: Use when setting up a repository for autonomous coding agents, adding guardrails, context files, or automation so agents ship reliably without constant review. Triggers on "make this repo agent-friendly", "agents keep drifting", "set up AGENTS.md / skills / sub-agents", "harness engineering", architectural drift with agent-authored code, or retrofitting guardrails after output quality decayed.
+description: Use proactively when harness documentation needs updating — new module/package added, skill created or removed, CLI surface changed, exec plan completed, new convention established, or CLAUDE.md exceeds ~100 lines. Also use when asked to set up AGENTS.md/skills/sub-agents, fix agent drift, or retrofit guardrails.
 ---
 
 # Harness Engineering
