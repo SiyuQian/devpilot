@@ -1,0 +1,62 @@
+{
+  "skill_name": "learn",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Summarize this article for me: https://www.technologyreview.com/2025/01/08/1109188/whats-next-for-ai-in-2025/",
+      "expected_output": "A standalone self-contained HTML learning artifact, most likely a bilingual digest for this general article, with source metadata and a structured summary layout.",
+      "files": [],
+      "expectations": [
+        "Output includes at least one .html file",
+        "The HTML file is self-contained with no external CSS or JS dependencies",
+        "The HTML contains source metadata and a structured summary layout",
+        "The HTML uses either bilingual digest structure or another clearly defined learning-oriented structure chosen from the skill",
+        "The HTML contains at least one summary-oriented section and one supporting detail section",
+        "The HTML includes a source link back to the original URL",
+        "Any quizzes are bilingual: each question appears in the source's original language with a Chinese translation directly beneath it, and quiz labels are bilingual (e.g. 查看答案 / Show answer) rather than Chinese-only"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "帮我总结一下这篇文章 https://36kr.com/p/2089043818498049",
+      "expected_output": "A standalone self-contained HTML learning artifact in Chinese or bilingual form, with source metadata and a structured, readable summary suitable for learning from the article.",
+      "files": [],
+      "expectations": [
+        "Output includes at least one .html file",
+        "The HTML file is self-contained with no external CSS or JS dependencies",
+        "The HTML contains visible source metadata",
+        "The HTML contains structured summary content in Chinese or bilingual form",
+        "The HTML contains at least one section aimed at helping the user learn or review the source",
+        "The HTML includes a source link back to the original URL"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Can you summarize this PDF and give me the key takeaways? Output in English. File: /Users/siyu/Works/github.com/siyuqian/agent-skills/skills/article-digest/evals/test-files/sample.pdf",
+      "expected_output": "A standalone self-contained HTML learning artifact for the PDF, likely a digest for this prompt, with source metadata, structured summary content, and support details derived from the PDF.",
+      "files": ["/Users/siyu/Works/github.com/siyuqian/agent-skills/skills/article-digest/evals/test-files/sample.pdf"],
+      "expectations": [
+        "Output includes at least one .html file",
+        "The HTML file is self-contained with no external CSS or JS dependencies",
+        "The HTML contains source-aware metadata for the PDF",
+        "The HTML contains structured summary content",
+        "The HTML references the source PDF filename",
+        "Any quizzes are bilingual: each question appears in the source's original language with a Chinese translation directly beneath it, and quiz labels are bilingual (e.g. 查看答案 / Show answer) rather than Chinese-only"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "请把这份课程阅读整理成中文学习资料 HTML，按原文章节输出，每章先给原文摘要，再整理重点、术语和复习提示。File: /Users/siyu/Works/github.com/siyuqian/agent-skills/skills/article-digest/evals/test-files/sample.pdf",
+      "files": ["/Users/siyu/Works/github.com/siyuqian/agent-skills/skills/article-digest/evals/test-files/sample.pdf"],
+      "expected_output": "A standalone self-contained Chinese-first study-guide HTML file with source metadata, a table of contents or visible section hierarchy, chapter-by-chapter learning content, and explicit 原文摘要 blocks for the major sections of the source.",
+      "expectations": [
+        "Output includes at least one .html file",
+        "The HTML file is self-contained with no external CSS or JS dependencies",
+        "The HTML contains a Chinese-first study-guide layout rather than only a flat digest",
+        "The HTML contains visible source metadata",
+        "The HTML contains at least one 原文摘要 or Source Summary block tied to a source section",
+        "The HTML contains at least one study-oriented support block such as 重点, 术语, 法条/案例, or review questions"
+      ]
+    }
+  ]
+}

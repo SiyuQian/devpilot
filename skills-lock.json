@@ -1,6 +1,12 @@
 {
   "version": 1,
   "skills": {
+    "devpilot-learn": {
+      "source": "siyuqian/devpilot",
+      "sourceType": "github",
+      "skillPath": "skills/devpilot-learn/SKILL.md",
+      "computedHash": "8bb09cb90c1d1053aa2f1a1a26c381e4158279a02734b34ba8f88578bd360131"
+    },
     "devpilot-resolve-issues": {
       "source": "siyuqian/devpilot",
       "sourceType": "github",
