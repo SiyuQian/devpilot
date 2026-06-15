@@ -109,6 +109,17 @@
       ]
     },
     {
+      "name": "haiku-agent-self-evolution",
+      "description": "Use when the agent keeps making the same mistake across multiple PRs, when lint/test failures recur on the same rule, or when PR review comments reveal a missing guide or unenforced convention. Classifies failures as Guide Gaps or Sensor Gaps and proposes targeted patches to CLAUDE.md, skill references, and linter config.",
+      "files": [
+        "references/classification-tree.md",
+        "references/guardrails.md",
+        "references/mutation-rules.md",
+        "references/signal-types.md",
+        "SKILL.md"
+      ]
+    },
+    {
       "name": "devpilot-issue-triage",
       "description": "Use when the user wants to triage, classify, sort, or sweep open GitHub issues to decide what's worth working on. Sits between devpilot-scanning-repos (files issues) and devpilot-resolve-issues (executes fixes). Read-only against GitHub: drafts comments and labels into a local report but never posts.",
       "files": [
