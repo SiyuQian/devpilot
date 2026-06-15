@@ -1,6 +1,6 @@
 ---
 name: devpilot-harness-engineering
-description: Use proactively when harness documentation needs updating — new module/package added, skill created or removed, CLI surface changed, exec plan completed, new convention established, or CLAUDE.md exceeds ~100 lines. Also use when asked to set up AGENTS.md/skills/sub-agents, fix agent drift, or retrofit guardrails. Not for language style rules (→ devpilot-google-go-style) or PR review (→ devpilot-pr-review).
+description: Use proactively when harness documentation needs updating — new module/package added, skill created or removed, CLI surface changed, exec plan completed, new convention established, or CLAUDE.md exceeds ~100 lines. Also use when asked to set up AGENTS.md/skills/sub-agents, fix agent drift, or retrofit guardrails.
 ---
 
 # Harness Engineering
