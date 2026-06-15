@@ -1,6 +1,25 @@
 ---
 name: devpilot-harness-engineering
-description: Use when setting up a repository for autonomous coding agents, adding guardrails, context files, or automation so agents ship reliably without constant review. Triggers on "make this repo agent-friendly", "agents keep drifting", "set up AGENTS.md / skills / sub-agents", "harness engineering", architectural drift with agent-authored code, or retrofitting guardrails after output quality decayed.
+description: >
+  Use proactively when harness documentation needs updating, AND when setting up or repairing
+  an agent harness from scratch.
+
+  AUTO-INVOKE (proactive — do not wait to be asked) after any of these events:
+  - A new module, domain, or package is added to the codebase → update ARCHITECTURE.md
+  - A new skill is created, renamed, or removed → update skills/index.json and CLAUDE.md skill list
+  - A new CLI command or public API surface is added → update docs/cli-reference.md or equivalent
+  - An OpenSpec change or exec plan is completed → archive the plan and sync PLANS.md
+  - A convention or invariant is established that agents will need on every task → add to CLAUDE.md / AGENTS.md
+  - CLAUDE.md / AGENTS.md grows past ~100 lines → split out into a skill
+  - The task explicitly asks to "update docs", "keep harness in sync", or "update CLAUDE.md / ARCHITECTURE.md / PLANS.md"
+
+  EXPLICIT triggers (user-initiated):
+  - "make this repo agent-friendly", "harness engineering", "set up AGENTS.md / skills / sub-agents"
+  - "agents keep drifting", "output quality is decaying", "retrofitting guardrails"
+  - Architectural drift observed in agent-authored code
+
+  Do NOT use when: the user only needs language-specific style rules (→ devpilot-google-go-style),
+  PR review mechanics (→ devpilot-pr-review), or a one-off script task.
 ---
 
 # Harness Engineering
