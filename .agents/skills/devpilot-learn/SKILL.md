@@ -40,6 +40,7 @@ than the source, because it adds a translation and quizzes beneath text it has k
 | `references/skeleton.md` | When ready to emit the HTML — the single-column verbatim-original → translation → quiz layout. |
 | `scripts/fetch_source.py` | When the source is a URL — fetches the page's **verbatim** text. Use this instead of `WebFetch`, which returns a summary and silently compresses the source. |
 | `scripts/extract_pdf.py` | When the source is a PDF — layout-aware **verbatim** extraction into real paragraphs + section headings (needs PyMuPDF). |
+| `scripts/batch_sections.py` | When the source is large (≥ ~6k words or ≥ 25 sections) — groups it into ordered, word-budgeted batches so you can fan out one subagent per batch instead of emitting the whole artifact in one output-limited pass. |
 | `scripts/check_coverage.py` | Before saving — the mechanical coverage gate; verifies every source section survives in the `.orig` blocks and names what to restore. |
 
 ## How to use this skill
