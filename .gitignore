@@ -7,3 +7,7 @@ bin/
 
 # DevPilot
 .devpilot/logs/
+
+# Skill eval run outputs (skill-creator harness; evals/ is committed, workspaces are not)
+skills/*-workspace/
+.claude/skills/*-workspace/
