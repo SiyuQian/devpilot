@@ -113,6 +113,7 @@
       "description": "Use when the agent keeps making the same mistake across multiple PRs, when lint/test failures recur on the same rule, or when PR review comments reveal a missing guide or unenforced convention. Classifies failures as Guide Gaps or Sensor Gaps and proposes targeted patches to CLAUDE.md, skill references, and linter config.",
       "files": [
         "agents/context-collector.md",
+        "evals/evals.json",
         "references/classification-tree.md",
         "references/guardrails.md",
         "references/mutation-rules.md",

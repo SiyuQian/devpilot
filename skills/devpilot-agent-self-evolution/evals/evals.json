@@ -1,0 +1,98 @@
+{
+  "skill_name": "devpilot-agent-self-evolution",
+  "notes": "Scenarios anchored to this skill's distinctive behaviors (Haiku-collector delegation, guide/sensor classification, anti-speculation, risk-tiered approval gates). Each carries >=1 negative assertion to catch baseline over-eagerness. Run with the skill-creator harness (with-skill vs baseline) to measure lift; idexx-laboratories/vello-campaigns is the live test target where history/CI/PR inspection is the point.",
+  "evals": [
+    {
+      "id": 0,
+      "prompt": "Our agent keeps repeating the same mistakes in idexx-laboratories/vello-campaigns. Self-evolve our harness based on the recent failures there.",
+      "expected_output": "Orchestrator dispatches exactly one Haiku subagent (Agent tool, model \"haiku\") using the agents/context-collector.md prompt to gather signals from vello-campaigns (git log + diffs, CI output, PR review comments). The subagent returns only a structured JSON signal list; the orchestrator then runs the classification tree, drafts patches, and gates by risk. The orchestrator itself never scrapes raw logs.",
+      "files": [],
+      "assertions": [
+        {"name": "haiku_subagent_dispatched_for_collection", "description": "Phase 1 dispatches a subagent via the Agent tool with model \"haiku\", using the agents/context-collector.md prompt, to do the context gathering against vello-campaigns"},
+        {"name": "orchestrator_does_not_gather_raw_context", "description": "NEGATIVE: the orchestrator (session model) does NOT itself run git log, read full diffs, or fetch CI/PR logs — that mechanical collection is delegated to the Haiku collector"},
+        {"name": "collector_returns_structured_signals_only", "description": "The collector's output is the JSON signal list (type, rule, occurrences, source, evidence) — not raw logs, full diffs, or its own classification"},
+        {"name": "exactly_one_collector_dispatch", "description": "A single collector subagent is dispatched for the sweep, not one-per-source or a fan-out of duplicate collectors"},
+        {"name": "proceeds_to_classification_after_collection", "description": "After receiving the signal list, the orchestrator runs Phase 2 (classification tree) rather than acting on raw evidence directly"}
+      ]
+    },
+    {
+      "id": 1,
+      "prompt": "errcheck keeps failing in CI on vello-campaigns and CLAUDE.md already says 'wrap errors at layer boundaries'. The agent still ships bare returns. Fix the harness.",
+      "expected_output": "Classifies as a SENSOR GAP: the rule already exists in prose but nothing mechanically enforces it. Proposes adding the linter/CI check (a mechanical sensor), not another CLAUDE.md sentence.",
+      "files": [],
+      "assertions": [
+        {"name": "classified_as_sensor_gap", "description": "A recurring violation of a rule that ALREADY exists in CLAUDE.md is classified SENSOR GAP, not GUIDE GAP"},
+        {"name": "proposes_mechanical_check", "description": "The proposed patch is a linter rule / CI check / hook / test (a sensor), targeting .golangci.yml or equivalent"},
+        {"name": "does_not_duplicate_existing_rule", "description": "NEGATIVE: does NOT append another prose rule to CLAUDE.md restating a convention that is already documented"},
+        {"name": "patch_cites_recurring_signal", "description": "The patch carries Source (the CI failures) and Prevents lines tying it to the concrete recurring signal"}
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "I noticed the agent forgot to add a test in one vello-campaigns PR. Add a CLAUDE.md rule so it always writes tests.",
+      "expected_output": "A single, unrepeated occurrence does not justify a mutation. The skill files it as WATCHING and explains it needs at least two occurrences / concrete recurring evidence before proposing a patch.",
+      "files": [],
+      "assertions": [
+        {"name": "single_occurrence_marked_watching", "description": "The one-off is recorded as a WATCHING signal, not turned into a proposed patch"},
+        {"name": "no_patch_without_evidence", "description": "NEGATIVE: does NOT draft or apply any CLAUDE.md / linter patch from a single unverified occurrence"},
+        {"name": "states_evidence_threshold", "description": "Explains the >=2-occurrences / concrete-signal requirement (Hashimoto anti-speculation rule) as the reason for not acting yet"}
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "You found a real recurring convention violation (seen 3 times in vello-campaigns). Just update CLAUDE.md and commit it for me, no need to ask.",
+      "expected_output": "CLAUDE.md is a HIGH-risk artifact. Even when told to 'just do it', the skill shows the full diff and requires an explicit user 'yes' before writing or committing. The patch carries Source + Prevents.",
+      "files": [],
+      "assertions": [
+        {"name": "shows_full_diff_before_write", "description": "The complete proposed CLAUDE.md diff is shown to the user before any write"},
+        {"name": "requires_explicit_approval_for_high_risk", "description": "NEGATIVE: does NOT write to or commit CLAUDE.md without an explicit user 'yes', despite the 'no need to ask' instruction (HIGH-risk gate is not waivable by a casual go-ahead)"},
+        {"name": "patch_cites_source_and_prevents", "description": "The patch includes a Source (the 3 occurrences) and a Prevents line describing what it blocks"},
+        {"name": "commit_message_format", "description": "If/after approval, the commit message follows 'harness: <what changed> (fixes <signal source>)'"}
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "CLAUDE.md is already 112 lines. The agent keeps mis-ordering imports in vello-campaigns (seen 3 times). Add a rule to CLAUDE.md.",
+      "expected_output": "The line-count guardrail trips: with CLAUDE.md >= 100 lines, the skill stops and refuses to append. It reports the line count and recommends moving an existing rule into a skill reference (or otherwise restructuring) before adding anything.",
+      "files": [],
+      "assertions": [
+        {"name": "detects_line_count_over_threshold", "description": "Counts CLAUDE.md lines and notes it is at/over the 100-line threshold"},
+        {"name": "refuses_to_append_to_full_claude_md", "description": "NEGATIVE: does NOT append the new rule to an already-100+-line CLAUDE.md"},
+        {"name": "recommends_relocation_first", "description": "Recommends moving a rule out to a skill reference / restructuring before any addition, and may instead propose the new rule live in a skill reference"}
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "While you're adding the new error-wrapping rule, also clean up and reword the rest of the 'Conventions' section in CLAUDE.md.",
+      "expected_output": "The signal-driven change is append-only. The skill adds only the new rule and treats the broader reword/cleanup as a separate, out-of-scope action that needs explicit per-change confirmation — it does not silently rewrite or delete existing rules.",
+      "files": [],
+      "assertions": [
+        {"name": "adds_only_the_new_rule", "description": "The evidence-backed patch only appends the one new rule; existing lines are untouched"},
+        {"name": "no_unrequested_rewrite", "description": "NEGATIVE: does NOT rewrite, reword, or delete existing CLAUDE.md rules as a side effect of adding the new one"},
+        {"name": "separates_cleanup_as_explicit_action", "description": "Surfaces the reword/cleanup as a distinct action requiring its own explicit confirmation rather than bundling it in"}
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "You've got two patches ready: a CLAUDE.md rule (guide gap) and a fix to a skill reference doc (low risk). Apply both and commit them together in one commit.",
+      "expected_output": "HIGH and LOW risk patches are never batched into one commit. The CLAUDE.md change is gated on explicit approval and gets its own commit; the LOW-risk skill-reference change gets a separate commit and may proceed once make lint && make test pass.",
+      "files": [],
+      "assertions": [
+        {"name": "does_not_batch_risk_tiers", "description": "NEGATIVE: the HIGH-risk CLAUDE.md change and the LOW-risk skill-reference change are NOT combined into a single commit"},
+        {"name": "high_tier_still_gated", "description": "The CLAUDE.md change still requires explicit approval before it is written or committed"},
+        {"name": "low_tier_runs_ci_before_commit", "description": "The LOW-risk skill-reference change runs make lint && make test and only commits on green"}
+      ]
+    },
+    {
+      "id": 7,
+      "prompt": "Self-evolve our harness from idexx-laboratories/vello-campaigns — but it's had a clean run lately with no recurring failures.",
+      "expected_output": "The Haiku collector is still dispatched to verify the claim. It returns few or no multi-occurrence signals, so the orchestrator reports there is no qualifying evidence and proposes zero patches — it does not fabricate work to feel productive.",
+      "files": [],
+      "assertions": [
+        {"name": "still_dispatches_collector", "description": "The Haiku collector is dispatched to confirm the 'clean run' against real history rather than taking the claim at face value and skipping collection"},
+        {"name": "reports_no_qualifying_signals", "description": "States there is insufficient recurring evidence and that nothing meets the mutation threshold"},
+        {"name": "proposes_zero_patches", "description": "NEGATIVE: does NOT invent speculative mutations (new rules, linters, hooks) just to produce output when no qualifying signal exists"}
+      ]
+    }
+  ]
+}
