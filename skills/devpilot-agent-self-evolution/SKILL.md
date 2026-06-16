@@ -16,30 +16,36 @@ Grounded in Hashimoto's law: *every time the agent makes a mistake, engineer the
 - `references/mutation-rules.md` — risk matrix: which artifacts are safe to mutate and under what approval gates
 - `references/guardrails.md` — safeguards against runaway self-modification
 
+## Roles
+
+This skill runs as an **orchestrator + collector** split:
+
+- **Orchestrator** — the agent invoking this skill (the session model). Owns judgment: classification, patch drafting, risk gating, and all writes. Keeps its context window clean of raw logs.
+- **Collector** — a **Haiku subagent**, dispatched explicitly via the Agent tool with `model: "haiku"`. Owns the cheap, high-volume context gathering: shelling out to git, reading diffs, scraping CI output, fetching PR review comments. It returns a compact structured signal list — never raw dumps — so the orchestrator never burns its own context on log-scraping.
+
 ## Workflow
 
-### Phase 1 — Collect Signals
+### Phase 1 — Collect Signals (Haiku subagent)
 
-Accept any combination of inputs:
+The orchestrator MUST NOT gather raw context itself. Instead, dispatch **one Haiku subagent** via the Agent tool (`model: "haiku"`) to do all the mechanical collection and return only the distilled signal list.
 
-**Option A — User provides raw input:**
-- Paste lint output, test failure, or CI log directly
-- Provide a PR number (use GitHub MCP to fetch review comments)
+Dispatch the collector with this brief:
 
-**Option B — Agent scans recent history:**
-```bash
-git log --oneline -20
-```
-For each commit with a failure marker, read the relevant diff and CI output.
+> You are a context collector for the harness self-evolution orchestrator. Do NOT classify, judge, or propose fixes — only gather and structure evidence. Sources to sweep (use whatever the user supplied plus the repo):
+> - **User-provided input** — lint output, test failure, or CI log pasted into the task; a PR number (fetch its review comments via the GitHub MCP / `gh pr view --json reviews,comments`).
+> - **Recent history** — `git log --oneline -20`; for each commit with a failure marker, read the relevant diff and CI output.
+>
+> Return ONLY a JSON signal list, each entry:
+> ```
+> { type: "lint_failure" | "test_failure" | "review_comment" | "repeated_violation",
+>   rule: <string>,
+>   occurrences: <number>,
+>   source: "ci" | "pr_review" | "git_log",
+>   evidence: [<exact quote or line reference — verbatim, no paraphrase>] }
+> ```
+> Aggregate duplicate rules into one entry with a bumped `occurrences` count. Do not include commentary, raw logs, or full diffs — only the structured list.
 
-Parse all inputs into a structured signal list:
-```
-{ type: "lint_failure" | "test_failure" | "review_comment" | "repeated_violation",
-  rule: <string>,
-  occurrences: <number>,
-  source: "ci" | "pr_review" | "git_log",
-  evidence: [<exact quote or line reference>] }
-```
+The orchestrator receives this list as the subagent's final output and proceeds to Phase 2. Because the collector returns structured signals (not raw logs), the orchestrator's context stays focused on classification.
 
 Discard single-occurrence signals with no prior evidence — file them as "watching" but do not propose mutations yet.
 
