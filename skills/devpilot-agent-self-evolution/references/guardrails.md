@@ -99,7 +99,7 @@ Never commit a mutation that leaves CI broken.
 
 **Risk:** The skill modifies its own SKILL.md or references in a loop.
 
-**Check:** If the proposed mutation target is any file inside `skills/haiku-agent-self-evolution/` or `.claude/skills/haiku-agent-self-evolution/`:
+**Check:** If the proposed mutation target is any file inside `skills/devpilot-agent-self-evolution/` or `.claude/skills/devpilot-agent-self-evolution/`:
 > "This mutation targets the self-evolution skill itself. Self-referential changes require explicit user review. Show the proposed change and await confirmation."
 
 This is not a hard block — self-improvement of the skill is valid — but it requires explicit user oversight every time.

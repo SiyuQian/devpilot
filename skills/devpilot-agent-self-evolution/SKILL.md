@@ -1,9 +1,9 @@
 ---
-name: haiku-agent-self-evolution
+name: devpilot-agent-self-evolution
 description: Use when the agent keeps making the same mistake across multiple PRs, when lint/test failures recur on the same rule, when PR review comments reveal a missing guide or unenforced convention, or when you want to proactively evolve the harness. Triggers on "self-evolve", "optimize harness", "update harness docs", "agent keeps making the same mistake", "harness self evolution", "harness 自我进化", "优化 harness", "更新 harness 文档".
 ---
 
-# Haiku Agent Self-Evolution
+# Agent Self-Evolution
 
 Observe agent failures, classify them as Guide Gaps or Sensor Gaps, and propose targeted patches to harness artifacts (CLAUDE.md, skill references, linter config) so the same mistake cannot happen again.
 
