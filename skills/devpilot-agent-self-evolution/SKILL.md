@@ -11,6 +11,7 @@ Grounded in Hashimoto's law: *every time the agent makes a mistake, engineer the
 
 ## Reference Index
 
+- `agents/context-collector.md` — Phase 1 subagent prompt for the Haiku collector that gathers raw context and returns a structured signal list
 - `references/signal-types.md` — taxonomy of detectable failure signals with detection methods
 - `references/classification-tree.md` — decision algorithm: signal → Guide Gap vs Sensor Gap → target artifact
 - `references/mutation-rules.md` — risk matrix: which artifacts are safe to mutate and under what approval gates
@@ -27,23 +28,15 @@ This skill runs as an **orchestrator + collector** split:
 
 ### Phase 1 — Collect Signals (Haiku subagent)
 
-The orchestrator MUST NOT gather raw context itself. Instead, dispatch **one Haiku subagent** via the Agent tool (`model: "haiku"`) to do all the mechanical collection and return only the distilled signal list.
+The orchestrator MUST NOT gather raw context itself. Instead, dispatch **one Haiku subagent** via the Agent tool (`model: "haiku"`) using the prompt in `agents/context-collector.md`. That subagent does all the mechanical collection — user-provided logs, PR review comments, `git log` + diffs + CI output — and returns only a distilled JSON signal list:
 
-Dispatch the collector with this brief:
-
-> You are a context collector for the harness self-evolution orchestrator. Do NOT classify, judge, or propose fixes — only gather and structure evidence. Sources to sweep (use whatever the user supplied plus the repo):
-> - **User-provided input** — lint output, test failure, or CI log pasted into the task; a PR number (fetch its review comments via the GitHub MCP / `gh pr view --json reviews,comments`).
-> - **Recent history** — `git log --oneline -20`; for each commit with a failure marker, read the relevant diff and CI output.
->
-> Return ONLY a JSON signal list, each entry:
-> ```
-> { type: "lint_failure" | "test_failure" | "review_comment" | "repeated_violation",
->   rule: <string>,
->   occurrences: <number>,
->   source: "ci" | "pr_review" | "git_log",
->   evidence: [<exact quote or line reference — verbatim, no paraphrase>] }
-> ```
-> Aggregate duplicate rules into one entry with a bumped `occurrences` count. Do not include commentary, raw logs, or full diffs — only the structured list.
+```
+{ type: "lint_failure" | "test_failure" | "review_comment" | "repeated_violation",
+  rule: <string>,
+  occurrences: <number>,
+  source: "ci" | "pr_review" | "git_log",
+  evidence: [<exact quote or line reference — verbatim, no paraphrase>] }
+```
 
 The orchestrator receives this list as the subagent's final output and proceeds to Phase 2. Because the collector returns structured signals (not raw logs), the orchestrator's context stays focused on classification.
 
