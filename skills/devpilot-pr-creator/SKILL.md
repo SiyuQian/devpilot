@@ -43,6 +43,23 @@ git worktree list                  # confirms which worktree is which
 
 **Base branch.** Always diff and log against `origin/<default-branch>` (typically `origin/main`), not local `main`. In a worktree the local `main` ref may be stale or absent. Run `git fetch origin <default-branch>` before reading the diff so the comparison is honest.
 
+## Concurrency safety
+
+This skill can run **several times at once** — a parent skill (`devpilot-resolve-issues`, `devpilot-auto-feature`) may fan out parallel agents that each open a PR. Concurrent runs corrupt each other only when they **mutate shared repo state** in the **same working directory**: `git checkout -b`, staging, and committing all move the shared `HEAD`/index, so two runs racing in one checkout clobber each other's branch and staged files. Reads (`git fetch`, `git diff`, `git log`, `gh pr list`) are safe to overlap.
+
+Follow these rules whenever concurrency is possible (autonomous mode, or the user says runs overlap):
+
+- **Never mutate a working tree you do not own.** If you would need `git checkout`/`git checkout -b`/`git switch` to get onto a branch — i.e. you are on `main`/`master` in a shared checkout — do **not** switch in place. Create an isolated worktree instead and do all mutation there:
+  ```bash
+  git fetch origin <default-branch> --quiet
+  git worktree add -b <branch> ../pr-<branch> origin/<default-branch>   # isolated HEAD + index
+  cd ../pr-<branch>                                                     # then stage/commit/push here
+  ```
+  If you were **already handed a dedicated branch/worktree** (the common autonomous case — you are on a feature branch in a linked worktree), you already own it; stage and commit in place, no new worktree needed.
+- **Make the branch name collision-proof.** Deterministic naming (below) makes two parallel runs on similar diffs pick the *same* name and collide on push. In concurrent/autonomous mode, append a short unique suffix to the derived slug — the issue/task number when the parent provides one, otherwise the short HEAD SHA: `<type>/<slug>-<issue-or-sha>`. Never reuse `Date.now()`-style timestamps.
+- **Let push, not a pre-check, arbitrate the race.** Two runs may both pass `git ls-remote` and then both push the same ref. Rely on the non-fast-forward push *rejection* as the signal — if `git push -u origin HEAD` is rejected, re-fetch and inspect per [Hard Stops](#hard-stops); never force-push to resolve it.
+- **Clean up an isolated worktree** you created once the PR is open: `git worktree remove ../pr-<branch>` (skip if it still holds uncommitted work).
+
 ## Preflight Checks
 
 Before anything else, run these in parallel:
@@ -65,7 +82,7 @@ If `HEAD` is on `main`/`master`, **do not stop** — recover automatically:
 
 1. Confirm none of the local commits ahead of base have been pushed to `origin/main`. If `git log origin/main..HEAD` is empty AND the working tree is clean, there is nothing to PR — exit. If commits ahead of base have **already been pushed to origin/main**, stop: the PR window has passed (see Hard Stops).
 2. Pick a feature branch name (see [Branch naming](#branch-naming)).
-3. `git checkout -b <name>` — this carries any uncommitted changes onto the new branch and leaves `main` untouched.
+3. `git checkout -b <name>` — this carries any uncommitted changes onto the new branch and leaves `main` untouched. **Concurrency:** if other runs may share this checkout (autonomous/parallel mode), do NOT `git checkout -b` in place — isolate in a worktree per [Concurrency safety](#concurrency-safety).
 4. If there are uncommitted changes that belong in the PR, `git add` the relevant files (those whose paths overlap the intended PR scope) and commit with a conventional-commit message derived from the diff. Leave unrelated dirty files alone.
 5. Continue with the normal flow.
 
@@ -93,6 +110,7 @@ Derive deterministically — do not ask:
 1. If there are commits ahead of base, parse the latest commit subject. Take its conventional prefix (`feat`, `fix`, `chore`, `docs`, `refactor`) and slugify the rest: `<type>/<kebab-slug>` (max ~50 chars).
 2. Otherwise (only uncommitted changes), pick the prefix from the change shape — `fix:` for bug language in modified code, `docs:` for `.md`-only, `chore:` for config/tooling, else `feat:`. Slug from the most-changed top-level directory or filename stem.
 3. If a branch by that name already exists locally, append `-2`, `-3`, etc.
+4. **Concurrent/autonomous mode:** deterministic slugs collide when parallel runs share a base. Append a unique suffix — the parent-supplied issue/task number if available, else the short HEAD SHA (`git rev-parse --short HEAD`): `<type>/<slug>-<issue-or-sha>`. See [Concurrency safety](#concurrency-safety).
 
 **Branch already on origin, but no open PR** (common after a draft-escalation push from `devpilot-resolve-issues`):
 1. Only enter this branch if `git ls-remote --heads origin <branch>` returned a SHA. If it was empty, skip — `git push -u origin HEAD` will create the remote ref normally.
