@@ -95,6 +95,25 @@ devpilot github repo activity owner/repo --date 2026-06-01 --timezone Pacific/Au
 devpilot github repo activity owner/repo --since 24h --json
 ```
 
+## PR Review
+
+Deterministic halves of the `devpilot:pr-review` skill (spec:
+`devpilot-plugin/docs/pr-review-cli-spec.md`). Uses the GitHub CLI for auth.
+
+```bash
+devpilot pr-review preflight <pr-url> --out pre.json     # Eligibility gate + PR load + diff + comments + graph + dependency manifest
+devpilot pr-review preflight <pr-url> --out pre.json --diff-out d.patch --force
+devpilot pr-review post <pr-url> --findings f.json --body body.md --event COMMENT
+devpilot pr-review post <pr-url> --findings f.json --body body.md --event REQUEST_CHANGES --dry-run
+```
+
+`preflight` exits 0 even on a gate stop (the stop is the answer); 1 on
+infrastructure failure. `post` validates every anchor against the diff at the
+PR's current head before a single combined review POST: exit 0 posted, 1
+validation failure, 2 GitHub rejected the POST. Optional
+`--expect-head-sha <sha>` fails with `head_moved` if the head advanced since
+preflight.
+
 ## Generation
 
 ```bash

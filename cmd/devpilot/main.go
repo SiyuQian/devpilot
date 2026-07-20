@@ -10,6 +10,7 @@ import (
 	"github.com/siyuqian/devpilot/internal/gmail"
 	"github.com/siyuqian/devpilot/internal/graph"
 	"github.com/siyuqian/devpilot/internal/initcmd"
+	"github.com/siyuqian/devpilot/internal/prreview"
 	"github.com/siyuqian/devpilot/internal/slack"
 	"github.com/siyuqian/devpilot/internal/trello"
 	"github.com/spf13/cobra"
@@ -34,6 +35,7 @@ func main() {
 	generate.RegisterCommands(rootCmd)
 	graph.RegisterCommands(rootCmd)
 	github.RegisterCommands(rootCmd)
+	prreview.RegisterCommands(rootCmd)
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
