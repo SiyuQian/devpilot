@@ -43,6 +43,25 @@ git worktree list                  # confirms which worktree is which
 
 **Base branch.** Always diff and log against `origin/<default-branch>` (typically `origin/main`), not local `main`. In a worktree the local `main` ref may be stale or absent. Run `git fetch origin <default-branch>` before reading the diff so the comparison is honest.
 
+## Concurrency safety
+
+This skill can run **several times at once** — a parent skill (`devpilot-resolve-issues`, `devpilot-auto-feature`) may fan out parallel agents that each open a PR. Concurrent runs corrupt each other only when they **mutate shared repo state** in the **same working directory**: `git checkout -b`, staging, and committing all move the shared `HEAD`/index, so two runs racing in one checkout clobber each other's branch and staged files. Reads (`git fetch`, `git diff`, `git log`, `gh pr list`) are safe to overlap.
+
+Follow these rules whenever concurrency is possible (autonomous mode, or the user says runs overlap):
+
+- **Never mutate a working tree you do not own.** If you would need `git checkout`/`git checkout -b`/`git switch` to get onto a branch — i.e. you are on `main`/`master` in a shared checkout — do **not** switch in place. Create an isolated worktree **off the current commit** so the local commits you are about to PR come along, and drive it with `git -C` so the cwd the parent owns never moves:
+  ```bash
+  WORKTREE="$(git rev-parse --show-toplevel).worktrees/pr-$(printf '%s' "$BRANCH" | tr / -)"
+  git worktree add -b "$BRANCH" "$WORKTREE" HEAD   # HEAD, not origin/<default>: carries local commits
+  git -C "$WORKTREE" add <paths>                   # then commit and push with git -C — never cd
+  ```
+  Use the repo's established `<repo-root>.worktrees/` layout (see `devpilot-resolve-issues/references/worktree-management.md`), not a `../` sibling: a sibling path collides across repos and escapes `.gitignore`. Never `cd` into the worktree — line 42's "the parent owns cwd" and `devpilot-resolve-issues/references/subagent-spec.md` ("do not `cd` outside the worktree") both bind here.
+  A worktree **cannot** carry uncommitted changes — only `git checkout -b` in a checkout you own does that. If the shared checkout is dirty with files that belong in the PR, treat it as a [Hard Stop](#hard-stops) and return the situation to the parent (or user); do not create the worktree and silently leave the work behind.
+  If you were **already handed a dedicated branch/worktree** (the common autonomous case — you are on a feature branch in a linked worktree), you already own it; stage and commit in place, no new worktree needed, and leave its lifecycle to the controller that created it.
+- **Make the branch name collision-proof.** Deterministic naming (below) makes two parallel runs on similar diffs pick the *same* name and collide on push. In concurrent/autonomous mode, append a suffix that genuinely differs **per run**: the parent-supplied issue/task number, else the parent-supplied agent/task id, else a nonce (`openssl rand -hex 2`). Do **not** use the short HEAD SHA as the sole discriminator — parallel runs sharing one checkout all read the same `HEAD`, so it disambiguates nothing in exactly the case that needs it. This suffix replaces rule 3's `-2`/`-3` local-existence dedupe, which is itself racy. Timestamps are banned so a retry can reuse the name: record the suffix once at the start of the run and reuse it on every retry.
+- **Let push, not a pre-check, arbitrate the race.** Two runs may both pass `git ls-remote` and then both push the same ref. Rely on the non-fast-forward push *rejection* as the signal — if `git push -u origin HEAD` is rejected, re-fetch and inspect per [Hard Stops](#hard-stops); never force-push to resolve it.
+- **Clean up an isolated worktree** you created once the PR is open: `git worktree remove "$WORKTREE"` (skip if it still holds uncommitted work). Because you never `cd`'d into it, cwd is still valid — see `devpilot-resolve-issues/references/worktree-management.md` → Cleanup for the full ladder.
+
 ## Preflight Checks
 
 Before anything else, run these in parallel:
@@ -65,7 +84,7 @@ If `HEAD` is on `main`/`master`, **do not stop** — recover automatically:
 
 1. Confirm none of the local commits ahead of base have been pushed to `origin/main`. If `git log origin/main..HEAD` is empty AND the working tree is clean, there is nothing to PR — exit. If commits ahead of base have **already been pushed to origin/main**, stop: the PR window has passed (see Hard Stops).
 2. Pick a feature branch name (see [Branch naming](#branch-naming)).
-3. `git checkout -b <name>` — this carries any uncommitted changes onto the new branch and leaves `main` untouched.
+3. `git checkout -b <name>` — this carries any uncommitted changes onto the new branch and leaves `main` untouched. **Concurrency:** if other runs may share this checkout (autonomous/parallel mode), do NOT `git checkout -b` in place — isolate in a worktree per [Concurrency safety](#concurrency-safety).
 4. If there are uncommitted changes that belong in the PR, `git add` the relevant files (those whose paths overlap the intended PR scope) and commit with a conventional-commit message derived from the diff. Leave unrelated dirty files alone.
 5. Continue with the normal flow.
 
@@ -93,6 +112,7 @@ Derive deterministically — do not ask:
 1. If there are commits ahead of base, parse the latest commit subject. Take its conventional prefix (`feat`, `fix`, `chore`, `docs`, `refactor`) and slugify the rest: `<type>/<kebab-slug>` (max ~50 chars).
 2. Otherwise (only uncommitted changes), pick the prefix from the change shape — `fix:` for bug language in modified code, `docs:` for `.md`-only, `chore:` for config/tooling, else `feat:`. Slug from the most-changed top-level directory or filename stem.
 3. If a branch by that name already exists locally, append `-2`, `-3`, etc.
+4. **Concurrent/autonomous mode:** deterministic slugs collide when parallel runs share a base. Append a per-run suffix — the parent-supplied issue/task number, else the parent-supplied agent/task id, else a nonce (`openssl rand -hex 2`) — as `<type>/<slug>-<suffix>`, and use it *instead of* rule 3's `-2`/`-3` dedupe. The short HEAD SHA is not a valid sole suffix here: concurrent runs in one checkout share it. See [Concurrency safety](#concurrency-safety).
 
 **Branch already on origin, but no open PR** (common after a draft-escalation push from `devpilot-resolve-issues`):
 1. Only enter this branch if `git ls-remote --heads origin <branch>` returned a SHA. If it was empty, skip — `git push -u origin HEAD` will create the remote ref normally.
